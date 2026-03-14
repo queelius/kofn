@@ -1,0 +1,386 @@
+% Section 3: Likelihood and Identifiability
+\section{Likelihood and Identifiability}
+\label{sec:likelihood}
+
+The system CDF~\eqref{eq:system-cdf} is a product of terms
+$(1 - e^{-\lambda_j t})$, each of which is itself a difference of
+exponentials.  Expanding this product via inclusion-exclusion yields the
+analytical machinery that underlies all subsequent results: closed-form
+densities, tractable likelihoods, and an elementary identifiability proof.
+
+\subsection{Inclusion-exclusion expansion}
+\label{sec:ie-expansion}
+
+\begin{lemma}[Inclusion-exclusion expansion]\label{lem:ie}
+  For rates $\lambda_1, \ldots, \lambda_m > 0$ and $t > 0$,
+  \begin{equation}\label{eq:ie-expansion}
+    \prod_{j=1}^m \bigl(1 - e^{-\lambda_j t}\bigr)
+    = \sum_{S \subseteq \{1,\ldots,m\}} (-1)^{|S|}\, e^{-\lambda(S)\, t},
+  \end{equation}
+  where $\lambda(S) = \sum_{j \in S} \lambda_j$, with the convention
+  $\lambda(\varnothing) = 0$.
+\end{lemma}
+
+\begin{proof}
+By induction on~$m$; see \Cref{sec:appendix-proofs}.
+\end{proof}
+
+\begin{remark}\label{rmk:ie-terms}
+The expansion~\eqref{eq:ie-expansion} has $2^m$ terms.  Each term
+$e^{-\lambda(S) t}$ is an exponential with rate equal to a subset sum of
+the~$\lambda_j$.  When the rates are distinct and no two subset sums
+coincide---a generic condition---all $2^m$ terms have distinct rates.
+This structural richness is ultimately what makes parallel systems
+identifiable (\Cref{thm:identifiability}).
+\end{remark}
+
+\subsection{Density decomposition}
+\label{sec:density-decomp}
+
+\begin{lemma}[Density decomposition]\label{lem:density-decomp}
+  The system density decomposes as
+  \begin{equation}\label{eq:density-decomp}
+    f_T(t; \blam) = \sum_{j=1}^m w_j(t; \blam),
+  \end{equation}
+  where the \emph{component weight function}
+  \begin{equation}\label{eq:wj-def}
+    w_j(t; \blam) = \lambda_j e^{-\lambda_j t} \prod_{i \neq j}
+    \bigl(1 - e^{-\lambda_i t}\bigr)
+  \end{equation}
+  satisfies $w_j(t; \blam) \geq 0$ for all $t > 0$.  Moreover,
+  \begin{equation}\label{eq:posterior-J}
+    \frac{w_j(t; \blam)}{f_T(t; \blam)} = P(J = j \mid T = t; \blam),
+  \end{equation}
+  the conditional probability that component~$j$ was the last to fail,
+  given system failure at time~$t$.
+\end{lemma}
+
+\begin{proof}
+By direct computation of $P(T \in dt,\; J = j)$ via independence;
+see \Cref{sec:appendix-proofs}.
+\end{proof}
+
+\begin{remark}\label{rmk:series-contrast-density}
+The decomposition~\eqref{eq:density-decomp} is the parallel analogue
+of the series decomposition $f_T(t) = \sum_j h_j(t) S_T(t)$, where
+$h_j$ is the cause-specific hazard rate and $S_T$ is the system survival
+function.  In the series case, hazard rate additivity
+$h_T(t) = \sum_j h_j(t)$ provides a clean factorization.  The parallel
+case has no such additivity; instead, the density is a sum of products,
+with each term coupling one component's density to the CDFs of all
+others.
+\end{remark}
+
+\subsection{Closed-form integrals}
+\label{sec:closed-form-integral}
+
+The weight functions $w_j$ can be integrated in closed form---a property
+that is essential for handling censored and interval-censored system
+observations without numerical quadrature.
+
+\begin{lemma}[Closed-form integral of $w_j$]\label{lem:integral-wj}
+  For $0 \leq a < b \leq \infty$ and all $\lambda_j > 0$,
+  \begin{equation}\label{eq:integral-wj}
+    \int_a^b w_j(t; \blam)\, dt
+    = \lambda_j \sum_{S \subseteq \{1,\ldots,m\} \setminus \{j\}}
+      (-1)^{|S|} \cdot
+      \frac{e^{-r_S a} - e^{-r_S b}}{r_S},
+  \end{equation}
+  where $r_S = \lambda_j + \lambda(S) > 0$.
+  In particular, when $b = \infty$,
+  \begin{equation}\label{eq:integral-wj-tail}
+    \int_a^\infty w_j(t; \blam)\, dt
+    = \lambda_j \sum_{S \subseteq \{1,\ldots,m\} \setminus \{j\}}
+      (-1)^{|S|} \cdot \frac{e^{-r_S a}}{r_S},
+  \end{equation}
+  and when $a = 0$ and $b = \infty$,
+  \begin{equation}\label{eq:prob-last}
+    P(J = j; \blam) = \int_0^\infty w_j(t; \blam)\, dt
+    = \lambda_j \sum_{S \subseteq \{1,\ldots,m\} \setminus \{j\}}
+      \frac{(-1)^{|S|}}{r_S},
+  \end{equation}
+  the unconditional probability that component~$j$ is the last to fail.
+\end{lemma}
+
+\begin{proof}
+Apply \Cref{lem:ie} to the $m-1$ rates $\{\lambda_i : i \neq j\}$
+appearing in the product within $w_j$:
+\[
+  w_j(t; \blam)
+  = \lambda_j e^{-\lambda_j t} \prod_{i \neq j}
+    \bigl(1 - e^{-\lambda_i t}\bigr)
+  = \lambda_j \sum_{S \subseteq \{1,\ldots,m\} \setminus \{j\}}
+    (-1)^{|S|}\, e^{-({\lambda_j + \lambda(S)})\, t}
+  = \lambda_j \sum_S (-1)^{|S|}\, e^{-r_S t}.
+\]
+Since $r_S = \lambda_j + \lambda(S) \geq \lambda_j > 0$, each exponential
+term is integrable on $[a, b]$:
+\[
+  \int_a^b e^{-r_S t}\, dt = \frac{e^{-r_S a} - e^{-r_S b}}{r_S}.
+\]
+Linearity of integration gives~\eqref{eq:integral-wj}.  The special
+cases~\eqref{eq:integral-wj-tail} and~\eqref{eq:prob-last} follow by
+substituting $b = \infty$ (so $e^{-r_S b} = 0$) and then $a = 0$
+(so $e^{-r_S a} = 1$).
+\end{proof}
+
+\begin{remark}\label{rmk:integral-tractability}
+\Cref{lem:integral-wj} is the key computational enabler for censored
+likelihoods.  For right-censored system observations ($T > \tau$), the
+survival probability $1 - F_T(\tau) = \int_\tau^\infty f_T(t)\, dt =
+\sum_j \int_\tau^\infty w_j(t)\, dt$ reduces to a finite sum of
+exponentials via~\eqref{eq:integral-wj-tail}.  For interval-censored
+observations ($a < T \leq b$), the probability
+$F_T(b) - F_T(a) = \sum_j \int_a^b w_j(t)\, dt$ likewise has a closed
+form via~\eqref{eq:integral-wj}.  No numerical quadrature is needed.
+\end{remark}
+
+\subsection{Log-likelihood}
+\label{sec:log-likelihood}
+
+Suppose we observe $n$ system lifetimes, some exact and some censored.
+Let $\mathcal{E}$, $\mathcal{R}$, and $\mathcal{I}$ denote the index
+sets for exact, right-censored, and interval-censored observations,
+respectively.  The observed-data log-likelihood is
+\begin{equation}\label{eq:loglik}
+  \ell(\blam) = \sum_{i \in \mathcal{E}} \ln f_T(t_i; \blam)
+  + \sum_{i \in \mathcal{R}} \ln \bigl[1 - F_T(\tau_i; \blam)\bigr]
+  + \sum_{i \in \mathcal{I}} \ln \bigl[F_T(b_i; \blam) - F_T(a_i; \blam)\bigr],
+\end{equation}
+where each term has a closed-form expression via the inclusion-exclusion
+expansion:
+\begin{align}
+  f_T(t; \blam) &= \sum_{j=1}^m w_j(t; \blam)
+  = \sum_{j=1}^m \lambda_j \sum_{S \subseteq \{1,\ldots,m\} \setminus \{j\}}
+    (-1)^{|S|}\, e^{-r_S t},
+  \label{eq:fT-ie} \\
+  F_T(t; \blam) &= \sum_{S \subseteq \{1,\ldots,m\}}
+    (-1)^{|S|}\, e^{-\lambda(S)\, t},
+  \label{eq:FT-ie} \\
+  F_T(b) - F_T(a) &= \sum_{S \subseteq \{1,\ldots,m\}}
+    (-1)^{|S|}\, \bigl(e^{-\lambda(S)\, a} - e^{-\lambda(S)\, b}\bigr).
+  \label{eq:interval-ie}
+\end{align}
+
+\noindent
+Each evaluation of $\ell(\blam)$ requires $O(n \cdot m \cdot 2^{m-1})$
+arithmetic operations.  The exponential scaling in~$m$ limits direct
+application to systems with a moderate number of components
+(say $m \leq 15$--$20$), but this covers many practical redundant
+systems.
+
+When all $n$ observations are exact ($\mathcal{R} = \mathcal{I} = \varnothing$),
+the log-likelihood reduces to
+\begin{equation}\label{eq:loglik-exact}
+  \ell(\blam) = \sum_{i=1}^n \ln\!\Biggl[\,
+    \sum_{j=1}^m w_j(t_i; \blam) \Biggr],
+\end{equation}
+the Scheme~0 (black-box) log-likelihood.
+
+\subsection{Identifiability}
+\label{sec:identifiability}
+
+The central theoretical result of this paper is that the distribution of
+the parallel system lifetime uniquely determines all component rates.
+
+\begin{theorem}[Identifiability of exponential parallel systems]
+\label{thm:identifiability}
+  Let $T_1, \ldots, T_m$ be independent with $T_j \sim \mathrm{Exp}(\lambda_j)$,
+  $\lambda_j > 0$, and let $T = \max(T_1, \ldots, T_m)$.  The distribution
+  of~$T$ uniquely determines the multiset $\{\lambda_1, \ldots, \lambda_m\}$.
+
+  That is, if $\blam = (\lambda_1, \ldots, \lambda_m)$ and
+  $\boldsymbol{\mu} = (\mu_1, \ldots, \mu_m)$ both generate the same
+  distribution for $T = \max_j T_j$, then
+  $\{\lambda_1, \ldots, \lambda_m\} = \{\mu_1, \ldots, \mu_m\}$ as
+  multisets.
+\end{theorem}
+
+\begin{proof}
+The proof proceeds by induction on~$m$, extracting component rates one
+at a time from the tail behavior of the reversed hazard rate.
+
+\emph{Base case} ($m = 1$).
+The CDF $F_T(t) = 1 - e^{-\lambda_1 t}$ determines $\lambda_1$
+uniquely.
+
+\emph{Inductive step.}  Assume the result holds for all parallel systems
+with fewer than~$m$ components.  We show that $F_T$ determines the
+multiset of rates.
+
+\textbf{Step~1: Extract the smallest rate from the tail.}
+The reversed hazard rate of~$T$
+\citep[the natural hazard analogue for parallel systems;
+see][]{BlockSavitsSingh1998} is
+\[
+  r_T(t) = \frac{f_T(t)}{F_T(t)}
+  = \frac{d}{dt} \ln F_T(t)
+  = \sum_{j=1}^m \frac{\lambda_j e^{-\lambda_j t}}{1 - e^{-\lambda_j t}}.
+\]
+For large~$t$, each summand admits the geometric series expansion
+\[
+  \frac{\lambda_j e^{-\lambda_j t}}{1 - e^{-\lambda_j t}}
+  = \lambda_j e^{-\lambda_j t} \sum_{k=0}^\infty e^{-k\lambda_j t}
+  = \lambda_j e^{-\lambda_j t} + O\bigl(e^{-2\lambda_j t}\bigr).
+\]
+Let $\lambda_* = \min_j \lambda_j$ denote the smallest rate, with
+multiplicity~$\kappa$ (the number of components having rate~$\lambda_*$).
+As $t \to \infty$,
+\begin{equation}\label{eq:rhr-asymp}
+  r_T(t) = \kappa\, \lambda_*\, e^{-\lambda_* t}
+  + O\bigl(e^{-(\lambda_* + \delta) t}\bigr),
+\end{equation}
+where $\delta = \min\{\lambda_j - \lambda_* : \lambda_j > \lambda_*\} > 0$
+if $\kappa < m$, and the remainder is exponentially smaller than the
+leading term.  Since $r_T(t)$ is determined by $F_T$, we extract
+$\lambda_*$ as
+\[
+  \lambda_* = \lim_{t \to \infty} \frac{-\ln r_T(t)}{t},
+\]
+and the multiplicity as
+\[
+  \kappa = \frac{1}{\lambda_*} \lim_{t \to \infty} r_T(t)\, e^{\lambda_* t}.
+\]
+Both limits exist and are uniquely determined by~$F_T$.
+
+\textbf{Step~2: Factor out the identified components.}
+Define
+\[
+  G(t) = \frac{F_T(t)}{\bigl(1 - e^{-\lambda_* t}\bigr)^\kappa}.
+\]
+Since $F_T(t) = (1 - e^{-\lambda_* t})^\kappa \prod_{j:\, \lambda_j > \lambda_*}
+(1 - e^{-\lambda_j t})$, we have
+\[
+  G(t) = \prod_{j:\, \lambda_j > \lambda_*} \bigl(1 - e^{-\lambda_j t}\bigr),
+\]
+which is the CDF of $\max\{T_j : \lambda_j > \lambda_*\}$---a parallel system
+with $m - \kappa < m$ components.  Since $F_T$ and $\lambda_*$ are known, $G$
+is known.
+
+\textbf{Step~3: Apply the induction hypothesis.}
+By the induction hypothesis, the multiset $\{\lambda_j : \lambda_j > \lambda_*\}$
+is uniquely determined by~$G$.  Combined with the $\kappa$ copies of~$\lambda_*$
+identified in Step~1, the full multiset $\{\lambda_1, \ldots, \lambda_m\}$ is
+determined.
+\end{proof}
+
+\begin{remark}\label{rmk:identifiability-role-of-independence}
+The proof uses independence in two places: to factor $F_T$ as a product and
+to decompose the reversed hazard rate as a sum.  Under dependence (e.g.,
+copula models), identifiability may fail; see \citet{BasuGhosh1978} for
+conditions and counterexamples.
+\end{remark}
+
+\subsection{Identifiability duality}
+\label{sec:id-duality}
+
+\begin{corollary}[Identifiability duality]\label{cor:duality}
+  For independent exponential components with rates
+  $\lambda_1, \ldots, \lambda_m > 0$:
+  \begin{enumerate}
+    \item[\textup{(a)}] \textbf{Series} ($T = \min_j T_j$).  The distribution
+      of~$T$ determines only the total rate
+      $\Lambda = \sum_{j=1}^m \lambda_j$, not the individual rates.
+    \item[\textup{(b)}] \textbf{Parallel} ($T = \max_j T_j$).  The distribution
+      of~$T$ determines the individual rates
+      $\{\lambda_1, \ldots, \lambda_m\}$ without any additional information.
+  \end{enumerate}
+\end{corollary}
+
+\begin{proof}
+(a) The series survival function is
+$\bar{F}_T(t) = \prod_j e^{-\lambda_j t} = e^{-\Lambda t}$, which depends
+on~$\blam$ only through~$\Lambda$.  Any partition of~$\Lambda$ into~$m$
+positive parts yields an observationally equivalent model.  This is
+the classical non-identifiability result of \citet{Tsiatis1975}.
+
+(b) \Cref{thm:identifiability}.
+\end{proof}
+
+\begin{remark}\label{rmk:duality-information}
+The duality extends to the information-theoretic level.  The Fisher
+information from system data alone has rank~$1$ for series systems (all
+information concentrates in the direction $(1, \ldots, 1)$ in parameter
+space) and full rank for parallel systems (\Cref{thm:fisher}).  The
+incomplete-data problems are structural duals: series systems need
+cause-of-failure data to separate the~$\lambda_j$; parallel systems are
+already identified, but left-censoring of fast components degrades
+estimation efficiency.
+\end{remark}
+
+\subsection{Fisher information}
+\label{sec:fisher}
+
+\begin{theorem}[Positive definiteness of Fisher information]
+\label{thm:fisher}
+  Under Scheme~0, the Fisher information matrix for a single observation
+  of $T = \max(T_1, \ldots, T_m)$ with $T_j \sim \mathrm{Exp}(\lambda_j)$,
+  \begin{equation}\label{eq:fisher-def}
+    I(\blam)_{jk} = \E\!\left[
+      \frac{\partial \ln f_T(T; \blam)}{\partial \lambda_j}
+      \cdot \frac{\partial \ln f_T(T; \blam)}{\partial \lambda_k}
+    \right],
+  \end{equation}
+  is positive definite for all $\blam \in \Rset_{>0}^m$ with distinct
+  rates.
+\end{theorem}
+
+\begin{proof}
+The Fisher information matrix is the variance-covariance matrix of the
+score vector $\nabla_{\blam} \ln f_T(T; \blam)$, hence positive
+semidefinite.  We must show it is nonsingular.
+
+Suppose $I(\blam) v = 0$ for some $v \in \Rset^m$.  Then
+\[
+  \Var\!\bigl(v^\top \nabla_{\blam} \ln f_T(T; \blam)\bigr)
+  = v^\top I(\blam)\, v = 0,
+\]
+so $v^\top \nabla_{\blam} \ln f_T(T; \blam) = 0$ almost surely.  That
+is,
+\[
+  \sum_{j=1}^m v_j \frac{\partial}{\partial \lambda_j}
+  \ln f_T(t; \blam) = 0
+  \qquad \text{for almost every } t > 0,
+\]
+where the almost-sure statement under~$P$ transfers to
+Lebesgue-almost-every~$t$ because $f_T(t; \blam) > 0$ for all $t > 0$.
+This implies that the model is locally
+non-identifiable in the direction~$v$.
+
+By \Cref{thm:identifiability}, the model
+$\{f_T(\cdot; \blam) : \blam \in \Rset_{>0}^m\}$ is globally
+identifiable up to permutation of the rates.  For distinct rates, the
+permutation equivalence class $\{\blam_\sigma : \sigma \in S_m\}$ is a
+finite (hence discrete) set, through which no smooth curve can pass.
+Therefore there are no
+nontrivial directions of local non-identifiability, and $v = 0$.
+\end{proof}
+
+\begin{remark}\label{rmk:fisher-explicit}
+While the positive definiteness of $I(\blam)$ is guaranteed by
+\Cref{thm:fisher}, closed-form expressions for its entries require
+integration of products of score components against $f_T$---integrals
+that do not simplify to elementary form.  In practice, $I(\blam)$ is
+computed numerically, either by Monte Carlo integration or by the
+observed information matrix $-\nabla^2 \ell(\hat{\blam})$ evaluated
+at the MLE.
+
+The partial derivatives needed for the score are available analytically
+via the inclusion-exclusion expansion.  From~\eqref{eq:wj-def},
+differentiating $w_j$ with respect to $\lambda_j$ and $w_k$ ($k \neq j$)
+with respect to $\lambda_j$ gives:
+\begin{align}
+  \frac{\partial w_j(t)}{\partial \lambda_j}
+  &= \sum_{S \subseteq \{1,\ldots,m\} \setminus \{j\}}
+    (-1)^{|S|}\, \bigl(1 - \lambda_j t\bigr)\, e^{-r_S t},
+  \label{eq:dwj-dlamj} \\[6pt]
+  \frac{\partial w_k(t)}{\partial \lambda_j}
+  &= -\lambda_k \sum_{\substack{S \subseteq \{1,\ldots,m\} \setminus \{k\} \\
+    j \in S}} (-1)^{|S|}\, t\, e^{-({\lambda_k + \lambda(S)})\, t},
+  \qquad k \neq j.
+  \label{eq:dwk-dlamj}
+\end{align}
+These are finite sums of exponentials, so the score and Hessian of
+$\ell(\blam)$ are analytically tractable even though the expected Fisher
+information is not.
+\end{remark}

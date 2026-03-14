@@ -1,0 +1,523 @@
+% ===========================================================================
+% References -- Weibull Component Estimation from k-out-of-n System Data
+% ===========================================================================
+
+% ---------------------------------------------------------------------------
+% Foundational: Competing risks identifiability
+% ---------------------------------------------------------------------------
+
+@article{Tsiatis1975,
+  author  = {Tsiatis, Anastasios},
+  title   = {A Nonidentifiability Aspect of the Problem of Competing Risks},
+  journal = {Proceedings of the National Academy of Sciences},
+  year    = {1975},
+  volume  = {72},
+  number  = {1},
+  pages   = {20--22},
+  doi     = {10.1073/pnas.72.1.20}
+}
+
+@article{BasuGhosh1980,
+  author  = {Basu, A. P. and Ghosh, J. K.},
+  title   = {Identifiability of Distributions under Competing Risks and
+             Complementary Risks Models},
+  journal = {Communications in Statistics, Theory and Methods},
+  year    = {1980},
+  volume  = {A9},
+  number  = {14},
+  pages   = {1515--1525}
+}
+
+@article{Cox1959,
+  author  = {Cox, D. R.},
+  title   = {The Analysis of Exponentially Distributed Life-Times with Two
+             Types of Failure},
+  journal = {Journal of the Royal Statistical Society, Series B},
+  year    = {1959},
+  volume  = {21},
+  number  = {2},
+  pages   = {411--421}
+}
+
+% ---------------------------------------------------------------------------
+% Reliability foundations
+% ---------------------------------------------------------------------------
+
+@book{BarlowProschan1975,
+  author    = {Barlow, Richard E. and Proschan, Frank},
+  title     = {Statistical Theory of Reliability and Life Testing:
+               Probability Models},
+  publisher = {Holt, Rinehart and Winston},
+  address   = {New York},
+  year      = {1975}
+}
+
+@book{MeekerEscobar1998,
+  author    = {Meeker, William Q. and Escobar, Luis A.},
+  title     = {Statistical Methods for Reliability Data},
+  publisher = {Wiley},
+  address   = {New York},
+  year      = {1998}
+}
+
+@book{MeekerEscobarPascual2022,
+  author    = {Meeker, William Q. and Escobar, Luis A. and Pascual, Francis G.},
+  title     = {Statistical Methods for Reliability Data},
+  edition   = {2nd},
+  publisher = {Wiley},
+  year      = {2022}
+}
+
+@book{LawlessBook2003,
+  author    = {Lawless, Jerald F.},
+  title     = {Statistical Models and Methods for Lifetime Data},
+  edition   = {2nd},
+  publisher = {Wiley},
+  year      = {2003}
+}
+
+@book{KalbfleischPrentice1980,
+  author    = {Kalbfleisch, John D. and Prentice, Ross L.},
+  title     = {The Statistical Analysis of Failure Time Data},
+  publisher = {Wiley},
+  address   = {New York},
+  year      = {1980}
+}
+
+% ---------------------------------------------------------------------------
+% Weibull distribution and estimation
+% ---------------------------------------------------------------------------
+
+@article{Weibull1951,
+  author  = {Weibull, Waloddi},
+  title   = {A Statistical Distribution Function of Wide Applicability},
+  journal = {Journal of Applied Mechanics},
+  year    = {1951},
+  volume  = {18},
+  number  = {3},
+  pages   = {293--297}
+}
+
+@article{Cohen1965,
+  author  = {Cohen, A. Clifford},
+  title   = {Maximum Likelihood Estimation in the {Weibull} Distribution
+             Based on Complete and on Censored Samples},
+  journal = {Technometrics},
+  year    = {1965},
+  volume  = {7},
+  number  = {4},
+  pages   = {579--588}
+}
+
+@article{HarterMoore1965,
+  author  = {Harter, H. Leon and Moore, Albert H.},
+  title   = {Maximum-Likelihood Estimation of the Parameters of {Gamma}
+             and {Weibull} Populations from Complete and from Censored
+             Samples},
+  journal = {Technometrics},
+  year    = {1965},
+  volume  = {7},
+  number  = {4},
+  pages   = {639--643}
+}
+
+@article{SmithNaylor1987,
+  author  = {Smith, R. L. and Naylor, J. C.},
+  title   = {A Comparison of Maximum Likelihood and {Bayesian} Estimators
+             for the Three-Parameter {Weibull} Distribution},
+  journal = {Journal of the Royal Statistical Society, Series C},
+  year    = {1987},
+  volume  = {36},
+  number  = {3},
+  pages   = {358--369}
+}
+
+% ---------------------------------------------------------------------------
+% Masked cause of failure: Series systems
+% ---------------------------------------------------------------------------
+
+@article{Miyakawa1984,
+  author  = {Miyakawa, Masami},
+  title   = {Analysis of Incomplete Data in Competing Risks Model},
+  journal = {IEEE Transactions on Reliability},
+  year    = {1984},
+  volume  = {R-33},
+  number  = {4},
+  pages   = {293--296}
+}
+
+@article{LinUsherGuess1993,
+  author  = {Lin, Dennis K. J. and Usher, John S. and Guess, Frank M.},
+  title   = {Exact Maximum Likelihood Estimation Using Masked System Data},
+  journal = {IEEE Transactions on Reliability},
+  year    = {1993},
+  volume  = {42},
+  number  = {4},
+  pages   = {631--635}
+}
+
+@article{Usher1996,
+  author  = {Usher, John S.},
+  title   = {{Weibull} Component Reliability-Prediction in the Presence
+             of Masked Data},
+  journal = {IEEE Transactions on Reliability},
+  year    = {1996},
+  volume  = {45},
+  number  = {2},
+  pages   = {229--232}
+}
+
+@article{KunduBasu2000,
+  author  = {Kundu, Debasis and Basu, Sanjib},
+  title   = {Analysis of Incomplete Data in Presence of Competing Risks},
+  journal = {Journal of Statistical Planning and Inference},
+  year    = {2000},
+  volume  = {87},
+  pages   = {221--239}
+}
+
+% ---------------------------------------------------------------------------
+% Parallel / complementary risks estimation
+% ---------------------------------------------------------------------------
+
+@article{SarhanElBassiouny2003,
+  author  = {Sarhan, Ammar M. and El-Bassiouny, Ahmed H.},
+  title   = {Estimation of Components Reliability in a Parallel System Using
+             Masked System Life Data},
+  journal = {Applied Mathematics and Computation},
+  year    = {2003},
+  volume  = {138},
+  number  = {1},
+  pages   = {61--75}
+}
+
+@article{BheringPereiraPolpo2014,
+  author  = {Bhering, F. L. and Pereira, C. A. de B. and Polpo, A.},
+  title   = {Reliability Estimators for the Components of Series and
+             Parallel Systems: {The} {Weibull} Model},
+  journal = {Applied Mathematics},
+  year    = {2014},
+  volume  = {5},
+  number  = {10},
+  pages   = {1633--1640}
+}
+
+@article{LiuShiZhangBai2017,
+  author  = {Liu, Bing and Shi, Yimin and Zhang, Fode and Bai, Xuchao},
+  title   = {Reliability Nonparametric {Bayesian} Estimation for the Masked
+             Data of Parallel Systems in Step-Stress Accelerated Life Tests},
+  journal = {Journal of Computational and Applied Mathematics},
+  year    = {2017},
+  volume  = {311},
+  pages   = {375--386}
+}
+
+% ---------------------------------------------------------------------------
+% System signatures and component estimation
+% ---------------------------------------------------------------------------
+
+@book{Samaniego2007,
+  author    = {Samaniego, Francisco J.},
+  title     = {System Signatures and their Applications in Engineering
+               Reliability},
+  publisher = {Springer},
+  year      = {2007}
+}
+
+@article{BhattacharyaSamaniego2010,
+  author  = {Bhattacharya, Debasis and Samaniego, Francisco J.},
+  title   = {Estimating Component Characteristics from System Failure-Time
+             Data},
+  journal = {Naval Research Logistics},
+  year    = {2010},
+  volume  = {57},
+  number  = {4},
+  pages   = {380--389}
+}
+
+@article{NgNavarroBalakrishnan2017,
+  author  = {Ng, H. K. T. and Navarro, J. and Balakrishnan, N.},
+  title   = {A Stochastic Expectation-Maximization Algorithm for the
+             Analysis of System Lifetime Data with Known Signature},
+  journal = {Computational Statistics},
+  year    = {2017},
+  volume  = {32},
+  number  = {2},
+  pages   = {609--638}
+}
+
+@article{YangNgBalakrishnan2019,
+  author  = {Yang, Y. and Ng, H. K. T. and Balakrishnan, N.},
+  title   = {Expectation-Maximization Algorithm for System-Based Lifetime
+             Data with Unknown System Structure},
+  journal = {{AStA} Advances in Statistical Analysis},
+  year    = {2019},
+  volume  = {103},
+  number  = {1},
+  pages   = {69--98}
+}
+
+% ---------------------------------------------------------------------------
+% Coherent systems and censoring representation
+% ---------------------------------------------------------------------------
+
+@article{CramerNavarro2015,
+  author  = {Cramer, Erhard and Navarro, Jorge},
+  title   = {Progressive Type-{II} Censoring and Coherent Systems},
+  journal = {Naval Research Logistics},
+  year    = {2015},
+  volume  = {62},
+  number  = {6},
+  pages   = {512--530}
+}
+
+@article{Cramer2023,
+  author  = {Cramer, Erhard},
+  title   = {Ordered and Censored Lifetime Data in Reliability: An
+             Illustrative Review},
+  journal = {WIREs Computational Statistics},
+  year    = {2023},
+  volume  = {15},
+  number  = {2},
+  pages   = {e1571}
+}
+
+@article{Nowik1990,
+  author  = {Nowik, Shmuel},
+  title   = {Identifiability Problems in Coherent Systems},
+  journal = {Journal of Applied Probability},
+  year    = {1990},
+  volume  = {27},
+  pages   = {862--872}
+}
+
+% ---------------------------------------------------------------------------
+% EM algorithm
+% ---------------------------------------------------------------------------
+
+@article{DempsterLairdRubin1977,
+  author  = {Dempster, A. P. and Laird, N. M. and Rubin, D. B.},
+  title   = {Maximum Likelihood from Incomplete Data via the {EM} Algorithm},
+  journal = {Journal of the Royal Statistical Society, Series B},
+  year    = {1977},
+  volume  = {39},
+  number  = {1},
+  pages   = {1--38}
+}
+
+@book{McLachlanKrishnan2008,
+  author    = {McLachlan, Geoffrey J. and Krishnan, Thriyambakam},
+  title     = {The {EM} Algorithm and Extensions},
+  edition   = {2nd},
+  publisher = {Wiley},
+  year      = {2008}
+}
+
+@article{Wu1983,
+  author  = {Wu, C. F. Jeff},
+  title   = {On the Convergence Properties of the {EM} Algorithm},
+  journal = {Annals of Statistics},
+  year    = {1983},
+  volume  = {11},
+  number  = {1},
+  pages   = {95--103}
+}
+
+@article{Meng1994,
+  author  = {Meng, Xiao-Li and Rubin, Donald B.},
+  title   = {On the Global and Componentwise Rates of Convergence of the
+             {EM} Algorithm},
+  journal = {Linear Algebra and Its Applications},
+  year    = {1994},
+  volume  = {199},
+  pages   = {413--425}
+}
+
+@article{BalakrishnanLing2012,
+  author  = {Balakrishnan, Narayanaswamy and Ling, Man Ho},
+  title   = {{EM} Algorithm for One-Shot Device Testing under the
+             Exponential Distribution},
+  journal = {Computational Statistics and Data Analysis},
+  year    = {2012},
+  volume  = {56},
+  number  = {3},
+  pages   = {502--509}
+}
+
+% ---------------------------------------------------------------------------
+% Interval censoring and inspection models
+% ---------------------------------------------------------------------------
+
+@book{Sun2006,
+  author    = {Sun, Jianguo},
+  title     = {The Statistical Analysis of Interval-Censored Failure
+               Time Data},
+  publisher = {Springer},
+  address   = {New York},
+  year      = {2006}
+}
+
+@article{Turnbull1976,
+  author  = {Turnbull, Bruce W.},
+  title   = {The Empirical Distribution Function with Arbitrary Grouped,
+             Censored and Truncated Data},
+  journal = {Journal of the Royal Statistical Society, Series B},
+  year    = {1976},
+  volume  = {38},
+  number  = {3},
+  pages   = {290--295}
+}
+
+@article{TaghipourBanjevic2011,
+  author  = {Taghipour, Sharareh and Banjevic, Dragan},
+  title   = {Trend Analysis of the Power Law Process Using
+             {Expectation--Maximization} Algorithm for Data Censored by
+             Inspection Intervals},
+  journal = {Reliability Engineering and System Safety},
+  year    = {2011},
+  volume  = {96},
+  number  = {10},
+  pages   = {1340--1348}
+}
+
+% ---------------------------------------------------------------------------
+% k-out-of-n systems
+% ---------------------------------------------------------------------------
+
+@article{Park2013,
+  author  = {Park, Chanseok},
+  title   = {Parameter Estimation from Load-Sharing System Data Using the
+             Expectation-Maximization Algorithm},
+  journal = {IIE Transactions},
+  year    = {2013},
+  volume  = {45},
+  number  = {2},
+  pages   = {147--163}
+}
+
+@article{DembinskaJasinski2021,
+  author  = {Dembi{\'n}ska, Anna and Jasi{\'n}ski, Krzysztof},
+  title   = {Maximum Likelihood Estimators Based on Discrete Component
+             Lifetimes of a $k$-out-of-$n$ System},
+  journal = {TEST},
+  year    = {2021},
+  volume  = {30},
+  number  = {2},
+  pages   = {407--428}
+}
+
+@article{Jasinski2024,
+  author  = {Jasi{\'n}ski, Krzysztof},
+  title   = {Maximum Likelihood Inference About Parameters of Geometric
+             Lifetimes of Heterogeneous Components from Data Collected
+             till Failure of a $k$-out-of-$n$:{G} System},
+  journal = {Journal of Computational and Applied Mathematics},
+  year    = {2024},
+  volume  = {451},
+  pages   = {116192}
+}
+
+% ---------------------------------------------------------------------------
+% Reversed hazard rate
+% ---------------------------------------------------------------------------
+
+@article{BlockSavitsSingh1998,
+  author  = {Block, Henry W. and Savits, Thomas H. and Singh, Harshinder},
+  title   = {The Reversed Hazard Rate Function},
+  journal = {Probability in the Engineering and Informational Sciences},
+  year    = {1998},
+  volume  = {12},
+  number  = {1},
+  pages   = {69--90}
+}
+
+% ---------------------------------------------------------------------------
+% Numerical optimization
+% ---------------------------------------------------------------------------
+
+@article{ByrdLuNocedal1995,
+  author  = {Byrd, Richard H. and Lu, Peihuang and Nocedal, Jorge and
+             Zhu, Ciyou},
+  title   = {A Limited Memory Algorithm for Bound Constrained Optimization},
+  journal = {SIAM Journal on Scientific Computing},
+  year    = {1995},
+  volume  = {16},
+  number  = {5},
+  pages   = {1190--1208}
+}
+
+@article{NelderMead1965,
+  author  = {Nelder, J. A. and Mead, R.},
+  title   = {A Simplex Method for Function Minimization},
+  journal = {The Computer Journal},
+  year    = {1965},
+  volume  = {7},
+  number  = {4},
+  pages   = {308--313}
+}
+
+% ---------------------------------------------------------------------------
+% Recent work on system data
+% ---------------------------------------------------------------------------
+
+@article{QuNgMoon2024a,
+  author  = {Qu, Jingjing and Ng, Hon Keung Tony and Moon, Chul},
+  title   = {Empirical Likelihood Ratio Tests for Homogeneity of Component
+             Lifetime Distributions Based on System Lifetime Data},
+  journal = {Computational Statistics},
+  year    = {2024},
+  volume  = {39},
+  pages   = {3007--3029}
+}
+
+@article{BiswasGangulyMitra2025,
+  author  = {Biswas, Atanu and Ganguly, Apratim and Mitra, Maitreyee},
+  title   = {Reliability Analysis of Load-Sharing Systems Using a Flexible
+             Model With Piecewise Linear Functions},
+  journal = {Applied Stochastic Models in Business and Industry},
+  year    = {2025}
+}
+
+% ---------------------------------------------------------------------------
+% Towell companion paper
+% ---------------------------------------------------------------------------
+
+@unpublished{Towell2026,
+  author = {Towell, Alexander},
+  title  = {Exponential Parallel System Estimation via the Censoring
+            Equivalence},
+  year   = {2026},
+  note   = {Manuscript in preparation}
+}
+
+% ---------------------------------------------------------------------------
+% Proschan air conditioning data
+% ---------------------------------------------------------------------------
+
+@article{Proschan1963,
+  author  = {Proschan, Frank},
+  title   = {Theoretical Explanation of Observed Decreasing Failure Rate},
+  journal = {Technometrics},
+  year    = {1963},
+  volume  = {5},
+  number  = {3},
+  pages   = {375--383}
+}
+
+% ---------------------------------------------------------------------------
+% Optimal experimental design
+% ---------------------------------------------------------------------------
+
+@book{AtkinsonDonev1992,
+  author    = {Atkinson, A. C. and Donev, A. N.},
+  title     = {Optimum Experimental Designs},
+  publisher = {Oxford University Press},
+  year      = {1992}
+}
+
+@book{Pukelsheim2006,
+  author    = {Pukelsheim, Friedrich},
+  title     = {Optimal Design of Experiments},
+  publisher = {Society for Industrial and Applied Mathematics},
+  year      = {2006}
+}

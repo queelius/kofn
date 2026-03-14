@@ -1,0 +1,47 @@
+% Appendix: Deferred Proofs
+\appendix
+\section{Deferred Proofs}
+\label{sec:appendix-proofs}
+
+\begin{proof}[Proof of \Cref{lem:ie}]
+By induction on~$m$.
+
+\emph{Base case} ($m = 0$).  The empty product is~$1$.  The only subset of
+the empty set is $S = \varnothing$, contributing $(-1)^0 e^0 = 1$.
+
+\emph{Inductive step.}  Assume the identity holds for $m-1$ factors.
+Then
+\begin{align*}
+  \prod_{j=1}^m \bigl(1 - e^{-\lambda_j t}\bigr)
+  &= \bigl(1 - e^{-\lambda_m t}\bigr)
+     \prod_{j=1}^{m-1} \bigl(1 - e^{-\lambda_j t}\bigr) \\
+  &= \bigl(1 - e^{-\lambda_m t}\bigr)
+     \sum_{S \subseteq \{1,\ldots,m-1\}} (-1)^{|S|}\, e^{-\lambda(S)\, t}
+     \qquad\text{[by the induction hypothesis]} \\
+  &= \sum_{S \subseteq \{1,\ldots,m-1\}} (-1)^{|S|}\, e^{-\lambda(S)\, t}
+     \;-\; \sum_{S \subseteq \{1,\ldots,m-1\}} (-1)^{|S|}\,
+            e^{-(\lambda(S) + \lambda_m)\, t}.
+\end{align*}
+The first sum ranges over subsets of $\{1,\ldots,m\}$ not containing~$m$.
+In the second sum, writing $S' = S \cup \{m\}$ gives
+$(-1)^{|S|} = (-1)^{|S'|-1} = -(-1)^{|S'|}$, so the leading negative
+sign cancels:
+\[
+  = \sum_{S' \subseteq \{1,\ldots,m\}} (-1)^{|S'|}\, e^{-\lambda(S')\, t}.
+  \qedhere
+\]
+\end{proof}
+
+\begin{proof}[Proof of \Cref{lem:density-decomp}]
+Since $T = \max(T_1, \ldots, T_m)$ and the $T_j$ are independent and
+continuous, ties have probability zero, and exactly one component achieves
+the maximum.  The joint event $\{T \in dt,\; J = j\}$ requires
+$T_j \in dt$ and $T_i < t$ for all $i \neq j$.  By independence,
+\[
+  P(T \in dt,\; J = j) = f_j(t) \prod_{i \neq j} F_i(t)\, dt
+  = w_j(t; \blam)\, dt.
+\]
+Summing over $j = 1, \ldots, m$ gives the marginal density
+$f_T(t; \blam) = \sum_j w_j(t; \blam)$, and dividing yields the
+conditional probability~\eqref{eq:posterior-J}.
+\end{proof}

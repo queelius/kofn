@@ -1,0 +1,189 @@
+% Section 2: Model and Censoring Equivalence
+\section{Model and Censoring Equivalence}
+\label{sec:model}
+
+\subsection{Model definition}
+\label{sec:model-def}
+
+Consider a parallel system of $m$ independent components with lifetimes
+$T_1, \ldots, T_m$, where each component $j$ has an exponential distribution
+with rate $\lambda_j > 0$:
+\begin{equation}\label{eq:component-dist}
+  T_j \sim \mathrm{Exp}(\lambda_j), \qquad
+  F_j(t) = 1 - e^{-\lambda_j t}, \qquad
+  f_j(t) = \lambda_j e^{-\lambda_j t}, \qquad t > 0.
+\end{equation}
+The system functions as long as at least one component survives, so the
+system lifetime is
+\begin{equation}\label{eq:system-lifetime}
+  T = \max(T_1, \ldots, T_m).
+\end{equation}
+The system CDF and density are
+\begin{align}
+  F_T(t) &= \prod_{j=1}^m F_j(t) = \prod_{j=1}^m \bigl(1 - e^{-\lambda_j t}\bigr),
+  \label{eq:system-cdf} \\
+  f_T(t) &= \frac{d}{dt} F_T(t) = \sum_{j=1}^m f_j(t) \prod_{i \neq j} F_i(t),
+  \label{eq:system-density}
+\end{align}
+the latter following from the product rule.  We write
+$\blam = (\lambda_1, \ldots, \lambda_m) \in \Rset_{>0}^m$ for the parameter
+vector.
+
+Under \emph{Scheme~0} (black-box observation), we observe $n$ independent
+copies $T^{(1)}, \ldots, T^{(n)}$ of the system lifetime~$T$.  No
+component-level information is available: the observer sees only when the
+system fails, not which components failed or in what order.  This is the
+minimal observation scheme and the focus of the present paper.  More
+informative schemes---periodic inspection, partial monitoring, continuous
+component monitoring---are discussed briefly in \Cref{sec:discussion}.
+
+\subsection{What system data reveals about components}
+\label{sec:what-data-reveals}
+
+When a system failure is observed at time $T = t$, the following facts
+are logically entailed by the parallel structure~\eqref{eq:system-lifetime}:
+
+\begin{enumerate}
+  \item[(i)] \emph{All components have failed}: $T_j \leq t$ for every
+    $j = 1, \ldots, m$.  Unlike the series system, where surviving
+    components remain operational at system failure, the parallel system
+    fails only after the last component expires.
+
+  \item[(ii)] \emph{Exactly one component failed at time~$t$}: since the
+    $T_j$ are independent and continuous, the probability of ties is zero,
+    so almost surely there exists a unique index
+    $J = \argmax_{j} T_j$ with $T_J = t$.
+
+  \item[(iii)] \emph{The identity~$J$ is unobserved}: the system-level
+    datum~$T = t$ does not reveal which component was the last to fail.
+\end{enumerate}
+
+\noindent
+Each observation of $T$ carries the value of one component
+lifetime exactly---but we do not know which one---and constrains all other
+component lifetimes to lie below~$t$.  This structure is formalized in the
+next subsection.
+
+\subsection{The censoring equivalence}
+\label{sec:censoring-equiv}
+
+The following proposition recasts the incomplete-data structure of a parallel
+system observation in the language of censoring.
+
+\begin{proposition}[Censoring equivalence]\label{prop:censoring-equiv}
+  The likelihood function of $\blam$ based on the system observation
+  $T = \max(T_1, \ldots, T_m)$ is identical to the likelihood arising
+  from the following component-level censoring scheme:
+  \begin{enumerate}
+    \item[\textup{(a)}] One component---the last to fail,
+      $J = \argmax_j T_j$---is observed exactly: $T_J = T$.
+    \item[\textup{(b)}] All other components are left-censored at~$T$: for
+      $j \neq J$, we know only that $T_j < T$.
+    \item[\textup{(c)}] The identity~$J$ is latent (unobserved).
+  \end{enumerate}
+\end{proposition}
+
+\begin{proof}
+Since $T = \max_j T_j$ and the component lifetimes are independent and
+continuous, exactly one component satisfies $T_j = T$ almost surely; call
+it~$J$.  For every other component, $T_j < T_J = T$.  The system-level
+observation $T$ therefore carries precisely the following information:
+\begin{itemize}
+  \item the event $\{T_J = T\}$: one exact component observation;
+  \item the events $\{T_j < T\}$ for all $j \neq J$: $m-1$ left-censored
+    component observations at the common censoring time~$T$;
+  \item the identity~$J$ is not observed.
+\end{itemize}
+No additional information is contained in the system observation $T = t$
+beyond these three items, since $T = \max_j T_j$ is a deterministic function
+of $(T_1, \ldots, T_m)$.  The complete data $(T_1, \ldots, T_m, J)$ augments
+the observed data~$T$ with the latent identity and the left-censored lifetimes,
+yielding the incomplete-data structure described in~(a)--(c).
+\end{proof}
+
+\Cref{prop:censoring-equiv} provides the conceptual foundation for the
+estimation approach developed in \Cref{sec:likelihood,sec:estimation}.
+The latent variable~$J$ plays a role analogous to the masked cause of
+failure in series systems, but the censoring mechanism is fundamentally
+different: left-censoring rather than right-censoring.
+The result can also be obtained as a special case of the progressive
+Type-II censoring representation for coherent systems
+\citep{CramerNavarro2015}, which establishes that component failure times
+from a system with known structure correspond to progressively censored
+order statistics.  For a parallel system, this specializes to exactly
+the one-exact plus $(m-1)$-left-censored structure of~(a)--(c).
+
+\subsection{Contrast with series systems}
+\label{sec:series-contrast}
+
+\begin{remark}[Series--parallel duality in censoring]\label{rmk:series-parallel}
+For a series system $T = \min(T_1, \ldots, T_m)$, the censoring equivalence
+takes the dual form:
+\begin{enumerate}
+  \item[\textup{(a$'$)}] One component---the first to fail,
+    $J = \argmin_j T_j$---is observed exactly: $T_J = T$.
+  \item[\textup{(b$'$)}] All other components are \emph{right}-censored at~$T$:
+    for $j \neq J$, we know only that $T_j > T$.
+  \item[\textup{(c$'$)}] The identity~$J$ may be masked (observed, partially
+    observed, or unobserved).
+\end{enumerate}
+The structural duality is: left-censoring in parallel systems corresponds to
+right-censoring in series systems.  This mirrors the physical difference: in a
+series system, surviving components have $T_j > T$ (they outlast the system); in
+a parallel system, already-failed components have $T_j < T$ (they predecease the
+system).
+
+The notion of \emph{masking}---the conditions C1--C3 of
+\citet{Miyakawa1984} and \citet{LinUsherGuess1993}---is physically motivated
+for series systems, where the cause of system failure (which component failed
+first) may be uncertain.  For parallel systems, masking is structurally
+unmotivated: by the time the system fails, every component has failed, and
+there is no single ``cause'' to mask.  Some authors
+\citep{LiuShiZhangBai2017, RodriguesPereiraBheringPolpo2018} have
+applied the C1--C3 framework to parallel systems, but the incomplete-data
+problem is more naturally cast as component-level censoring with latent
+identity, as in \Cref{prop:censoring-equiv}.  The censoring framing was
+introduced by \citet{BheringPereiraPolpo2014} in a Bayesian Weibull setting;
+we develop it here for frequentist exponential inference.
+\end{remark}
+
+\subsection{System-level censoring}
+\label{sec:system-censoring}
+
+In practice, the system lifetime~$T$ may itself be subject to censoring.
+\Cref{prop:censoring-equiv} describes the component-level incomplete-data
+structure \emph{given an exact observation of~$T$}.  When $T$ is censored,
+the component-level implications compound as follows.
+
+\begin{center}
+\begin{tabular}{lll}
+  \toprule
+  \textbf{System observation} & \textbf{Component implication} & \textbf{Likelihood term} \\
+  \midrule
+  Exact: $T = t$ & $\exists!\, j\!: T_j = t$; $T_i < t\;\forall i \neq j$ &
+    $f_T(t; \blam)$ \\[4pt]
+  Right-censored: $T > \tau$ & $\exists\, j\!: T_j > \tau$; others unknown &
+    $1 - F_T(\tau; \blam)$ \\[4pt]
+  Interval: $a < T \leq b$ & All $T_j \leq b$; $\exists\, j\!: T_j > a$ &
+    $F_T(b; \blam) - F_T(a; \blam)$ \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+The right-censored case (system still functioning at monitoring time~$\tau$)
+is the most common in practice.  Here, at least one component survives past
+$\tau$, but we do not know which, nor do we know the status of the remaining
+components: some may have failed silently before~$\tau$.  The system-level
+survival probability $1 - F_T(\tau; \blam) = 1 - \prod_j (1 - e^{-\lambda_j \tau})$
+has a closed form via the inclusion-exclusion expansion.
+
+The interval-censored case arises under periodic inspection
+(Scheme~1): the system fails between inspection times $a$ and $b$, so
+$a < T \leq b$.  The likelihood contribution
+$F_T(b; \blam) - F_T(a; \blam)$ is also available in closed form.
+
+All three observation types---exact, right-censored, and
+interval-censored---are accommodated by the likelihood framework of
+\Cref{sec:likelihood}, where the relevant closed-form
+expressions are developed in detail.

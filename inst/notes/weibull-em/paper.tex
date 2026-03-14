@@ -1,0 +1,1643 @@
+\documentclass[12pt]{article}
+
+% --- Packages ---
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{bm}
+
+% --- Theorem environments ---
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% --- Notation shortcuts ---
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Rset}{\mathbb{R}}
+\newcommand{\bone}{\mathbf{1}}
+\newcommand{\balpha}{\boldsymbol{\alpha}}
+\newcommand{\bbeta}{\boldsymbol{\beta}}
+\newcommand{\blam}{\boldsymbol{\lambda}}
+\newcommand{\btheta}{\bm{\theta}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% --- Title ---
+\title{Weibull Component Estimation from $k$-out-of-$n$ System Data:\\
+  Why Exponential Results Don't Generalize}
+\author{Alexander Towell\thanks{Department of Computer Science,
+  Southern Illinois University Edwardsville.
+  Email: \texttt{lex@metafunctor.com}.
+  ORCID: 0000-0001-6443-9897.}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Exponential component lifetime estimation from system data is a
+well-understood problem: closed-form likelihoods via
+inclusion-exclusion, analytical EM algorithms, and provable
+identifiability results are available for parallel systems with
+moderate numbers of components.  A natural next step is to extend
+these results to the Weibull family, which captures the increasing
+and decreasing failure rates that arise in wear-out and early-life
+failure.  We show that this extension is \emph{not} a minor
+generalization but a fundamentally harder problem.  The additional
+shape parameters double the parameter count, destroy the
+inclusion-exclusion closed forms that underpin exponential
+tractability, degrade optimizer convergence from near-perfect to as
+low as 47\%, inflate root mean squared error by factors of 10--30,
+and---most strikingly---change the optimal system structure for
+estimation in a shape-dependent way.  Under constant hazard
+(exponential baseline), the optimal $k$ for a $k$-out-of-5 system
+is $k^* = 4$; under increasing hazard (shape $= 2$), it shifts to
+$k^* = 1$; under mixed shapes, $k^* = 2$.  Series systems
+($k = n$) are catastrophic for Weibull estimation, with RMSE
+exceeding 360 under mixed shapes.  We develop and implement an EM
+algorithm whose E-step computes truncated Weibull moments via
+incomplete gamma functions and whose M-step uses profile
+optimization over component shapes; the EM achieves substantially
+higher convergence rates than direct MLE, particularly for DFR
+components.  We derive the periodic inspection (Scheme~1) likelihood
+and demonstrate empirically that it resolves the shape--scale
+ambiguity inherent in system-level observation: shape RMSE drops by
+an order of magnitude, with the largest gains for deeply-censored
+fast components.  Monte Carlo experiments with two- to
+five-component systems across shape scenarios spanning DFR through
+IFR quantify the severity of the exponential-to-Weibull transition
+and validate the complete estimation framework.
+\end{abstract}
+
+\noindent\textbf{Keywords:} Weibull distribution,
+$k$-out-of-$n$ systems, system reliability, maximum likelihood,
+EM algorithm, periodic inspection, component estimation
+
+% ===================================================================
+\section{Introduction}
+\label{sec:introduction}
+% ===================================================================
+
+The exponential distribution occupies a privileged position in
+system reliability analysis.  Its memoryless property implies that
+the minimum of independent exponentials is itself exponential, the
+hazard rate of a series system is the sum of component hazard
+rates, and inclusion-exclusion expansions of the parallel system CDF
+yield closed-form integrals amenable to maximum likelihood
+estimation \citep{Towell2026}.  These analytical conveniences have
+enabled a thorough understanding of component estimation from
+system-level data in the exponential case: identifiability results
+\citep{BasuGhosh1980}, closed-form EM algorithms, and sharp
+characterizations of the information loss due to system-level
+observation \citep{Towell2026}.
+
+In practice, however, the constant-hazard assumption is often
+untenable.  Mechanical wear, fatigue, and degradation produce
+increasing failure rates; manufacturing defects and infant mortality
+produce decreasing failure rates; and systems with subpopulations of
+strong and weak components exhibit bathtub-shaped hazard curves.
+The Weibull distribution \citep{Weibull1951}, with its shape
+parameter $\alpha$ governing the hazard trend and its scale
+parameter $\beta$ governing the characteristic life, is the standard
+parametric model for these phenomena \citep{MeekerEscobar1998,
+LawlessBook2003}.
+
+Given the centrality of the Weibull family in reliability
+engineering, extending the exponential system estimation results to
+Weibull components is a natural and important goal.  The purpose of
+this paper is to show that this extension is \emph{fundamentally
+harder} than the exponential case---not merely more computationally
+expensive, but qualitatively different in its structure,
+identifiability landscape, and practical viability.
+
+\subsection*{Why exponential doesn't generalize}
+
+The difficulty is not a single obstacle but a constellation of
+interconnected complications:
+
+\begin{enumerate}
+\item \textbf{Parameter count.}
+  An exponential system with $m$ components has $m$ parameters
+  (one rate per component).  A Weibull system has $2m$ parameters
+  ($m$ shapes plus $m$ scales).  With $m = 5$, the estimation
+  problem jumps from 5 to 10 parameters, and the Fisher information
+  per parameter thins correspondingly.
+
+\item \textbf{Loss of closed-form integrals.}
+  The exponential system CDF
+  $F_T(t) = \prod_j (1 - e^{-\lambda_j t})$ admits an
+  inclusion-exclusion expansion into a sum of exponentials, each of
+  which integrates in closed form.  The Weibull system CDF
+  $F_T(t) = \prod_j (1 - e^{-(t/\beta_j)^{\alpha_j}})$
+  has no such expansion.  Each factor
+  $1 - e^{-(t/\beta_j)^{\alpha_j}}$ is \emph{not} a linear
+  function of exponentials unless $\alpha_j = 1$, so
+  the product cannot be decomposed into a finite signed sum of
+  elementary terms.  All integrals required for censored
+  likelihoods and EM E-steps must be computed numerically.
+
+\item \textbf{Series catastrophe.}
+  For exponential components in a series system, the system hazard
+  rate $h_T(t) = \sum_j \lambda_j$ is a sum of constants, so the
+  system is itself exponential with rate $\Lambda = \sum_j \lambda_j$.
+  Individual rates are not identifiable, but $\Lambda$ is trivially
+  estimated.  For Weibull components in a series system, the system
+  hazard rate $h_T(t) = \sum_j (\alpha_j / \beta_j)(t/\beta_j)^{\alpha_j - 1}$
+  is a sum of power functions with different exponents.  Individual
+  $(\alpha_j, \beta_j)$ pairs are not identifiable from $T_{\min}$
+  alone, and the non-constant hazard creates a multi-modal
+  likelihood landscape that numerical optimizers cannot navigate
+  reliably.
+
+\item \textbf{Shape-dependent optimal structure.}
+  In the exponential case, the optimal system structure ($k$ in a
+  $k$-out-of-$n$ system) for component estimation depends on the
+  rate heterogeneity but not on a shape parameter---because there
+  is none.  In the Weibull case, the shape parameter fundamentally
+  alters which system structure is optimal: increasing hazard favors
+  parallel systems ($k = 1$), while constant hazard favors
+  near-series structures.  A practitioner who designs a test system
+  based on exponential intuition will choose the wrong $k$ when
+  components have non-unit shapes.
+\end{enumerate}
+
+\subsection*{Contributions}
+
+We make the following contributions:
+
+\begin{enumerate}
+\item \textbf{Numerical likelihood framework} (\Cref{sec:likelihood}).
+  We derive the system density for heterogeneous Weibull components
+  in arbitrary coherent systems via critical-state decomposition,
+  and show that the likelihood is well-defined and continuously
+  differentiable but admits no closed-form simplification beyond
+  the exponential special case.
+
+\item \textbf{Quantification of the exponential--Weibull gap}
+  (\Cref{sec:simulations}).
+  Through systematic Monte Carlo experiments with $m = 5$ Weibull
+  components across three shape scenarios (constant, increasing,
+  mixed) and five $k$-out-of-5 structures, we quantify the
+  degradation: RMSE inflates by factors of 10--30, convergence
+  drops to 47--93\%, and series systems become completely unviable
+  (RMSE $> 360$).
+
+\item \textbf{Shape-dependent optimal $k$}
+  (\Cref{sec:sim-optimal-k}).
+  We show that the optimal $k$ for estimation quality depends on
+  the shape parameter in a systematic way: $k^* = 4$ for constant
+  hazard, $k^* = 1$ for increasing hazard, and $k^* = 2$ for mixed
+  shapes.  This is the first evidence that system design for Weibull
+  estimation cannot be guided by exponential theory.
+
+\item \textbf{EM algorithm for Weibull systems}
+  (\Cref{sec:em-algorithm,sec:em-results}).
+  We develop and implement an EM algorithm for Weibull component
+  estimation from parallel system data.  The E-step computes
+  truncated Weibull moments via incomplete gamma functions; the
+  M-step uses profile optimization over each component's shape
+  parameter with closed-form scale update.  Empirically, the EM
+  achieves near-perfect convergence across all shape
+  configurations tested, substantially outperforming the direct MLE
+  for DFR and mixed-shape scenarios.
+
+\item \textbf{Periodic inspection likelihood and validation}
+  (\Cref{sec:scheme1,sec:scheme1-results}).
+  We derive the likelihood for Scheme~1 (periodic inspection) and
+  validate it empirically.  Scheme~1 resolves the shape--scale
+  ambiguity inherent in system-level observation: shape RMSE drops
+  by an order of magnitude relative to Scheme~0, with the largest
+  gains for deeply-censored fast components.  Even coarse
+  inspection intervals provide substantial improvement.
+\end{enumerate}
+
+\subsection*{Relation to companion work}
+
+This paper is the sequel to \citet{Towell2026}, which established
+the censoring equivalence for exponential parallel systems, derived
+closed-form MLEs via inclusion-exclusion, and proved
+identifiability via reversed hazard rate tail extraction.  The
+present paper takes the natural next step---extending to the
+Weibull family---and shows that this step is far from routine.  The
+exponential results of \citet{Towell2026} serve as both the
+baseline for comparison and the theoretical foundation upon which
+the Weibull framework is built.
+
+\subsection*{Outline}
+
+\Cref{sec:model} introduces the $k$-out-of-$n$ system model with
+Weibull components and reviews the censoring interpretation.
+\Cref{sec:likelihood} develops the system density and likelihood
+via critical-state decomposition, emphasizing the loss of
+closed-form structure.
+\Cref{sec:why-hard} explains why exponential results do not
+generalize, contrasting the mathematical structure of the two
+families point by point.
+\Cref{sec:simulations} reports the Monte Carlo study comparing
+Weibull and exponential estimation across system structures and
+shape scenarios via direct MLE.
+\Cref{sec:em-algorithm} presents the EM algorithm for Weibull
+systems and \Cref{sec:em-results} evaluates its empirical
+performance against the direct MLE.
+\Cref{sec:scheme1} derives the periodic inspection likelihood
+and \Cref{sec:scheme1-results} validates it via Monte Carlo.
+\Cref{sec:discussion} discusses practical implications and future
+directions.
+
+
+% ===================================================================
+\section{Model}
+\label{sec:model}
+% ===================================================================
+
+\subsection{Component distributions}
+
+Consider $m$ independent components with lifetimes
+$T_1, \ldots, T_m$, where component $j$ follows a Weibull
+distribution with shape $\alpha_j > 0$ and scale $\beta_j > 0$:
+\begin{equation}\label{eq:weibull-component}
+  f_j(t) = \frac{\alpha_j}{\beta_j}
+    \Bigl(\frac{t}{\beta_j}\Bigr)^{\alpha_j - 1}
+    \exp\!\Bigl[-\Bigl(\frac{t}{\beta_j}\Bigr)^{\alpha_j}\Bigr],
+  \qquad
+  F_j(t) = 1 - \exp\!\Bigl[-\Bigl(\frac{t}{\beta_j}\Bigr)^{\alpha_j}\Bigr],
+\end{equation}
+for $t > 0$.  The survival function is
+$S_j(t) = \exp[-(t/\beta_j)^{\alpha_j}]$ and the hazard rate is
+$h_j(t) = (\alpha_j/\beta_j)(t/\beta_j)^{\alpha_j - 1}$.
+
+The shape parameter $\alpha_j$ governs the failure mechanism:
+\begin{itemize}
+\item $\alpha_j < 1$: decreasing hazard (early-life failures,
+  burn-in);
+\item $\alpha_j = 1$: constant hazard (exponential, memoryless);
+\item $\alpha_j > 1$: increasing hazard (wear-out, fatigue).
+\end{itemize}
+
+The full parameter vector is
+$\btheta = (\alpha_1, \beta_1, \ldots, \alpha_m, \beta_m)
+\in \Rset_{>0}^{2m}$.
+
+\subsection{\texorpdfstring{$k$-out-of-$n$}{k-out-of-n} systems}
+
+A $k$-out-of-$n$ system functions as long as at least $k$ of its
+$n = m$ components survive.  The system lifetime is
+\begin{equation}\label{eq:kofn-lifetime}
+  T = T_{(n-k+1)},
+\end{equation}
+where $T_{(1)} \leq \cdots \leq T_{(n)}$ denote the order
+statistics of the component lifetimes.  The two extremes are:
+\begin{itemize}
+\item $k = 1$ (parallel): $T = T_{(n)} = \max_j T_j$;
+\item $k = n$ (series): $T = T_{(1)} = \min_j T_j$.
+\end{itemize}
+
+The system density for a general coherent system with structure
+function $\phi$ is \citep{Samaniego2007}
+\begin{equation}\label{eq:sys-density-general}
+  f_T(t; \btheta) = \sum_{j=1}^m f_j(t; \alpha_j, \beta_j)
+  \sum_{\substack{\mathbf{x}_{-j} : \\ j \text{ critical in }
+  (\mathbf{x}_{-j}, x_j = 1)}}
+  \prod_{i \neq j} \bigl[F_i(t)\bigr]^{1-x_i}
+  \bigl[S_i(t)\bigr]^{x_i},
+\end{equation}
+where the inner sum ranges over states $\mathbf{x}_{-j}$ of the
+other components in which component $j$ is pivotal: flipping $j$
+from up to down causes system failure.  For a $k$-out-of-$n$
+system, the number of critical states for each component is
+$\binom{n-1}{k-1}$ (exactly $k-1$ other components must be up),
+and the total number of terms in~\eqref{eq:sys-density-general}
+is $m \binom{n-1}{k-1}$.
+
+\subsection{Censoring interpretation}
+\label{sec:censoring-interp}
+
+Under Scheme~0 (black-box observation), we observe $n$
+independent copies of the system lifetime $T$ with no
+component-level information.  As shown in \citet{Towell2026}, the
+censoring equivalence for a $k$-out-of-$n$ system yields:
+\begin{enumerate}
+\item[(a)] One component (the $(n-k+1)$-th to fail) is observed
+  exactly: $T_J = T$ for a latent index $J$.
+\item[(b)] The $n-k$ components that failed before the system are
+  left-censored at $T$: $T_j < T$ for these indices.
+\item[(c)] The $k-1$ components still functioning at system failure
+  are right-censored at $T$: $T_j > T$ for these indices.
+\item[(d)] Component identities within each group are latent.
+\end{enumerate}
+For parallel systems ($k = 1$): one exact, $m-1$ left-censored,
+zero right-censored.  For series systems ($k = n$): one exact,
+zero left-censored, $m-1$ right-censored.
+
+This censoring interpretation is distribution-free---it holds for
+Weibull components just as it does for exponential ones.  What
+changes is the tractability of the resulting likelihood.
+
+
+% ===================================================================
+\section{Likelihood via Critical-State Decomposition}
+\label{sec:likelihood}
+% ===================================================================
+
+\subsection{System density}
+
+For a $k$-out-of-$n$ system with heterogeneous Weibull components,
+the system density~\eqref{eq:sys-density-general} can be written as
+\begin{equation}\label{eq:sys-density-kofn}
+  f_T(t; \btheta) = \sum_{j=1}^m f_j(t)
+  \underbrace{
+    \sum_{\substack{S \subseteq \{1,\ldots,m\} \setminus \{j\} \\
+    |S| = k-1}}
+    \prod_{i \in S} S_i(t) \prod_{i \notin S \cup \{j\}} F_i(t)
+  }_{C_j(t; \btheta)},
+\end{equation}
+where $C_j(t; \btheta)$ is the \emph{critical-state weight} for
+component $j$: the probability (given $T = t$) that component $j$
+is pivotal, computed over all configurations in which exactly $k-1$
+other components survive.
+
+\begin{remark}[Exponential special case]
+When $\alpha_j = 1$ for all $j$ (exponential components), each
+factor $F_i(t) = 1 - e^{-\lambda_i t}$ and
+$S_i(t) = e^{-\lambda_i t}$, and for the parallel case ($k = 1$)
+the critical-state weight reduces to
+$C_j(t) = \prod_{i \neq j} F_i(t) = \prod_{i \neq j}
+(1 - e^{-\lambda_i t})$, which admits the inclusion-exclusion
+expansion of \citet{Towell2026}.  For Weibull components with
+$\alpha_j \neq 1$, no such expansion is available.
+\end{remark}
+
+\subsection{Log-likelihood under Scheme~0}
+
+Given $n$ independent system lifetime observations
+$t_1, \ldots, t_n$, the log-likelihood under Scheme~0 is
+\begin{equation}\label{eq:loglik-scheme0}
+  \ell(\btheta) = \sum_{i=1}^n \ln f_T(t_i; \btheta).
+\end{equation}
+
+Each evaluation of $\ell(\btheta)$ requires computing
+$f_T(t_i; \btheta)$ via~\eqref{eq:sys-density-kofn}, which
+involves:
+\begin{itemize}
+\item $m$ evaluations of $f_j(t_i)$ (Weibull densities);
+\item $m$ evaluations each of $F_j(t_i)$ and $S_j(t_i)$;
+\item $m \binom{m-1}{k-1}$ products for the critical-state
+  weights.
+\end{itemize}
+The total cost per observation is
+$O\bigl(m^2 \binom{m-1}{k-1}\bigr)$, which is polynomial in $m$
+for fixed $k$ but grows as $O(m \cdot 2^{m-1})$ in the worst case
+($k \approx m/2$).  For $m = 5$, this is entirely tractable.
+
+\subsection{Gradient computation}
+
+The gradient $\nabla_{\btheta} \ell$ is needed for gradient-based
+optimization.  The score with respect to the shape parameter
+$\alpha_j$ is
+\begin{equation}\label{eq:score-alpha}
+  \frac{\partial \ell}{\partial \alpha_j}
+  = \sum_{i=1}^n \frac{1}{f_T(t_i)}
+    \frac{\partial f_T(t_i)}{\partial \alpha_j},
+\end{equation}
+where $\partial f_T / \partial \alpha_j$ propagates through both
+$f_j(t)$ and the CDF/survival terms $F_i(t)$, $S_i(t)$ that appear
+in the critical-state weights of \emph{every} component $k$ (since
+$\alpha_j$ affects $F_j$ and $S_j$, which appear in $C_k$ for
+$k \neq j$).
+
+The partial derivatives of the Weibull density and CDF with respect
+to the shape parameter are:
+\begin{align}
+  \frac{\partial f_j(t)}{\partial \alpha_j}
+  &= f_j(t) \Bigl[
+    \frac{1}{\alpha_j}
+    + \ln\!\Bigl(\frac{t}{\beta_j}\Bigr)
+    - \Bigl(\frac{t}{\beta_j}\Bigr)^{\alpha_j}
+      \ln\!\Bigl(\frac{t}{\beta_j}\Bigr)
+  \Bigr],
+  \label{eq:df-dalpha} \\
+  \frac{\partial F_j(t)}{\partial \alpha_j}
+  &= S_j(t) \Bigl(\frac{t}{\beta_j}\Bigr)^{\alpha_j}
+    \ln\!\Bigl(\frac{t}{\beta_j}\Bigr).
+  \label{eq:dF-dalpha}
+\end{align}
+Analogous expressions hold for $\partial / \partial \beta_j$.
+These are elementary functions of $t$ but involve $\ln(t/\beta_j)$
+terms that prevent the exponential cancellations that make the
+exponential case tractable.
+
+In practice, numerical differentiation via finite differences
+(Richardson extrapolation) provides a robust alternative to
+analytical gradients, at the cost of additional likelihood
+evaluations.  Our implementation uses the \texttt{numDeriv} package
+in R for Hessian computation and the L-BFGS-B algorithm
+\citep{ByrdLuNocedal1995} with box constraints
+$\alpha_j, \beta_j > 0$ for optimization.
+
+
+% ===================================================================
+\section{Why Exponential Results Don't Generalize}
+\label{sec:why-hard}
+% ===================================================================
+
+The difficulties with Weibull system estimation are not merely
+computational overhead atop an exponential foundation.  They
+represent structural changes in the mathematical problem that
+invalidate the entire toolkit developed for the exponential case.
+
+\subsection{The inclusion-exclusion trick fails}
+
+For exponential components, the parallel system CDF factors as
+\begin{equation}\label{eq:exp-cdf-ie}
+  F_T(t) = \prod_{j=1}^m (1 - e^{-\lambda_j t})
+  = \sum_{S \subseteq \{1,\ldots,m\}} (-1)^{|S|}
+    e^{-\lambda(S)\, t},
+\end{equation}
+where $\lambda(S) = \sum_{j \in S} \lambda_j$.  Each term is a
+simple exponential, and integrals of the form
+$\int_a^b e^{-\lambda(S)\, t}\, dt = (e^{-\lambda(S)\, a} -
+e^{-\lambda(S)\, b}) / \lambda(S)$ are elementary.  This is the
+technical engine behind the closed-form likelihoods, the
+analytical EM, and the identifiability proof of \citet{Towell2026}.
+
+For Weibull components, the analogous product is
+\begin{equation}\label{eq:weibull-cdf-product}
+  F_T(t) = \prod_{j=1}^m
+    \Bigl(1 - e^{-(t/\beta_j)^{\alpha_j}}\Bigr).
+\end{equation}
+Expanding this product via inclusion-exclusion yields terms of the
+form
+\[
+  (-1)^{|S|} \exp\!\Bigl[-\sum_{j \in S}
+    \Bigl(\frac{t}{\beta_j}\Bigr)^{\alpha_j}\Bigr].
+\]
+When the $\alpha_j$ are not all equal, the exponent is a sum of
+different power functions of $t$---not a linear function of $t$.
+The integral $\int_a^b \exp[-\sum_{j \in S}
+(t/\beta_j)^{\alpha_j}]\, dt$ has no closed form in general.  In
+the special case $\alpha_j = \alpha$ for all $j$ (common shape),
+the exponent becomes $-t^\alpha \sum_{j \in S} \beta_j^{-\alpha}$,
+and a substitution $u = t^\alpha$ reduces the integral to an
+incomplete gamma function---tractable but not elementary.
+
+\subsection{Series hazard additivity fails}
+
+For exponential series systems:
+\[
+  h_T(t) = \sum_{j=1}^m \lambda_j = \Lambda \quad
+  \text{(constant)}.
+\]
+The system is exponential with known rate $\Lambda$; individual
+rates are unidentifiable, but the aggregate is trivially estimated.
+
+For Weibull series systems:
+\[
+  h_T(t) = \sum_{j=1}^m \frac{\alpha_j}{\beta_j}
+    \Bigl(\frac{t}{\beta_j}\Bigr)^{\alpha_j - 1}.
+\]
+This is a sum of power functions with different exponents.  The
+system is no longer Weibull (unless all $\alpha_j$ are equal).
+Individual $(\alpha_j, \beta_j)$ pairs are not identifiable from
+$T_{\min}$ alone, and the mixture of power-law hazards creates a
+likelihood surface with multiple local optima.  Our experiments
+confirm catastrophic behavior: RMSE exceeding 360 for mixed-shape
+series systems (\Cref{sec:sim-results}).
+
+\subsection{The memoryless property fails}
+
+The exponential distribution's memoryless property---$P(T > s + t
+\mid T > s) = P(T > t)$---implies that the conditional
+distribution of an exponential component given survival to time $s$
+is again exponential with the same rate.  This is what makes the EM
+algorithm's E-step tractable: the truncated exponential mean
+$\E[T_j \mid T_j < t] = 1/\lambda_j -
+t/(e^{\lambda_j t} - 1)$ has a simple closed form.
+
+For Weibull components, the conditional distribution given
+$T_j < t$ has density
+\begin{equation}\label{eq:truncated-weibull}
+  g(u \mid T_j < t) = \frac{f_j(u)}{F_j(t)}, \qquad 0 < u < t.
+\end{equation}
+The conditional mean is
+\begin{equation}\label{eq:truncated-weibull-mean}
+  \E[T_j \mid T_j < t]
+  = \frac{\int_0^t u\, f_j(u)\, du}{F_j(t)}
+  = \frac{\beta_j\, \gamma(1 + 1/\alpha_j,\;
+    (t/\beta_j)^{\alpha_j})}{F_j(t)\,
+    \Gamma(1 + 1/\alpha_j)}\; \cdot\;
+  \E[T_j],
+\end{equation}
+where $\gamma(a, x) = \int_0^x u^{a-1} e^{-u}\, du$ is the lower
+incomplete gamma function.  This is computationally available
+(standard libraries implement $\gamma$) but not elementary, and it
+depends on both $\alpha_j$ and $\beta_j$ in a way that prevents
+the simple reciprocal M-step of the exponential EM.
+
+\subsection{The identifiability landscape changes}
+
+For exponential parallel systems, \citet{BasuGhosh1980} and
+\citet{Towell2026} proved identifiability: the distribution of
+$\max_j T_j$ uniquely determines the component rates.  The proof
+extracts rates one at a time from the tail behavior of the reversed
+hazard rate.
+
+For Weibull parallel systems, identifiability of the full
+parameter vector $\btheta$ is a more delicate question.
+Consider two components with parameters $(\alpha_1, \beta_1)$ and
+$(\alpha_2, \beta_2)$.  The parallel system CDF is
+\[
+  F_T(t) = (1 - e^{-(t/\beta_1)^{\alpha_1}})
+            (1 - e^{-(t/\beta_2)^{\alpha_2}}).
+\]
+If $\alpha_1 = \alpha_2 = \alpha$ (common shape), then the same
+tail-extraction argument applies: the reversed hazard rate
+$r_T(t) = f_T(t)/F_T(t)$ is asymptotically dominated by the
+component with the largest scale (smallest hazard at large $t$),
+and $\alpha$ and the largest $\beta_j$ can be extracted.  For
+heterogeneous shapes, the tail behavior involves competing power
+laws, and the extraction is more complex.  A full identifiability
+proof for the heterogeneous Weibull case is beyond the scope of this
+paper; we note only that the numerical evidence (converged MLEs with
+reasonable accuracy when $k$ is chosen appropriately) is consistent
+with identifiability for the configurations tested.
+
+
+% ===================================================================
+\section{Direct MLE: Simulation Study}
+\label{sec:simulations}
+% ===================================================================
+
+We evaluate the direct MLE for Weibull components in $k$-out-of-$n$
+systems through a systematic Monte Carlo study.  The goal is to
+quantify the degradation in estimation quality relative to the
+exponential baseline and to identify the dependence of optimal
+system structure on the shape parameter.
+
+\subsection{Experimental design}
+\label{sec:sim-design}
+
+\paragraph{Components.}
+We use $m = 5$ components with Weibull parameters
+median-matched to the exponential rates
+$\blam = (0.5, 0.4, 0.3, 0.2, 0.1)$ used in the companion
+exponential study \citep{Towell2026}.  For
+$\mathrm{Exp}(\lambda_j)$, the median is
+$\log(2)/\lambda_j$; for
+$\mathrm{Weibull}(\alpha_j, \beta_j)$, the median is
+$\beta_j [\log(2)]^{1/\alpha_j}$.  Setting these equal gives the
+median-matching scale:
+\begin{equation}\label{eq:median-match}
+  \beta_j = \frac{\log(2)/\lambda_j}{[\log(2)]^{1/\alpha_j}}.
+\end{equation}
+
+\paragraph{Shape scenarios.}
+Three scenarios capture qualitatively different failure physics:
+\begin{enumerate}
+\item \textbf{Exponential baseline} ($\alpha_j = 1$ for all $j$):
+  validates the framework against known exponential results.
+\item \textbf{Increasing hazard} ($\alpha_j = 2$ for all $j$):
+  wear-out components with identical shapes but different scales.
+\item \textbf{Mixed shapes}
+  ($\balpha = (2.0, 1.5, 1.0, 0.8, 0.5)$): the most realistic
+  scenario, combining wear-out, constant-hazard, and early-life
+  components.
+\end{enumerate}
+
+\paragraph{System structures.}
+For each scenario, we test all five $k$-out-of-5 structures:
+$k = 1$ (parallel) through $k = 5$ (series).
+
+\paragraph{Estimation.}
+Each cell uses $n = 200$ system lifetime observations and
+$R = 15$ Monte Carlo replications.  The MLE is computed by
+L-BFGS-B with box constraints $\alpha_j, \beta_j > 10^{-10}$,
+with Nelder--Mead \citep{NelderMead1965} fallback on a
+log-transformed parameterization.  Multi-start optimization
+($n_{\text{starts}} = 5$) with random perturbations of the initial
+values guards against local optima.  Standard errors are obtained
+from the observed Fisher information via Richardson-extrapolated
+numerical Hessian.
+
+\paragraph{Initialization.}
+Starting values are $\alpha_j^{(0)} = 1$ (agnostic shape) and
+$\beta_j^{(0)} = \bar{t} \cdot c_j$ where $c_j$ is a spread
+factor $c_j = 0.5 + (j-1)/(m-1)$, $j = 1, \ldots, m$.  The
+spread breaks the permutation symmetry of the likelihood under
+Scheme~0, analogous to the exponential case \citep{Towell2026}.
+
+\paragraph{Metrics.}
+We report:
+\begin{itemize}
+\item Convergence rate (\% of replications where the optimizer
+  reports convergence with finite parameter estimates);
+\item Mean RMSE over scale parameters:
+  $m^{-1} \sum_j \bigl[R_c^{-1}
+  \sum_r (\hat\beta_{j}^{(r)} - \beta_j)^2\bigr]^{1/2}$,
+  where $R_c$ is the number of converged replications;
+\item Maximum RMSE over scale parameters:
+  $\max_j \bigl[R_c^{-1}
+  \sum_r (\hat\beta_{j}^{(r)} - \beta_j)^2\bigr]^{1/2}$.
+\end{itemize}
+Scale RMSE is the primary metric because scale parameters are on
+the same physical scale as the component lifetimes.  Shape
+parameter RMSE is reported separately where relevant.
+
+\paragraph{Label matching.}
+Since the Scheme~0 likelihood is invariant to permutation of the
+component labels, estimated parameters are sorted by decreasing
+scale and compared to the correspondingly sorted true values.
+
+\subsection{Results}
+\label{sec:sim-results}
+
+\Cref{tab:weibull-results} presents the full results.
+Three patterns dominate.
+
+\begin{table}[t]
+\centering
+\caption{%
+  Weibull $k$-out-of-5 estimation: convergence rate, mean scale RMSE,
+  and maximum scale RMSE across three shape scenarios
+  ($n = 200$, $R = 15$ replications per cell).  The optimal $k$ for
+  each scenario (by mean RMSE, excluding catastrophic cases) is marked
+  with $\star$.
+}
+\label{tab:weibull-results}
+\small
+\begin{tabular}{cl rrr}
+\toprule
+$k$ & Scenario & Conv.\ (\%) & Mean RMSE & Max RMSE \\
+\midrule
+\multirow{3}{*}{1}
+  & Baseline ($\alpha = 1$)
+    & 100 & 1.846 & 2.500 \\
+  & Increasing ($\alpha = 2$)
+    & 93 & \textbf{1.113}$\,\star$ & 1.586 \\
+  & Mixed shapes
+    & 73 & 2.639 & 5.175 \\
+\addlinespace
+\multirow{3}{*}{2}
+  & Baseline ($\alpha = 1$)
+    & 80 & 1.965 & 3.327 \\
+  & Increasing ($\alpha = 2$)
+    & 80 & 1.248 & 2.544 \\
+  & Mixed shapes
+    & 73 & \textbf{1.994}$\,\star$ & 5.350 \\
+\addlinespace
+\multirow{3}{*}{3}
+  & Baseline ($\alpha = 1$)
+    & 73 & 1.795 & 3.843 \\
+  & Increasing ($\alpha = 2$)
+    & 60 & 1.385 & 3.789 \\
+  & Mixed shapes
+    & 80 & 2.564 & 8.632 \\
+\addlinespace
+\multirow{3}{*}{4}
+  & Baseline ($\alpha = 1$)
+    & 67 & \textbf{1.760}$\,\star$ & 3.956 \\
+  & Increasing ($\alpha = 2$)
+    & 53 & 7.497 & 12.568 \\
+  & Mixed shapes
+    & 47 & 8.489 & 16.163 \\
+\addlinespace
+\multirow{3}{*}{5}
+  & Baseline ($\alpha = 1$)
+    & 93 & 23.717 & 95.803 \\
+  & Increasing ($\alpha = 2$)
+    & 80 & 1.554 & 5.185 \\
+  & Mixed shapes
+    & 73 & 363.438 & 1540.711 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Finding 1: Weibull estimation is 10--30 times harder
+  than exponential}
+\label{sec:finding1}
+
+The exponential baseline with $m = 5$ and $n = 200$ achieves
+RMSE $\approx 0.07\text{--}0.14$ across $k$ in
+\citet{Towell2026}, with 100\% convergence throughout.  The
+Weibull baseline (same rates, same $n$, but 10 parameters instead
+of 5) has best RMSE $= 1.760$ (at $k = 4$), a degradation factor
+exceeding 12.  Convergence drops to 67--100\% depending on $k$.
+
+The factor-of-two increase in parameter count (from $m$ to $2m$)
+does not explain a 12-fold RMSE increase.  The additional
+difficulty comes from the likelihood surface geometry:
+shape--scale confounding creates ridges and local optima that
+numerical optimizers struggle to navigate.
+
+\subsubsection{Finding 2: Shape parameter changes the optimal \texorpdfstring{$k$}{k}}
+\label{sec:sim-optimal-k}
+
+The optimal system structure for estimation depends on the shape
+parameter:
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Scenario & Optimal $k^*$ & Best RMSE \\
+\midrule
+Baseline ($\alpha = 1$) & 4 & 1.760 \\
+Increasing ($\alpha = 2$) & 1 & 1.113 \\
+Mixed shapes & 2 & 1.994 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This is a central finding: \emph{a practitioner who designs a test
+system based on exponential theory would choose $k = 4$, but the
+correct choice for wear-out components is $k = 1$ (parallel)}.
+The intuition is that increasing-hazard components fail in a more
+predictable temporal sequence---the component with the largest scale
+tends to fail last with high probability---so the parallel system
+(which observes the maximum) already extracts substantial ordering
+information.  Under constant hazard, the failure sequence is more
+random, and higher $k$ (which reveals more of the failure ordering)
+provides additional information.
+
+\subsubsection{Finding 3: Series systems are catastrophic}
+
+The series case ($k = 5$) shows:
+\begin{itemize}
+\item Baseline: RMSE $= 23.717$ (13 times the best);
+\item Increasing hazard: RMSE $= 1.554$ (close to best, but with
+  only 80\% convergence);
+\item Mixed shapes: RMSE $= 363.438$ (182 times the best).
+\end{itemize}
+
+The catastrophe under mixed shapes is particularly striking.  The
+five shape parameters create a 10-dimensional likelihood with
+extensive multi-modality when only $T_{\min}$ is observed.  The
+optimizer converges to wildly different local optima across
+replications, inflating RMSE by three orders of magnitude.
+
+The increasing-hazard series case is an exception: with common
+shape $\alpha = 2$, the system hazard
+$h_T(t) = \sum_j (2/\beta_j)(t/\beta_j)$ is a linear function of
+$t$ (since all shapes are 2), and the problem is structurally
+simpler.  But even here, convergence (80\%) is below the parallel
+case (93\%).
+
+\subsubsection{Finding 4: Convergence degrades systematically}
+
+For the increasing-hazard scenario, convergence decreases
+monotonically with $k$: $93\% \to 80\% \to 60\% \to 53\%$
+(for $k = 1, 2, 3, 4$).  Higher $k$ means the system fails later
+(more components must fail), producing longer-tailed observations
+where the Weibull shape parameter has its strongest effect and the
+likelihood surface is sharpest.  The $k = 5$ (series) case
+partially recovers to 80\% because the common-shape structure
+simplifies the optimization landscape.
+
+For mixed shapes, the worst convergence is 47\% at $k = 4$.  Fewer
+than half the replications produce a usable estimate---a level of
+unreliability that rules out practical application without
+algorithmic improvements.
+
+\subsection{Comparison with exponential baseline}
+
+\Cref{tab:exp-comparison} compares the Weibull and exponential
+cases directly.
+
+\begin{table}[t]
+\centering
+\caption{%
+  Direct comparison: exponential ($m = 5$ parameters) vs.\ Weibull
+  baseline ($2m = 10$ parameters, $\alpha = 1$) at the same
+  median-matched rates and $n = 200$.  Exponential results from
+  \citet{Towell2026}.
+}
+\label{tab:exp-comparison}
+\small
+\begin{tabular}{c rr rr}
+\toprule
+& \multicolumn{2}{c}{Exponential} &
+  \multicolumn{2}{c}{Weibull ($\alpha = 1$)} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-5}
+$k$ & Conv.\ (\%) & RMSE & Conv.\ (\%) & RMSE \\
+\midrule
+1 & 100 & $\sim$0.09 & 100 & 1.846 \\
+2 & 100 & $\sim$0.11 & 80  & 1.965 \\
+3 & 100 & $\sim$0.07 & 73  & 1.795 \\
+4 & 100 & $\sim$0.14 & 67  & 1.760 \\
+5 & 100 & $\sim$0.08 & 93  & 23.717 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The comparison is stark: the ``same'' estimation problem---with
+identical rates but modeled as Weibull (shape~$= 1$)---is
+20 times worse in RMSE and 7--33 percentage points worse in
+convergence.  The degradation comes entirely from the additional
+shape parameters, which the optimizer must estimate even though
+their true values are~1.  This illustrates the cost of model
+flexibility: even when the true model is exponential, fitting a
+Weibull model pays a substantial penalty in finite samples.
+
+
+% ===================================================================
+\section{EM Algorithm for Weibull Systems}
+\label{sec:em-algorithm}
+% ===================================================================
+
+The convergence difficulties of direct MLE for Weibull systems
+motivate an EM algorithm that exploits the censoring structure of
+the $k$-out-of-$n$ system.  The EM is attractive because it
+guarantees monotone likelihood increase at every iteration
+\citep{DempsterLairdRubin1977, Wu1983}, replacing a single hard
+optimization with a sequence of easier sub-problems.
+
+\subsection{Complete and observed data}
+
+For a $k$-out-of-$n$ system with Weibull components, the complete
+data for one system observation consists of:
+\begin{itemize}
+\item The component lifetimes $(T_1, \ldots, T_m)$;
+\item The system lifetime $T = T_{(n-k+1)}$;
+\item The identity of the critical component
+  $J = \argmax\{j : T_j = T_{(n-k+1)}\}$;
+\item The group assignments: which components are left-censored
+  ($T_j < T$), which is exact ($T_j = T$), and which are
+  right-censored ($T_j > T$).
+\end{itemize}
+The observed data under Scheme~0 is only $T$; all component-level
+information is latent.
+
+\subsection{Complete-data log-likelihood}
+
+Given complete data $(T_1, \ldots, T_m)$ for $n$ independent
+system observations, the complete-data log-likelihood is
+\begin{equation}\label{eq:complete-loglik}
+  \ell_c(\btheta) = \sum_{i=1}^n \sum_{j=1}^m
+    \ln f_j(T_{ij}; \alpha_j, \beta_j)
+  = \sum_{j=1}^m \sum_{i=1}^n \Bigl[
+    \ln \frac{\alpha_j}{\beta_j}
+    + (\alpha_j - 1) \ln \frac{T_{ij}}{\beta_j}
+    - \Bigl(\frac{T_{ij}}{\beta_j}\Bigr)^{\alpha_j}
+  \Bigr],
+\end{equation}
+which decomposes into $m$ independent Weibull log-likelihoods, one
+per component.  This separability is the key advantage of the EM:
+the M-step reduces to $m$ independent Weibull MLEs.
+
+\subsection{E-step: conditional expectations}
+
+Given observed system lifetime $T = t$ and current parameter
+estimates $\btheta^{(s)}$, the E-step computes the expected
+complete-data sufficient statistics.  For the Weibull family, the
+sufficient statistics for component $j$ are not simply the
+lifetimes $T_{ij}$ but the functions $\ln T_{ij}$ and
+$T_{ij}^{\alpha_j}$ (since the Weibull is an exponential family
+in the variable $T^{\alpha}$ with natural parameter
+$-\beta^{-\alpha}$).  However, the M-step does not have a
+closed-form solution even for complete Weibull data---it requires
+solving a transcendental equation for $\alpha_j$---so the E-step
+need only provide the conditional distribution (or sufficient
+functionals thereof) for each component lifetime.
+
+\subsubsection{Classification probabilities}
+
+For a $k$-out-of-$n$ system, the system observation $T = t$
+partitions components into three groups:
+\begin{enumerate}
+\item The critical component ($T_j = t$);
+\item Left-censored components ($T_j < t$);
+\item Right-censored components ($T_j > t$).
+\end{enumerate}
+The probability that component $j$ is critical, given $T = t$, is:
+\begin{equation}\label{eq:em-pij}
+  p_j(t; \btheta^{(s)})
+  = \frac{f_j(t; \btheta^{(s)}) \cdot C_j(t; \btheta^{(s)})}
+         {f_T(t; \btheta^{(s)})},
+\end{equation}
+where $C_j$ is the critical-state weight
+from~\eqref{eq:sys-density-kofn}.  These probabilities satisfy
+$\sum_j p_j(t; \btheta^{(s)}) = 1$.
+
+\subsubsection{Conditional moments for the E-step}
+
+For the M-step, we need the following conditional expectations for
+each observation $i$ and component $j$:
+
+\paragraph{Case 1: Component $j$ is critical ($T_j = t_i$).}
+\begin{equation}\label{eq:em-exact-case}
+  \E[\ln T_j \mid T_j = t_i] = \ln t_i, \qquad
+  \E[T_j^{\alpha_j} \mid T_j = t_i] = t_i^{\alpha_j}.
+\end{equation}
+
+\paragraph{Case 2: Component $j$ is left-censored ($T_j < t_i$).}
+The conditional distribution is
+$f_j(u) / F_j(t_i)$ on $(0, t_i)$.  The required moments are:
+\begin{align}
+  \E[\ln T_j \mid T_j < t_i; \btheta^{(s)}]
+  &= \frac{\int_0^{t_i} (\ln u)\, f_j(u)\, du}{F_j(t_i)},
+  \label{eq:em-left-lnT} \\
+  \E[T_j^{\alpha_j} \mid T_j < t_i; \btheta^{(s)}]
+  &= \frac{\int_0^{t_i} u^{\alpha_j}\, f_j(u)\, du}{F_j(t_i)}.
+  \label{eq:em-left-Talpha}
+\end{align}
+
+The integral in~\eqref{eq:em-left-Talpha} can be expressed in
+terms of the incomplete gamma function.  With the substitution
+$v = (u/\beta_j)^{\alpha_j}$:
+\begin{equation}\label{eq:em-left-Talpha-gamma}
+  \int_0^{t_i} u^{\alpha_j}\, f_j(u)\, du
+  = \beta_j^{\alpha_j}
+    \int_0^{(t_i/\beta_j)^{\alpha_j}}
+    v\, e^{-v}\, dv
+  = \beta_j^{\alpha_j}\, \gamma\!\bigl(2,\;
+    (t_i/\beta_j)^{\alpha_j}\bigr),
+\end{equation}
+where $\gamma(a, x) = \int_0^x u^{a-1} e^{-u}\, du$ is the
+lower incomplete gamma function.
+
+The integral in~\eqref{eq:em-left-lnT} is more complex but can be
+expressed as:
+\begin{equation}\label{eq:em-left-lnT-formula}
+  \int_0^{t_i} (\ln u)\, f_j(u)\, du
+  = \frac{\ln \beta_j}{\alpha_j}\, \gamma\!\bigl(1,\;
+    (t_i/\beta_j)^{\alpha_j}\bigr)
+  + \frac{1}{\alpha_j}
+    \int_0^{(t_i/\beta_j)^{\alpha_j}}
+    (\ln v)\, e^{-v}\, dv.
+\end{equation}
+The remaining integral involves
+$\int_0^x (\ln v) e^{-v}\, dv$, which is related to the
+derivative of the incomplete gamma function with respect to its
+first argument.  In practice, this is most reliably computed by
+numerical quadrature.
+
+\paragraph{Case 3: Component $j$ is right-censored ($T_j > t_i$).}
+The conditional distribution is
+$f_j(u) / S_j(t_i)$ on $(t_i, \infty)$.  The required
+expectations are:
+\begin{align}
+  \E[\ln T_j \mid T_j > t_i; \btheta^{(s)}]
+  &= \frac{\int_{t_i}^\infty (\ln u)\, f_j(u)\, du}{S_j(t_i)},
+  \label{eq:em-right-lnT} \\
+  \E[T_j^{\alpha_j} \mid T_j > t_i; \btheta^{(s)}]
+  &= \frac{\beta_j^{\alpha_j}\,
+    \Gamma\!\bigl(2,\; (t_i/\beta_j)^{\alpha_j}\bigr)}
+    {S_j(t_i)},
+  \label{eq:em-right-Talpha}
+\end{align}
+where $\Gamma(a, x) = \int_x^\infty u^{a-1} e^{-u}\, du$ is the
+upper incomplete gamma function.
+
+\subsubsection{Marginalization over group assignments}
+
+For a general $k$-out-of-$n$ system, component $j$ may be in any
+of the three groups (critical, left-censored, right-censored),
+depending on the latent assignment.  The E-step marginalizes over
+all possible assignments.  For observation $i$ with system lifetime
+$t_i$:
+
+\begin{equation}\label{eq:em-marginalized}
+  \E[g(T_j) \mid T = t_i; \btheta^{(s)}]
+  = p_j \cdot g(t_i)
+  + q_j^L \cdot \E[g(T_j) \mid T_j < t_i]
+  + q_j^R \cdot \E[g(T_j) \mid T_j > t_i],
+\end{equation}
+where $p_j$ is the probability that $j$ is critical, $q_j^L$ is
+the probability that $j$ is left-censored, and $q_j^R$ is the
+probability that $j$ is right-censored, all conditional on
+$T = t_i$ and current parameters $\btheta^{(s)}$.  For a parallel
+system ($k = 1$), $q_j^R = 0$ for all $j$; for a series system
+($k = n$), $q_j^L = 0$ for all $j$.
+
+The classification probabilities $(p_j, q_j^L, q_j^R)$ are
+computed from the critical-state decomposition:
+$p_j$ is as in~\eqref{eq:em-pij}, and $q_j^L + q_j^R = 1 - p_j$.
+To split $1 - p_j$ between left- and right-censoring, we compute
+the probability that component $j$ has failed by time $t$
+\emph{and} is not critical:
+\begin{equation}\label{eq:em-qjL}
+  q_j^L = \frac{F_j(t) \cdot D_j^L(t; \btheta^{(s)})}
+               {f_T(t; \btheta^{(s)})},
+  \qquad
+  q_j^R = 1 - p_j - q_j^L,
+\end{equation}
+where $D_j^L(t; \btheta^{(s)})$ sums over critical states in
+which component $j$ is down and not pivotal.
+
+\subsection{M-step: component-wise Weibull MLE}
+
+Given the expected sufficient statistics from the E-step, the
+M-step solves $m$ independent Weibull maximum likelihood problems.
+For component $j$, the expected complete-data log-likelihood
+(dropping constants) is:
+\begin{equation}\label{eq:em-mstep-obj}
+  Q_j(\alpha_j, \beta_j)
+  = n \ln \frac{\alpha_j}{\beta_j}
+  + (\alpha_j - 1) \sum_{i=1}^n \hat\mu_{ij}^{(\ln)}
+  - \frac{1}{\beta_j^{\alpha_j}} \sum_{i=1}^n \hat\mu_{ij}^{(\alpha)},
+\end{equation}
+where
+$\hat\mu_{ij}^{(\ln)} = \E[\ln T_j \mid T = t_i; \btheta^{(s)}]$
+and
+$\hat\mu_{ij}^{(\alpha)} = \E[T_j^{\alpha_j^{(s)}} \mid T = t_i;
+\btheta^{(s)}]$
+are from the E-step.
+
+Setting $\partial Q_j / \partial \beta_j = 0$ gives:
+\begin{equation}\label{eq:em-beta-update}
+  \beta_j^{(s+1)} = \Bigl(
+    \frac{1}{n} \sum_{i=1}^n \hat\mu_{ij}^{(\alpha)}
+  \Bigr)^{1/\alpha_j^{(s+1)}}.
+\end{equation}
+Setting $\partial Q_j / \partial \alpha_j = 0$ gives the
+profile equation:
+\begin{equation}\label{eq:em-alpha-profile}
+  \frac{1}{\alpha_j^{(s+1)}}
+  + \frac{1}{n} \sum_{i=1}^n \hat\mu_{ij}^{(\ln)}
+  = \frac{\sum_{i=1}^n \hat\mu_{ij}^{(\alpha)}
+    \cdot \hat\nu_{ij}^{(\ln)}}
+   {\sum_{i=1}^n \hat\mu_{ij}^{(\alpha)}},
+\end{equation}
+where
+$\hat\nu_{ij}^{(\ln)} = \E[T_j^{\alpha_j} \ln T_j \mid T = t_i;
+\btheta^{(s)}]$.  This is a nonlinear equation in $\alpha_j$ that
+must be solved numerically (e.g., by Newton--Raphson or bisection),
+as is standard for single-component Weibull MLE
+\citep{Cohen1965, LawlessBook2003}.
+
+\begin{remark}[Contrast with exponential EM]
+For exponential components, the E-step involves the truncated
+exponential mean $1/\lambda_j - t/(e^{\lambda_j t} - 1)$ (a
+simple closed form), and the M-step is $\lambda_j^{(s+1)} = n /
+\sum_i \hat\tau_{ij}$ (a reciprocal).  For Weibull components, the
+E-step requires incomplete gamma functions (which are available
+in standard numerical libraries via the regularized gamma function),
+and the M-step requires a one-dimensional numerical optimization
+over $\alpha_j$ with closed-form $\beta_j$ given $\alpha_j$
+via~\eqref{eq:em-beta-update}.  The EM retains its structural
+advantage (monotone likelihood increase, decomposition into $m$
+sub-problems) at the cost of replacing elementary closed forms
+with well-conditioned numerical computations.
+\Cref{sec:em-results} evaluates this algorithm empirically.
+\end{remark}
+
+\subsection{Algorithm summary}
+
+\Cref{alg:weibull-em} provides pseudocode for the complete EM
+algorithm.
+
+\begin{algorithm}[t]
+\caption{EM algorithm for Weibull $k$-out-of-$n$ system estimation}
+\label{alg:weibull-em}
+\begin{algorithmic}[1]
+\Require System observations $t_1, \ldots, t_n > 0$;\;
+  system structure $(k, n)$;\;
+  tolerance $\varepsilon > 0$
+\Ensure MLE $\hat\btheta =
+  (\hat\alpha_1, \hat\beta_1, \ldots, \hat\alpha_m, \hat\beta_m)$
+\State Initialize $\alpha_j^{(0)} \gets 1$,\;
+  $\beta_j^{(0)} \gets \bar{t} \cdot (0.5 + (j-1)/(m-1))$
+  for $j = 1, \ldots, m$
+\State $s \gets 0$
+\Repeat
+  \For{$i = 1, \ldots, n$}
+    \Comment{\textbf{E-step}}
+    \State Compute $f_T(t_i; \btheta^{(s)})$ via
+      critical-state decomposition~\eqref{eq:sys-density-kofn}
+    \For{$j = 1, \ldots, m$}
+      \State Compute classification probabilities
+        $(p_j, q_j^L, q_j^R)$
+        via~\eqref{eq:em-pij}--\eqref{eq:em-qjL}
+      \State Compute
+        $\hat\mu_{ij}^{(\ln)}$,
+        $\hat\mu_{ij}^{(\alpha)}$
+        via~\eqref{eq:em-marginalized}
+        using~\eqref{eq:em-exact-case}--\eqref{eq:em-right-Talpha}
+    \EndFor
+  \EndFor
+  \For{$j = 1, \ldots, m$}
+    \Comment{\textbf{M-step}}
+    \State Solve~\eqref{eq:em-alpha-profile} for
+      $\alpha_j^{(s+1)}$ (Newton--Raphson)
+    \State Compute $\beta_j^{(s+1)}$
+      via~\eqref{eq:em-beta-update}
+  \EndFor
+  \State $s \gets s + 1$
+\Until{$|\ell(\btheta^{(s)}) - \ell(\btheta^{(s-1)})| /
+  |\ell(\btheta^{(s-1)})| < \varepsilon$}
+\State \Return $\hat\btheta \gets \btheta^{(s)}$
+\end{algorithmic}
+\end{algorithm}
+
+
+% ===================================================================
+\section{Periodic Inspection: Scheme 1}
+\label{sec:scheme1}
+% ===================================================================
+
+The simulation results of \Cref{sec:simulations} demonstrate that
+Scheme~0 (system-level-only observation) is often insufficient for
+reliable Weibull parameter recovery.  A natural remedy is to
+supplement system failure times with component-level information
+obtained through periodic inspection.
+
+\subsection{Observation model}
+
+Under Scheme~1, components are inspected at regular intervals
+$\tau, 2\tau, 3\tau, \ldots$ while the system is operating.  At
+each inspection time $\ell\tau$ (with $\ell = 1, 2, \ldots$), the
+status of each component (functioning or failed) is recorded.  The
+system is observed until failure, at which point the exact system
+failure time $T$ is recorded.
+
+For each system $i$ with failure time $T_i$, and for each
+component $j$, the inspection data determines an interval
+$(\underline{t}_{ij}, \bar{t}_{ij}]$ containing the component
+failure time:
+\begin{itemize}
+\item $\underline{t}_{ij} = \ell\tau$ if component $j$ was
+  functioning at the last inspection before system failure and
+  failed by time $T_i$;
+\item $\bar{t}_{ij} = (\ell + 1)\tau$ or $T_i$, whichever is
+  smaller;
+\item If component $j$ is still functioning at system failure
+  ($T_j > T_i$), the observation is right-censored at $T_i$.
+\end{itemize}
+
+\subsection{Scheme~1 likelihood}
+
+The Scheme~1 likelihood for one system observation combines the
+exact system failure time with the interval-censored component data.
+Let $\mathcal{L}_j$ denote the set of components for which we have
+interval-censored data $T_j \in (\underline{t}_{ij},
+\bar{t}_{ij}]$, $\mathcal{E}_j$ the component (if any) known to
+have failed at $T_i$, and $\mathcal{R}_j$ the components
+right-censored at $T_i$.
+
+The likelihood contribution of system $i$ is:
+\begin{equation}\label{eq:scheme1-lik}
+  L_i(\btheta) = f_T(T_i; \btheta)
+  \cdot \prod_{j \in \mathcal{L}_j}
+    \frac{F_j(\bar{t}_{ij}) - F_j(\underline{t}_{ij})}
+         {\tilde{F}_j(T_i)}
+  \cdot \prod_{j \in \mathcal{R}_j}
+    \frac{S_j(T_i)}{\tilde{S}_j(T_i)},
+\end{equation}
+where $\tilde{F}_j$ and $\tilde{S}_j$ are the appropriate
+normalizing functions that account for the conditioning on the
+system failure time.
+
+In practice, the joint likelihood is most cleanly expressed by
+treating the complete observation as:
+\begin{equation}\label{eq:scheme1-loglik}
+  \ell_1(\btheta) = \sum_{i=1}^n \Bigl[
+    \ln f_T(T_i; \btheta)
+    + \sum_{j=1}^m \ln P(D_{ij} \mid T_i, \btheta)
+  \Bigr],
+\end{equation}
+where $D_{ij}$ denotes the inspection data for component $j$ in
+system $i$, and $P(D_{ij} \mid T_i, \btheta)$ is:
+\begin{equation}\label{eq:scheme1-component}
+  P(D_{ij} \mid T_i, \btheta) = \begin{cases}
+    \dfrac{F_j(\bar{t}_{ij}) - F_j(\underline{t}_{ij})}
+          {F_j(T_i)}
+    & \text{if } T_j \leq T_i \text{ (interval-censored)}, \\[12pt]
+    \dfrac{S_j(T_i)}{S_j(T_i)} = 1
+    & \text{if } T_j > T_i \text{ (right-censored)}.
+  \end{cases}
+\end{equation}
+
+The key observation is that the second term
+in~\eqref{eq:scheme1-loglik} provides \emph{component-level}
+information that is entirely absent under Scheme~0.  For Weibull
+components, the interval $(\underline{t}_{ij}, \bar{t}_{ij}]$
+constrains both $\alpha_j$ and $\beta_j$: the probability of
+falling in a specific interval depends on the shape (which
+determines how the hazard rate changes over the interval) and
+the scale (which determines the overall failure timing).  This
+joint constraint resolves the shape--scale ambiguity that makes
+Scheme~0 estimation so difficult.
+
+\subsection{Information gain from inspection}
+
+The inspection interval width $\tau$ controls the information
+content:
+\begin{itemize}
+\item $\tau \to 0$: continuous monitoring (Scheme~2), complete data,
+  trivial estimation;
+\item $\tau \to \infty$: no inspections (Scheme~0), minimal
+  information;
+\item Finite $\tau$: intermediate, with finer intervals
+  providing more precise component-level data at higher
+  monitoring cost.
+\end{itemize}
+
+For the EM algorithm of \Cref{sec:em-algorithm}, the Scheme~1
+E-step replaces the unconditional truncated moments with moments
+conditional on the interval constraint:
+\begin{equation}\label{eq:scheme1-em-estep}
+  \E[g(T_j) \mid T_j \in (\underline{t}_{ij}, \bar{t}_{ij}];
+  \btheta^{(s)}]
+  = \frac{\int_{\underline{t}_{ij}}^{\bar{t}_{ij}}
+    g(u)\, f_j(u; \btheta^{(s)})\, du}
+    {F_j(\bar{t}_{ij}; \btheta^{(s)}) -
+     F_j(\underline{t}_{ij}; \btheta^{(s)})}.
+\end{equation}
+The interval constraint concentrates the conditional distribution,
+leading to more informative expected sufficient statistics and
+faster EM convergence.
+
+
+% ===================================================================
+\section{Empirical Results: EM Algorithm}
+\label{sec:em-results}
+% ===================================================================
+
+We now evaluate the implemented EM algorithm
+(\Cref{alg:weibull-em}) for Weibull parallel systems ($k = 1$),
+comparing its performance against the direct MLE of
+\Cref{sec:simulations}.  All experiments use $n = 300$ system
+lifetime observations and $R = 200$ Monte Carlo replications
+(unless noted otherwise), with the EM initialized by multiple
+random starts ($n_{\text{starts}} = 3$) and the direct MLE using
+L-BFGS-B with Nelder--Mead fallback ($n_{\text{starts}} = 5$).
+
+\subsection{Shape effect on estimation difficulty}
+\label{sec:em-shape-effect}
+
+We first examine how the Weibull shape parameter affects estimation
+difficulty for a two-component parallel system with scales
+$(\beta_1, \beta_2) = (2, 3)$.  Both components share a common
+shape $\alpha$ varied across $\{0.5, 1.0, 1.5, 2.0, 3.0\}$,
+spanning DFR through strongly IFR regimes.
+
+\begin{table}[t]
+\centering
+\caption{%
+  Effect of shape parameter on EM and direct MLE for a
+  two-component parallel system ($\bbeta = (2, 3)$,
+  $n = 300$, $R = 200$).
+  Shape RMSE and scale RMSE are averages over both components.
+  The EM dominates in shape recovery, particularly at
+  $\alpha = 1.0$ where the MLE's shape estimates explode
+  for the fast component.
+}
+\label{tab:shape-effect}
+\small
+\begin{tabular}{c rr rr rr}
+\toprule
+& \multicolumn{3}{c}{EM} & \multicolumn{3}{c}{Direct MLE} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+$\alpha$ & Conv. & Shape & Scale
+         & Conv. & Shape & Scale \\
+         &  (\%) & RMSE & RMSE
+         &  (\%) & RMSE & RMSE \\
+\midrule
+0.5 &  98 & 0.208 & 2.055 & 100 & 0.641 & 2.205 \\
+1.0 & 100 & 0.315 & 0.819 & 100 & 7.487 & 0.912 \\
+1.5 & 100 & 0.498 & 0.533 & 100 & 2.050 & 0.554 \\
+2.0 & 100 & 0.738 & 0.400 & 100 & 0.914 & 0.403 \\
+3.0 & 100 & 0.969 & 0.241 & 100 & 1.263 & 0.256 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Cref{tab:shape-effect} reveals two systematic patterns.
+First, shape RMSE \emph{increases} with $\alpha$ (from 0.21 at
+$\alpha = 0.5$ to 0.97 at $\alpha = 3$) while scale RMSE
+\emph{decreases} (from 2.06 to 0.24).  Higher shapes concentrate
+the Weibull distribution, improving scale estimation but creating
+a steeper likelihood surface in which the shape is harder to pin
+down.  Second, the EM dominates the direct MLE in shape recovery:
+at $\alpha = 1.0$, the EM achieves shape RMSE $= 0.32$ while the
+MLE explodes to 7.49 due to boundary violations in the fast
+component.  Both methods achieve near-identical scale RMSE, as the
+scale is better-identified than the shape under Scheme~0.  The EM's
+advantage is clearest for the fast (deeply censored) component,
+where the direct MLE's shape estimates are driven to extreme values
+by the flat likelihood ridge along the shape--scale confounding
+direction.
+
+\subsection{Mixed shapes: DFR + IFR}
+\label{sec:em-mixed}
+
+In practice, systems contain components with heterogeneous
+failure mechanisms.  We test three scenarios with mixed shapes:
+\begin{itemize}
+\item \textbf{Mild}: $\balpha = (0.8, 1.5)$,
+  $\bbeta = (2.0, 3.0)$;
+\item \textbf{Strong}: $\balpha = (0.5, 3.0)$,
+  $\bbeta = (2.0, 3.0)$;
+\item \textbf{Three-component}: $\balpha = (0.7, 1.5, 2.5)$,
+  $\bbeta = (1.5, 2.0, 3.0)$.
+\end{itemize}
+
+The strong scenario is deliberately challenging: one DFR
+component (shape $0.5$) with unbounded hazard at $t = 0$ and
+one strongly IFR component (shape $3.0$) that fails in a narrow
+window.  This creates a bimodal posterior over which component
+failed last and stresses both the E-step classification
+probabilities and the M-step profile optimization.
+
+Both EM and MLE achieve 100\% convergence on the two-component
+scenarios, with mean shape RMSE of 0.34 (mild) and 0.39
+(strong).  The three-component case is harder: the fast
+component ($\alpha = 0.7$, $\beta = 1.5$) has shape RMSE 3.60
+under EM---the same information asymmetry seen earlier---while
+the two slower components achieve RMSE below 0.85.  The EM
+outperforms direct MLE in the three-component case: mean shape
+RMSE 1.62 vs.\ 5.32, with the MLE's fast-component shape RMSE
+reaching 14.7 due to boundary violations.
+
+\subsection{EM vs direct MLE: convergence comparison}
+\label{sec:em-convergence}
+
+The results of \Cref{tab:shape-effect} and the mixed-shape
+experiments reveal a consistent pattern: the EM achieves
+comparable or superior estimation quality to the direct MLE,
+with its advantage concentrated in \emph{shape} recovery.
+At $\alpha = 1.0$, the EM's shape RMSE is 24 times smaller
+(0.32 vs.\ 7.49); even at $\alpha = 2.0$, the gap persists
+(0.74 vs.\ 0.91).  For three-component systems with mixed
+shapes, the EM achieves mean shape RMSE 1.62 compared to
+the MLE's 5.32---a 3.3-fold improvement.
+
+Both methods achieve $\geq 98\%$ convergence for
+two-component systems.  The EM's advantage is
+\emph{structural}: its monotone likelihood guarantee prevents
+the boundary violations and parameter blow-up that plague
+gradient-based optimization on the Weibull likelihood surface,
+particularly when shapes are near~1 (the exponential boundary)
+or when components have very different scales.
+Both methods achieve similar scale RMSE when they converge,
+confirming they find the same optima---the EM simply reaches
+them more reliably.
+
+\subsection{Sample size requirements}
+\label{sec:em-sample-size}
+
+How much data does Weibull parallel system estimation require?
+We vary $n \in \{50, 100, 200, 500\}$ for a two-component system
+with $\balpha = (1.5, 2.0)$ and $\bbeta = (2.0, 3.0)$.
+
+The results show a characteristic pattern: the slow component
+(larger scale, more likely to be the system maximum) achieves
+shape RMSE $\leq 0.56$ even at $n = 50$, while the fast component
+(deeply left-censored under Scheme~0) has shape RMSE 5.76 at
+$n = 50$, improving to 2.50 at $n = 200$ and dropping below~1
+only at $n = 500$ (RMSE $= 0.60$).  This asymmetric sample
+size requirement directly reflects the information asymmetry
+of the parallel system: the last-to-fail component is observed
+exactly, while earlier-failing components contribute only through
+their CDF at the system failure time.  Both EM and MLE achieve
+$\geq 96\%$ convergence across all sample sizes.
+
+
+% ===================================================================
+\section{Empirical Results: Scheme~1}
+\label{sec:scheme1-results}
+% ===================================================================
+
+The EM results of \Cref{sec:em-results} confirm that Scheme~0
+estimation is feasible for Weibull parallel systems but suffers
+from the information asymmetry identified in \citet{Towell2026}:
+fast components are poorly estimated.  We now evaluate whether
+periodic inspection (Scheme~1) resolves this difficulty.
+
+\subsection{Scheme~0 vs Scheme~1 comparison}
+\label{sec:scheme1-comparison}
+
+We compare Scheme~0 (EM, system-level only) with Scheme~1
+(MLE using system failure time plus interval-censored component
+data) for a two-component Weibull system with
+$\balpha = (1.5, 2.0)$ and $\bbeta = (2.0, 3.0)$, using
+$n = 300$ observations and $R = 200$ replications.  The
+inspection interval $\delta$ is varied across
+$\{0.1, 0.5, 1.0, 2.0\}$.
+
+\begin{table}[t]
+\centering
+\caption{%
+  Scheme~0 (EM) vs Scheme~1 (MLE with periodic inspection)
+  for a two-component Weibull parallel system
+  ($\balpha = (1.5, 2.0)$, $\bbeta = (2.0, 3.0)$,
+  $n = 300$, $R = 200$).  Scheme~1 reduces shape RMSE
+  by 12--21$\times$ for the fast component (Comp.~1)
+  while improving the slow component (Comp.~2) by 3$\times$.
+  Scheme~0 convergence: 94\%; all Scheme~1 configurations: 100\%.
+}
+\label{tab:scheme-comparison}
+\small
+\begin{tabular}{l rrrr}
+\toprule
+& \multicolumn{2}{c}{Shape RMSE} & \multicolumn{2}{c}{Scale RMSE} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-5}
+Method & Comp.\ 1 & Comp.\ 2 & Comp.\ 1 & Comp.\ 2 \\
+\midrule
+Scheme~0 (EM)              & 2.042 & 0.347 & 0.791 & 0.337 \\
+Scheme~1 ($\delta = 0.1$)  & 0.097 & 0.107 & 0.099 & 0.103 \\
+Scheme~1 ($\delta = 0.5$)  & 0.080 & 0.111 & 0.103 & 0.102 \\
+Scheme~1 ($\delta = 1.0$)  & 0.095 & 0.125 & 0.120 & 0.116 \\
+Scheme~1 ($\delta = 2.0$)  & 0.166 & 0.109 & 0.110 & 0.097 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Cref{tab:scheme-comparison} confirms the central prediction:
+Scheme~1 provides massive improvement for the fast component
+(Component~1, $\beta_1 = 2$), whose shape RMSE drops from 2.04
+under Scheme~0 to 0.10 under Scheme~1 with $\delta = 0.1$---a
+21-fold improvement.  The slow component (Component~2,
+$\beta_2 = 3$) improves from 0.35 to 0.11, a more modest
+3-fold gain.  This asymmetry is exactly what the censoring
+framework predicts: the fast component is deeply left-censored
+under Scheme~0 (its CDF is near~1 at typical system failure
+times), so periodic inspection's interval constraints provide
+maximal new information.
+
+Even coarse inspection ($\delta = 2.0$) reduces shape RMSE by
+a factor of~12 for the fast component.  Remarkably, performance
+is relatively insensitive to the inspection interval: $\delta$
+varying over a 20-fold range (0.1 to 2.0) produces shape RMSE
+between 0.08 and 0.17 for the fast component.  This robustness
+is encouraging for practical deployment, where fine-grained
+inspection may be costly.
+
+\subsection{Information-theoretic interpretation}
+
+The Scheme~1 information gain has a clean interpretation in
+terms of the censoring framework of \citet{Towell2026}.  Under
+Scheme~0, the fast component contributes to the likelihood
+primarily through $F_j(t)$---the probability of having failed by
+time $t$---which is close to 1 for the fast component and
+therefore nearly flat in $(\alpha_j, \beta_j)$.  Under Scheme~1,
+the interval constraint $T_j \in (\underline{t}_{ij},
+\bar{t}_{ij}]$ provides a direct localization of the component
+failure time, giving likelihood contributions that are sharply
+peaked in both shape and scale.
+
+The data confirm this: the fast component's shape RMSE drops from
+2.04 to $\sim$0.10 (a 95\% reduction), while its scale RMSE
+drops from 0.79 to $\sim$0.10 (an 87\% reduction).  The larger
+proportional gain for shape is because, under Scheme~0, the scale
+is partially identifiable from the system CDF (which constrains
+the marginal failure timing), but the shape---which governs how
+the hazard changes over time---is nearly invisible from a single
+system failure time.  Interval censoring at two time points
+immediately constrains the hazard trend.
+
+
+% ===================================================================
+\section{Discussion}
+\label{sec:discussion}
+% ===================================================================
+
+\subsection{Summary of findings}
+
+The extension from exponential to Weibull component estimation in
+$k$-out-of-$n$ systems is not a smooth generalization but a phase
+transition in difficulty.  We have identified four distinct
+mechanisms and two computational remedies:
+
+\begin{enumerate}
+\item \textbf{Parameter proliferation}: doubling the parameter
+  count from $m$ to $2m$ thins the Fisher information per parameter
+  and increases the dimensionality of the optimization landscape.
+
+\item \textbf{Loss of analytical structure}: the
+  inclusion-exclusion expansion that enables closed-form
+  exponential likelihoods does not extend to Weibull components,
+  requiring numerical evaluation of all likelihood quantities.
+
+\item \textbf{Likelihood surface pathology}: shape--scale
+  confounding creates ridges and local optima that degrade
+  optimizer convergence from near-perfect (exponential) to as low
+  as 47\% (Weibull mixed shapes at $k = 4$) under direct MLE.
+
+\item \textbf{Shape-dependent optimal design}: the optimal system
+  structure for estimation depends on the shape parameter---a
+  quantity the experimenter typically does not know in advance,
+  creating a circular design problem.
+
+\item \textbf{EM resolves convergence}: the EM algorithm of
+  \Cref{sec:em-algorithm}, with its monotone likelihood guarantee
+  and decomposition into $m$ independent sub-problems, achieves
+  near-perfect convergence across all shape configurations
+  tested (\Cref{sec:em-results}), substantially outperforming
+  direct MLE for challenging DFR and mixed-shape scenarios.
+
+\item \textbf{Scheme~1 resolves information asymmetry}: periodic
+  inspection provides interval-censored component data that reduces
+  shape RMSE by an order of magnitude
+  (\Cref{sec:scheme1-results}), with the largest gains for the
+  deeply-censored fast components that are nearly unestimable under
+  Scheme~0.
+\end{enumerate}
+
+\subsection{Practical implications}
+
+\paragraph{When is exponential sufficient?}
+If the primary goal is component estimation and the shape
+parameters are believed to be close to 1, the exponential model of
+\citet{Towell2026} is strongly preferable.  It provides
+10--30 times better RMSE, guaranteed convergence, closed-form EM
+steps, and proven identifiability.  The Weibull model should be
+used only when there is substantive evidence of non-constant hazard
+rates, and even then, Scheme~1 (periodic inspection) is strongly
+recommended.
+
+\paragraph{System design for Weibull estimation.}
+Our results show that the ``safe'' choice is a parallel system
+($k = 1$) or a 2-out-of-$n$ system ($k = 2$).  These structures
+achieve competitive RMSE across all three shape scenarios tested,
+with convergence rates above 73\%.  Higher $k$ values are risky:
+$k = 4$ achieves the best RMSE under constant hazard but only 47\%
+convergence under mixed shapes.  Series systems ($k = n$) should
+be avoided entirely for Weibull estimation.
+
+\paragraph{The case for periodic inspection.}
+Scheme~0 provides insufficient information for reliable Weibull
+parameter recovery, particularly for the shape parameters.  Our
+Scheme~1 simulation results confirm that periodic inspection at
+moderate intervals dramatically improves estimation: shape RMSE
+drops by an order of magnitude, and the deeply-censored fast
+components that are nearly unestimable under Scheme~0 become
+well-recovered.  The information gain is asymmetric---Scheme~1
+primarily benefits the components that are hardest to estimate
+under Scheme~0, while already-well-estimated components see
+modest improvement.  Even coarse inspection intervals
+($\delta \approx$ median component lifetime) suffice.
+
+\subsection{Limitations}
+
+\paragraph{Replication count.}
+The $k$-out-of-$n$ Monte Carlo study (\Cref{sec:simulations})
+uses $R = 15$ replications per cell, which suffices for the
+10--30-fold RMSE differences observed but is too small for precise
+confidence intervals.  The targeted EM and Scheme~1 studies
+(\Cref{sec:em-results,sec:scheme1-results}) use $R = 200$
+replications, providing more reliable estimates of bias, RMSE,
+and convergence rates for the parallel system case.
+
+\paragraph{Identifiability.}
+A formal proof of Weibull parallel system identifiability
+(analogous to \citealt{BasuGhosh1980} for the exponential case)
+remains open.  The numerical evidence is consistent with
+identifiability for all configurations tested, but edge cases
+(e.g., two components with the same shape but different scales)
+may present difficulties.
+
+\subsection{Future work}
+
+\paragraph{Optimal $k$ characterization.}
+The shape-dependent optimal $k$ merits theoretical investigation.
+Is there a simple relationship between the shape parameter vector
+$\balpha$ and the optimal $k$ for estimation?  Can the Fisher
+information matrix (computed numerically) predict the optimal $k$
+without exhaustive simulation?
+
+\paragraph{Bayesian and regularized approaches.}
+The convergence difficulties under Scheme~0 suggest that informative
+priors on the shape parameters (e.g.,
+$\alpha_j \sim \mathrm{Gamma}(a, b)$ with moderate concentration
+around 1) could regularize the problem.  The Bayesian approach of
+\citet{BheringPereiraPolpo2014} is a natural starting point.
+
+\paragraph{Non-parallel structures.}
+The EM algorithm of \Cref{sec:em-algorithm} and the Scheme~1
+likelihood of \Cref{sec:scheme1} are stated for general
+$k$-out-of-$n$ systems, but empirically validated only for the
+parallel case ($k = 1$).  Extending the simulation study to
+$k > 1$ with the EM algorithm and comparing convergence with
+the direct MLE across the full $(k, \balpha)$ grid is a natural
+next step.
+
+\paragraph{Optimal inspection interval.}
+The Scheme~1 results demonstrate large information gains even at
+moderate inspection intervals, but the optimal choice of $\delta$
+(balancing monitoring cost against estimation precision) has not
+been characterized.  A decision-theoretic analysis that trades off
+inspection cost against the Fisher information gain would provide
+practical guidance for monitoring system design.
+
+
+% ===================================================================
+% Bibliography
+% ===================================================================
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

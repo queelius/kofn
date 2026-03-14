@@ -1,0 +1,238 @@
+% Section 6: Discussion
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Summary}
+
+We have shown that the incomplete-data structure of a parallel system
+observation is component-level left-censoring with latent identity,
+not masked cause of failure.  This censoring equivalence
+(\Cref{prop:censoring-equiv}) provides the conceptual foundation for
+a closed-form MLE via inclusion-exclusion, an EM algorithm with
+analytical E- and M-steps, and an elementary identifiability proof for
+exponential components.  The simulations of \Cref{sec:simulations}
+confirm that the MLE is consistent with nominal Wald coverage, and
+reveal a striking information asymmetry: the precision of
+$\hat\lambda_j$ is governed by $P(T_j = T)$, the probability that
+component~$j$ determines the system lifetime.
+
+\subsection{The information asymmetry}
+
+The quantity $P(T_j = T)$ emerges as the organizing principle for
+parallel system estimation.  Slow components (small~$\lambda_j$) fail
+last with high probability, so their failure times are observed nearly
+exactly in most system observations.  Fast components (large~$\lambda_j$)
+fail early and are deeply left-censored by the system structure, yielding
+RMSE ratios exceeding~$150{:}1$ in the five-component case.
+
+This has a direct practical implication.  If reliable estimates of all
+component rates are needed, system-level observation alone is
+insufficient for fast components.  Additional component-level
+information---through periodic inspection (Scheme~1), partial
+monitoring (Scheme~3), or degradation signatures---is required.  The
+Fisher information analysis of \Cref{sec:sim-fisher} quantifies
+this: the per-component efficiency under Scheme~0 is approximately
+proportional to $P(T_j = T)$, and the joint efficiency (determinant
+ratio) collapses exponentially with~$m$, from $5.8 \times 10^{-2}$ at
+$m = 2$ to $6.1 \times 10^{-10}$ at $m = 5$.  Extending this
+comparison to Scheme~1 (periodic inspection) and other intermediate
+observation schemes is a natural direction for guiding monitoring
+strategy.
+
+The asymmetry mirrors the dual situation in series systems.  There,
+the weakest-link component ($\argmin_j T_j$) dominates the system
+lifetime and is well-estimated from system data, while stronger
+components are right-censored.  In parallel systems, the
+strongest-link component ($\argmax_j T_j$) dominates, and weaker
+components are left-censored.  The censoring direction reverses, but
+the structural pattern is the same: the component that determines the
+system lifetime is the one about which the most is learned.
+
+\subsection{Limitations}
+
+\paragraph{Exponential assumption.}
+The constant-hazard assumption of the exponential distribution is
+restrictive for many applications.  The inclusion-exclusion expansion
+and the closed-form integrals (\Cref{lem:ie,lem:integral-wj}) depend
+on the exponential form of the component CDF.  Extension to Weibull
+or gamma components would preserve the general structure of the
+density decomposition (\Cref{lem:density-decomp}) and the EM
+framework (\Cref{prop:em-algorithm}), but the closed-form integrals
+would be replaced by numerical quadrature, and the identifiability
+proof would require different tail analysis.
+
+\paragraph{Computational scaling.}
+The inclusion-exclusion expansion has $2^m$ terms, limiting practical
+applicability to systems with roughly $m \leq 15$--$20$ components.
+For larger systems, Monte Carlo estimation of the density, recursive
+decomposition of the inclusion-exclusion sum, or restriction to i.i.d.\
+component models would be needed.
+
+\paragraph{Independence.}
+The independence assumption underlies both the product-form CDF and the
+identifiability proof (\Cref{thm:identifiability}).  This is not merely
+a convenience: the \citet{BasuGhosh1980} identifiability result
+\emph{requires} independence.  Under general dependence, the
+distribution of $\max(T_1, \ldots, T_m)$ no longer uniquely determines
+the marginal component distributions---the same system CDF can arise
+from different combinations of marginals and copula.  This is the
+parallel-system analogue of the \citet{Tsiatis1975} non-identifiability
+for series systems, but it appears to be unstated in the literature:
+recent work on identifiability under dependence
+\citep{HiabuLoWilke2025} addresses the series case via exclusion
+restrictions, while the parallel case under dependence remains open.
+Copula extensions \citep{NavarroNgBalakrishnan2012} could model
+dependence but would require either structural assumptions on the
+copula family or additional observation beyond Scheme~0.
+
+\paragraph{Interval-censored optimization.}
+The simulation study (\Cref{sec:sim-censoring}) revealed convergence
+difficulties for purely interval-censored system data under direct
+maximization.  The EM algorithm may provide better numerical behavior
+in this setting, but a systematic comparison was beyond the scope of
+the present study.
+
+\subsection{Extension to $k$-out-of-$n$ systems}
+\label{sec:k-out-of-n}
+
+The parallel system ($1$-out-of-$n$) is the extreme case of a
+$k$-out-of-$n$ system: the system functions as long as at least $k$ of
+its $n$ components survive.  Equivalently, the system fails when the
+$(n - k + 1)$-th component fails:
+\begin{equation}\label{eq:kofn-lifetime}
+  T = T_{(n-k+1)},
+\end{equation}
+where $T_{(1)} \leq T_{(2)} \leq \cdots \leq T_{(n)}$ denote the order
+statistics of the component lifetimes.  The parallel system has $k = 1$
+(system lifetime $T = T_{(n)}$, the maximum), and the series system has
+$k = n$ (system lifetime $T = T_{(1)}$, the minimum).
+
+The censoring equivalence (\Cref{prop:censoring-equiv}) generalizes
+naturally to this setting.
+
+\begin{proposition}[$k$-out-of-$n$ censoring equivalence]
+\label{prop:kofn-censoring}
+Consider independent, continuous component lifetimes
+$T_1, \ldots, T_n$ and a $k$-out-of-$n$ system with failure
+time $T = T_{(n-k+1)}$.  Observing the system lifetime~$T$ under
+Scheme~0 is informationally equivalent to the following component-level
+censoring scheme:
+\begin{enumerate}
+  \item[\textup{(a)}] One component---the $(n-k+1)$-th to fail---is
+    observed exactly: $T_J = T$ for a latent index~$J$.
+  \item[\textup{(b)}] The $n - k$ components that failed before the system
+    are left-censored at~$T$: for these indices~$j$, we know only that
+    $T_j < T$.
+  \item[\textup{(c)}] The $k - 1$ components still functioning at system
+    failure are right-censored at~$T$: for these indices~$j$, we know
+    only that $T_j > T$.
+  \item[\textup{(d)}] The identities of the components in each group are
+    latent.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+When the system fails at time $T = T_{(n-k+1)} = t$, exactly $n - k + 1$
+components have failed (those with $T_j \leq t$) and exactly $k - 1$
+components survive (those with $T_j > t$).  Among the failed components,
+exactly one satisfies $T_j = t$ almost surely (by continuity of the
+component distributions), and the remaining $n - k$ have $T_j < t$.
+Under Scheme~0, the system-level observation~$T = t$ reveals only this
+count structure, not which components belong to which group.  This yields
+one exact, $n - k$ left-censored, and $k - 1$ right-censored component
+observations with latent assignment.
+\end{proof}
+
+\Cref{prop:kofn-censoring} recovers \Cref{prop:censoring-equiv} when
+$k = 1$: the parallel system has $n - 1$ left-censored and zero
+right-censored observations.  At the other extreme, $k = n$ gives the
+series system: zero left-censored and $n - 1$ right-censored
+observations---exactly the competing risks structure underlying the
+classical masked cause-of-failure problem.
+
+\begin{remark}[Information hierarchy]
+\label{rmk:info-hierarchy}
+The proposition reveals a monotone information structure as $k$
+varies.  Decreasing~$k$ (from series toward parallel) converts
+right-censored components into left-censored ones, but the total number
+of censored components remains $n - 1$ regardless of~$k$.  What changes
+is the \emph{direction}: left-censoring (parallel) and right-censoring
+(series) carry different amounts of information, giving rise to
+the identifiability contrast between the two extremes
+(\Cref{cor:duality}).  For intermediate~$k$, both censoring
+directions coexist, and the information content interpolates.
+\end{remark}
+
+For the discrete analogue (geometric component lifetimes),
+\citet{Jasinski2023} and \citet{Jasinski2024} have derived closed-form
+MLEs for $k$-out-of-$n$ systems with homogeneous and heterogeneous
+components, respectively.  \Cref{prop:kofn-censoring} provides the
+continuous counterpart, establishing the censoring structure that
+underlies estimation for any parametric family.
+
+\subsection{Related developments}
+
+The censoring framework developed here complements several recent
+research directions.  \citet{Cramer2023} provides a comprehensive
+review of ordered and censored lifetime data in reliability, situating
+progressive censoring models (including the coherent system
+representation of \citealt{CramerNavarro2015}) within a unified
+framework.  \citet{QuNgMoon2024a,QuNgMoon2024b} develop nonparametric
+tests for component distribution homogeneity from system data with known
+signatures---a testing complement to our estimation approach.
+\citet{BiswasGangulyMitra2025} propose semiparametric (piecewise-linear
+cumulative hazard) models for load-sharing parallel systems, providing a
+flexible alternative to the parametric exponential model studied here.
+These directions---nonparametric testing, semiparametric models, and the
+parametric censoring-based MLE developed in the present paper---represent
+complementary approaches to the same fundamental problem of learning
+about components from system-level data.
+
+A structural connection also exists with the one-shot device testing
+literature \citep{BalakrishnanSo2025}, where each test unit is
+destroyed upon inspection and only pass/fail status at the inspection
+time is recorded.  For a parallel system observed at a single time
+point (current-status data), the Scheme~0 observation reduces to a
+binary outcome---structurally identical to the one-shot device model
+with multiple competing failure modes.  The two literatures have
+developed largely independently; the censoring equivalence developed
+here provides a bridge.
+
+\subsection{Future work}
+
+Several extensions arise naturally from the censoring framework
+developed here.
+
+\paragraph{Periodic inspection (Scheme~1).}
+Under periodic inspection at times $\delta, 2\delta, 3\delta, \ldots$,
+each component failure is localized to an inspection interval, yielding
+component-level interval-censored data.  For a parallel system observed
+under both Scheme~0 (system failure time~$T$) and Scheme~1 (component
+states at inspection times), the likelihood for observation~$i$ takes
+the form
+\[
+  L_i(\blam) = f_T(t_i;\blam) \prod_{j=1}^{m}
+    \bigl[F_j(a_{ij}^+;\lambda_j) - F_j(a_{ij}^-;\lambda_j)\bigr],
+\]
+where $[a_{ij}^-,\, a_{ij}^+)$ is the inspection interval containing
+$T_j$ (with the constraint $a_{ij}^+ \leq t_i$ for all~$j$ since
+every component has failed by system failure time).  The interval
+widths add information that resolves the left-censoring ambiguity of
+Scheme~0, particularly for fast components.  Writing down and
+evaluating this likelihood for exponential and Weibull components is a
+natural next step; the Fisher information comparison across schemes
+would quantify the value of periodic inspection.
+
+\paragraph{Non-exponential components.}
+The EM framework of \Cref{prop:em-algorithm} extends to any family where
+the truncated conditional mean $\E[T_j \mid T_j < t]$ has a tractable
+form.  For the Weibull family, the E-step requires the incomplete gamma
+function, which is computationally available but not elementary.
+
+\paragraph{Dependent components.}
+Copula-based models could accommodate shared environmental stress or
+manufacturing-induced dependence among components.  The censoring
+equivalence (\Cref{prop:censoring-equiv}) continues to hold under
+dependence---the system observation still comprises one exact and
+$m-1$ left-censored component lifetimes---but the conditional
+distributions in the E-step would no longer factor across components.

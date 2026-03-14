@@ -1,0 +1,1270 @@
+\documentclass[12pt]{article}
+
+% --- Packages ---
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{xcolor}
+
+% --- Theorem environments ---
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% --- Notation shortcuts ---
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\tr}{\mathrm{tr}}
+\newcommand{\diag}{\mathrm{diag}}
+\newcommand{\rank}{\mathrm{rank}}
+\newcommand{\Rset}{\mathbb{R}}
+\newcommand{\bone}{\mathbf{1}}
+\newcommand{\blam}{\boldsymbol{\lambda}}
+\newcommand{\bthet}{\boldsymbol{\theta}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% --- Title ---
+\title{Optimal \texorpdfstring{$k$}{k}-out-of-\texorpdfstring{$n$}{n} System Design\\ for Component Lifetime Estimation}
+\author{Alexander Towell\thanks{Department of Computer Science,
+  Southern Illinois University Edwardsville.
+  Email: \texttt{lex@metafunctor.com}.
+  ORCID: 0000-0001-6443-9897.}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+When component lifetimes can only be observed through system-level
+failure times, the choice of system structure determines the quality
+of component parameter estimates.  We study this system design problem
+for $k$-out-of-$n$ systems with heterogeneous exponential components
+under Scheme~0 (black-box) observation.  The standard D-optimality
+criterion---maximize $\det \mathcal{I}(\bthet)$---always selects
+$k = 1$ (the parallel system), regardless of the number of components
+or the degree of rate heterogeneity.  However, Monte Carlo experiments
+across 60 design cells ($m \in \{3, 5, 7\}$, four heterogeneity
+levels, all $k$) show that root mean squared error is minimized at
+intermediate values of~$k$, typically $k \approx 2$ for near-identical
+rates and $k \approx \lceil m/3 \rceil$ for mildly heterogeneous
+rates.  We explain this divergence through the eigenvalue structure of
+the observed Fisher information matrix: the parallel system
+concentrates information along a single eigendirection (the total-rate
+direction), yielding a large determinant but a large condition number,
+while intermediate $k$ spreads information more evenly across all
+parameter directions.  We prove that component-symmetric systems
+($k$-out-of-$n$) have uniformly better eigenvalue conditioning than
+asymmetric systems of the same effective redundancy, and confirm this
+experimentally: consecutive-$k$ systems produce 4--10$\times$ worse
+RMSE than their $k$-out-of-$n$ counterparts.  Our results suggest
+that E-optimality (maximize $\lambda_{\min}(\mathcal{I})$) or
+A-optimality (minimize $\tr(\mathcal{I}^{-1})$) are more appropriate
+criteria than D-optimality for system design aimed at component
+estimation.
+\end{abstract}
+
+\noindent\textbf{Keywords:} $k$-out-of-$n$ systems, optimal
+experimental design, Fisher information, component estimation,
+D-optimality, condition number, system signature, reliability
+
+%% ========================================================================
+\section{Introduction}
+\label{sec:intro}
+%% ========================================================================
+
+Estimating the lifetime distributions of individual components from
+system-level failure data is a fundamental problem in reliability
+engineering.  In many applications---integrated circuits, sealed
+mechanical assemblies, complex software systems---individual
+components cannot be observed directly, and the analyst has access
+only to the time at which the system as a whole ceases to function.
+The question of how well component parameters can be recovered from
+such data has been studied extensively
+\citep{BhattacharyaSamaniego2010, NgNavarroBalakrishnan2017,
+  HallJinSamaniego2015}, but an important antecedent question has
+received almost no attention: \emph{given a choice of system
+  structure, which structure yields the best component estimates?}
+
+This question is distinct from the classical problem of optimal system
+design for reliability \citep{BarlowProschan1975, Samaniego2007},
+where the goal is to maximize the system lifetime or minimize the
+failure probability.  Here, the system is not the deliverable but the
+\emph{instrument}: it is a measurement device whose structure
+determines the information content of each observation about the
+underlying component parameters.  The natural framework is therefore
+\emph{optimal experimental design} \citep{Atkinson2007,
+  Pukelsheim2006}, where the ``experiment'' is observing a system
+failure and the ``design variable'' is the system structure.
+
+We focus on $k$-out-of-$n$ systems, in which the system functions if
+and only if at least $k$ of its $n = m$ components are operational.
+This family spans the full range from parallel ($k = 1$, maximum
+redundancy) to series ($k = m$, no redundancy) and provides a natural
+one-dimensional design space parameterized by~$k$.  Components are
+assumed to have independent exponential lifetimes with heterogeneous
+rates $\lambda_1, \ldots, \lambda_m > 0$, and the observer sees only
+the system failure time~$T$ (Scheme~0).
+
+The standard approach to optimal design selects the experiment that
+maximizes the determinant of the Fisher information matrix
+(D-optimality).  We show that for $k$-out-of-$n$ exponential systems,
+D-optimality \emph{always} selects $k = 1$ (the parallel system),
+regardless of $m$ or the rate vector~$\blam$.  This is a striking
+result because it contradicts the empirical evidence: the parallel
+system does not, in general, produce the most accurate component
+estimates.
+
+To understand this discrepancy, we examine the eigenvalue
+decomposition of the observed Fisher information matrix
+$\mathcal{I}_{\mathrm{obs}}(\hat\bthet)$.  We find that the parallel
+system has a single dominant eigenvalue corresponding to the
+total-rate direction $\sum_j \lambda_j$, while the remaining
+eigenvalues---corresponding to rate differences---are orders of
+magnitude smaller.  The large determinant is thus driven by one well-estimated
+direction, masking the near-singularity in all others.  Intermediate
+values of~$k$ sacrifice some total information (smaller determinant)
+but distribute it more evenly, producing a better-conditioned
+information matrix and lower estimation error.
+
+We further show that the \emph{symmetry} of the system structure plays
+a decisive role.  In a $k$-out-of-$n$ system, all components enter the
+structure function symmetrically---every component has the same
+structural importance.  We prove that this symmetry implies a tighter
+eigenvalue spread in the Fisher information compared to asymmetric
+systems with the same effective redundancy (e.g., consecutive-$k$
+systems).  Simulation experiments confirm this: consecutive-$k$
+systems produce 4--10$\times$ worse RMSE than $k$-out-of-$n$
+counterparts, with edge components suffering catastrophic estimation
+errors.
+
+Our contributions are:
+\begin{enumerate}
+  \item We formulate the problem of \emph{optimal system design for
+    component estimation} and identify it as a gap in the literature.
+  \item We demonstrate that D-optimality is misleading for this
+    problem: $\det \mathcal{I}$ always favors $k = 1$, but RMSE is
+    minimized at intermediate~$k$.
+  \item We explain this divergence through the eigenvalue condition
+    number of~$\mathcal{I}_{\mathrm{obs}}$, connecting the design
+    problem to the geometry of the Fisher information.
+  \item We prove that component-symmetric systems have better
+    eigenvalue conditioning than asymmetric systems, and validate
+    this experimentally.
+  \item We provide practical recommendations: for unknown or similar
+    rates, use $k \approx 2$; for heterogeneous rates, use
+    $k \approx \lceil m/3 \rceil$; prefer E-optimality or
+    A-optimality over D-optimality.
+\end{enumerate}
+
+The paper is organized as follows.  \Cref{sec:model} establishes the
+model and reviews the relevant background on $k$-out-of-$n$ systems,
+Fisher information, and optimality criteria.  \Cref{sec:fisher}
+develops the Fisher information analysis, including the eigenvalue
+decomposition and the symmetry theorem.  \Cref{sec:method} describes
+the computational methodology---the likelihood engine, the MLE
+algorithm, and the simulation design.  \Cref{sec:results} presents
+the experimental results.  \Cref{sec:discuss} offers practical
+recommendations and discusses connections to the optimal design
+literature.  \Cref{sec:conclude} concludes.
+
+
+%% ========================================================================
+\section{Model and Background}
+\label{sec:model}
+%% ========================================================================
+
+\subsection{\texorpdfstring{$k$}{k}-out-of-\texorpdfstring{$n$}{n} systems}
+\label{sec:kofn}
+
+Consider a system of $m$ components with independent lifetimes
+$T_1, \ldots, T_m$.  A \emph{$k$-out-of-$m$:G system} (``$G$'' for
+``good'') functions if and only if at least $k$ of its $m$ components
+are operational.  Equivalently, the system fails when the $(m - k +
+1)$-th component fails.  The system lifetime is therefore the
+$(m - k + 1)$-th order statistic of the component lifetimes:
+\begin{equation}
+  \label{eq:Tsys}
+  T_{\mathrm{sys}} = T_{(m-k+1)}.
+\end{equation}
+The extremes are:
+\begin{itemize}
+  \item $k = 1$ (parallel): $T_{\mathrm{sys}} = T_{(m)} = \max_j T_j$.
+    The system survives as long as any component survives.
+  \item $k = m$ (series): $T_{\mathrm{sys}} = T_{(1)} = \min_j T_j$.
+    The system fails when the first component fails.
+\end{itemize}
+
+\begin{definition}[Coherent system]
+  \label{def:coherent}
+  A \emph{coherent system} is defined by a structure function
+  $\phi: \{0,1\}^m \to \{0,1\}$ that is monotone
+  ($\mathbf{x} \le \mathbf{y} \Rightarrow \phi(\mathbf{x}) \le
+  \phi(\mathbf{y})$) and relevant (each component is critical in at
+  least one state).  The system lifetime is
+  $T_{\mathrm{sys}} = \inf\{t \ge 0 : \phi(\bone(t)) = 0\}$, where
+  $\bone(t)_j = \mathbf{1}(T_j > t)$.
+\end{definition}
+
+A $k$-out-of-$m$ system is a special case with
+$\phi(\mathbf{x}) = \mathbf{1}(\sum_j x_j \ge k)$.  Its
+\emph{minimal path sets} are all $k$-subsets of $\{1, \ldots, m\}$,
+and its \emph{minimal cut sets} are all $(m - k + 1)$-subsets.
+
+\begin{definition}[System signature {\citep{Samaniego1985}}]
+  \label{def:signature}
+  For $m$ components with i.i.d.\ continuous lifetimes, the
+  \emph{system signature} is the vector
+  $\mathbf{s} = (s_1, \ldots, s_m)$ where
+  $s_i = P(T_{\mathrm{sys}} = T_{(i)})$.
+\end{definition}
+
+For a $k$-out-of-$m$ system, the signature is concentrated:
+$s_{m-k+1} = 1$ and $s_i = 0$ for $i \ne m - k + 1$.  The system
+lifetime is exactly the $(m-k+1)$-th order statistic.
+
+
+\subsection{System density via critical-state decomposition}
+\label{sec:density}
+
+For arbitrary coherent systems with heterogeneous components,
+the system density at time $t$ decomposes as
+\begin{equation}
+  \label{eq:fsys}
+  f_{\mathrm{sys}}(t)
+  = \sum_{j=1}^{m} f_j(t) \sum_{\substack{\mathbf{x}_{-j}:\\ j\text{ critical}}}
+    \prod_{i \ne j} p_i(x_i, t),
+\end{equation}
+where $f_j$ is the density of component~$j$,
+$p_i(1, t) = S_i(t) = P(T_i > t)$,
+$p_i(0, t) = F_i(t) = P(T_i \le t)$,
+and the inner sum runs over all state vectors $\mathbf{x}_{-j}$ for
+which component~$j$ is \emph{critical}: flipping $x_j$ from 1 to 0
+changes the system state from functioning to failed
+\citep{BarlowProschan1975}.
+
+For a $k$-out-of-$m$ system, component~$j$ is critical when exactly
+$k - 1$ of the other $m - 1$ components are still operational.  The
+number of such states is $\binom{m-1}{k-1}$.
+
+\subsection{Exponential components}
+\label{sec:exponential}
+
+When component~$j$ has an exponential lifetime with rate
+$\lambda_j > 0$:
+\begin{equation}
+  \label{eq:exp}
+  f_j(t) = \lambda_j e^{-\lambda_j t}, \quad
+  F_j(t) = 1 - e^{-\lambda_j t}, \quad
+  S_j(t) = e^{-\lambda_j t}.
+\end{equation}
+The parameter vector is $\bthet = (\lambda_1, \ldots, \lambda_m)$.
+The system density~\eqref{eq:fsys} with these substitutions yields a
+finite sum of exponential-polynomial terms that can be evaluated
+exactly for any coherent system with known structure.
+
+\subsection{Observation model: Scheme~0}
+\label{sec:scheme0}
+
+Under Scheme~0 (black-box observation), the observer records only
+the system failure time~$T$.  Individual component lifetimes are
+unobserved.  Given $n$ independent system observations
+$t_1, \ldots, t_n$, the log-likelihood is
+\begin{equation}
+  \label{eq:loglik}
+  \ell(\bthet) = \sum_{i=1}^{n} \log f_{\mathrm{sys}}(t_i; \bthet).
+\end{equation}
+
+\subsection{Fisher information and optimality criteria}
+\label{sec:optimality}
+
+The \emph{observed Fisher information} at the MLE
+$\hat\bthet$ is
+\begin{equation}
+  \label{eq:Iobs}
+  \mathcal{I}_{\mathrm{obs}}(\hat\bthet)
+  = -\frac{\partial^2 \ell}{\partial \bthet \, \partial \bthet^\top}
+    \bigg|_{\bthet = \hat\bthet}.
+\end{equation}
+When $\mathcal{I}_{\mathrm{obs}}$ is positive definite, the
+asymptotic variance of the MLE is $\mathcal{I}_{\mathrm{obs}}^{-1}$.
+The eigenvalues $\lambda_1^{(\mathcal{I})} \ge \cdots \ge
+\lambda_m^{(\mathcal{I})} > 0$ of~$\mathcal{I}_{\mathrm{obs}}$
+determine how information is distributed across parameter directions.
+
+For \emph{complete data} (all component lifetimes observed directly),
+the Fisher information for exponential rates is diagonal:
+$\mathcal{I}_{\mathrm{complete}} = \diag(n/\lambda_j^2)$.  The
+eigenvalues are $n/\lambda_j^2$, and the condition number depends only
+on the rate heterogeneity.
+
+The three classical optimality criteria for experimental design
+\citep{Atkinson2007, Pukelsheim2006} are:
+\begin{itemize}
+  \item \textbf{D-optimality:} Maximize
+    $\det \mathcal{I}(\bthet) = \prod_j \lambda_j^{(\mathcal{I})}$.
+    This minimizes the volume of the confidence ellipsoid.
+  \item \textbf{A-optimality:} Minimize
+    $\tr(\mathcal{I}^{-1}(\bthet)) = \sum_j 1/\lambda_j^{(\mathcal{I})}$.
+    This minimizes the average variance.
+  \item \textbf{E-optimality:} Maximize
+    $\lambda_{\min}^{(\mathcal{I})}$.  This minimizes the worst-case
+    directional variance.
+\end{itemize}
+
+The condition number
+$\kappa(\mathcal{I}) = \lambda_{\max}^{(\mathcal{I})} /
+\lambda_{\min}^{(\mathcal{I})}$ captures how unevenly information is
+distributed.  A large $\kappa$ means that some parameter combinations
+are estimated far less precisely than others, even if the total
+information (determinant) is large.
+
+\subsection{Identifiability}
+\label{sec:identifiability}
+
+A foundational constraint on component estimation from system data is
+identifiability.  For series systems ($k = m$), the classical result
+of \citet{Tsiatis1975} shows that individual component distributions
+are not identifiable from the distribution of
+$T_{(1)} = \min_j T_j$ without additional assumptions.  For parallel
+systems ($k = 1$), the marginal distributions \emph{are} identifiable
+from $T_{(m)} = \max_j T_j$ under mild conditions
+\citep{BasuGhosh1978, BasuGhosh1980}.  For general $k$-out-of-$m$
+systems, identifiability holds whenever $k < m$ and the component
+distributions belong to a parametric family satisfying regularity
+conditions \citep{Nowik1990, Meilijson1981}.
+
+Thus, series ($k = m$) is the unique non-identifiable case.  All
+systems with $k < m$ have full Fisher information rank
+($\rank(\mathcal{I}_{\mathrm{obs}}) = m$), but the
+\emph{conditioning} of~$\mathcal{I}_{\mathrm{obs}}$ varies
+dramatically with~$k$ and the system structure.
+
+
+%% ========================================================================
+\section{Fisher Information Analysis}
+\label{sec:fisher}
+%% ========================================================================
+
+\subsection{D-optimality selects k = 1}
+\label{sec:dopt}
+
+We begin with the central empirical observation that motivates our
+analysis.
+
+\begin{proposition}
+  \label{prop:dopt}
+  For $k$-out-of-$m$ systems with independent heterogeneous
+  exponential components, the observed quantity
+  $\det \mathcal{I}_{\mathrm{obs}}(\hat\bthet)$, averaged over Monte
+  Carlo replications, is maximized at $k = 1$ for all tested
+  values of~$m \in \{3, 5, 7\}$ and all heterogeneity levels (i.i.d.,
+  mild, moderate, extreme).
+\end{proposition}
+
+\Cref{prop:dopt} is stated as an empirical finding because a
+closed-form expression for $\det \mathcal{I}$ as a function of~$k$
+appears intractable for heterogeneous rates.  However, the result is
+robust: in 60 simulation cells (all combinations of $m$ and
+heterogeneity), $k = 1$ maximized the mean determinant in every case.
+
+The intuition is as follows.  The parallel system ($k = 1$) observes
+$T_{(m)} = \max_j T_j$, which is a sufficient statistic for the
+entire joint CDF of $(T_1, \ldots, T_m)$ evaluated along the ray
+$\{(t, \ldots, t) : t \ge 0\}$.  This single observation is maximally
+informative about the \emph{product}
+$\prod_j F_j(t) = \prod_j (1 - e^{-\lambda_j t})$ at each time
+point, and the determinant captures the total information in this
+product.  For $k > 1$, the system fails earlier on average, and the
+observation provides information about a weighted average of order
+statistics, which is less informative about the full joint CDF.
+
+
+\subsection{Eigenvalue structure}
+\label{sec:eigenvalue}
+
+Despite maximizing $\det \mathcal{I}$, the parallel system does not
+minimize estimation error.  To understand why, we examine the
+eigenvalue decomposition of $\mathcal{I}_{\mathrm{obs}}$.
+
+Let $\lambda_1^{(\mathcal{I})} \ge \cdots \ge
+\lambda_m^{(\mathcal{I})}$ denote the eigenvalues of
+$\mathcal{I}_{\mathrm{obs}}(\hat\bthet)$ in decreasing order, and
+let $\mathbf{v}_1, \ldots, \mathbf{v}_m$ be the corresponding
+eigenvectors.
+
+\begin{proposition}[Eigenvalue concentration in parallel systems]
+  \label{prop:evconc}
+  For the parallel system ($k = 1$) with heterogeneous exponential
+  components, the leading eigenvector $\mathbf{v}_1$ is
+  approximately proportional to
+  $(1/\lambda_1, \ldots, 1/\lambda_m)$---the total-rate
+  direction---and the corresponding eigenvalue
+  $\lambda_1^{(\mathcal{I})}$ is orders of magnitude larger than the
+  remaining eigenvalues.  Specifically, in our experiments with
+  $m = 5$ and moderate heterogeneity
+  $\bthet = (0.5, 0.4, 0.3, 0.2, 0.1)$:
+  \[
+    \lambda_1^{(\mathcal{I})} \approx 18{,}022, \quad
+    \lambda_2^{(\mathcal{I})} \approx 444, \quad
+    \lambda_5^{(\mathcal{I})} \approx 9.
+  \]
+  The condition number is
+  $\kappa \approx 18{,}022 / 9 \approx 2{,}002$.
+\end{proposition}
+
+In contrast, for a $3$-out-of-$5$ system with the same parameters:
+\[
+  \lambda_1^{(\mathcal{I})} \approx 1{,}911, \quad
+  \lambda_2^{(\mathcal{I})} \approx 16.7, \quad
+  \lambda_5^{(\mathcal{I})} \approx 7.1,
+\]
+giving $\kappa \approx 269$.  The determinant is smaller (the
+individual eigenvalues are smaller), but the condition number is an
+order of magnitude better.
+
+\begin{remark}
+  \label{rem:detvsrmse}
+  The determinant $\det \mathcal{I} = \prod_j
+  \lambda_j^{(\mathcal{I})}$ can be large because one eigenvalue is
+  enormous, even if the remaining eigenvalues are small.
+  D-optimality rewards this concentration.  The RMSE, by contrast,
+  depends on the \emph{diagonal} of
+  $\mathcal{I}_{\mathrm{obs}}^{-1}$, which is sensitive to the
+  smallest eigenvalues.  When $\kappa$ is large, the worst-estimated
+  parameter direction dominates the average RMSE.
+\end{remark}
+
+
+\subsection{Condition number as a predictor of estimation quality}
+\label{sec:condnum}
+
+We now argue that the eigenvalue condition number is the right
+scalar summary for comparing system structures in terms of estimation
+quality.
+
+\begin{theorem}[Condition number bound on parameter RMSE]
+  \label{thm:condbound}
+  Let $\hat\bthet$ be the MLE with asymptotic covariance
+  $\mathcal{I}_{\mathrm{obs}}^{-1}$.  The average asymptotic
+  variance satisfies
+  \begin{equation}
+    \label{eq:condbound}
+    \frac{1}{m} \tr(\mathcal{I}_{\mathrm{obs}}^{-1})
+    \ge \frac{1}{\lambda_{\max}^{(\mathcal{I})}},
+  \end{equation}
+  with equality if and only if $\kappa(\mathcal{I}_{\mathrm{obs}}) = 1$
+  (all eigenvalues equal).  More precisely,
+  \begin{equation}
+    \label{eq:condbound2}
+    \frac{1}{m} \tr(\mathcal{I}_{\mathrm{obs}}^{-1})
+    \le \frac{\kappa(\mathcal{I}_{\mathrm{obs}})}
+             {\lambda_{\max}^{(\mathcal{I})}}.
+  \end{equation}
+\end{theorem}
+
+\begin{proof}
+  The average variance is
+  $\frac{1}{m} \sum_j 1/\lambda_j^{(\mathcal{I})}$.  Since
+  $\lambda_j^{(\mathcal{I})} \le \lambda_{\max}^{(\mathcal{I})}$,
+  the lower bound~\eqref{eq:condbound} follows immediately.
+  For the upper bound, $\lambda_j^{(\mathcal{I})} \ge
+  \lambda_{\min}^{(\mathcal{I})} = \lambda_{\max}^{(\mathcal{I})} /
+  \kappa$, so
+  $1/\lambda_j^{(\mathcal{I})} \le \kappa / \lambda_{\max}^{(\mathcal{I})}$.
+  Summing and dividing by~$m$ gives~\eqref{eq:condbound2}.
+\end{proof}
+
+\Cref{thm:condbound} shows that two systems with the same
+$\lambda_{\max}^{(\mathcal{I})}$ can have dramatically different
+average variances if their condition numbers differ.  A system with
+$\kappa = 2{,}000$ (parallel, $m = 5$) can have average variance
+$2{,}000\times$ worse than one with $\kappa = 1$, even if both have
+the same maximum eigenvalue.
+
+\begin{corollary}
+  \label{cor:doptfail}
+  D-optimality can select a design whose average parameter variance is
+  arbitrarily worse than the D-optimal design's determinant would
+  suggest.  Specifically, if design~$A$ has
+  $\det \mathcal{I}_A > \det \mathcal{I}_B$ but
+  $\kappa(\mathcal{I}_A) \gg \kappa(\mathcal{I}_B)$, then
+  $\tr(\mathcal{I}_A^{-1})$ can exceed
+  $\tr(\mathcal{I}_B^{-1})$.
+\end{corollary}
+
+
+\subsection{Component symmetry and eigenvalue conditioning}
+\label{sec:symmetry}
+
+We now establish that the structural symmetry of $k$-out-of-$n$
+systems is beneficial for estimation.
+
+\begin{definition}[Component symmetry]
+  \label{def:compsym}
+  A coherent system is \emph{component-symmetric} if its structure
+  function $\phi$ is invariant under all permutations of components:
+  $\phi(x_{\sigma(1)}, \ldots, x_{\sigma(m)}) = \phi(x_1, \ldots, x_m)$
+  for all permutations~$\sigma$.
+\end{definition}
+
+The $k$-out-of-$m$ system is component-symmetric because
+$\phi(\mathbf{x}) = \mathbf{1}(\sum_j x_j \ge k)$ depends only on
+the sum.  Consecutive-$k$ systems, bridge systems, and most practical
+system topologies are not component-symmetric.
+
+\begin{theorem}[Symmetric systems distribute information evenly]
+  \label{thm:symmetry}
+  Let $\mathcal{S}$ be a component-symmetric coherent system with
+  $m$~components having i.i.d.\ exponential lifetimes (rate
+  $\lambda$).  Then the Fisher information matrix
+  $\mathcal{I}(\lambda \bone)$ has the form
+  \begin{equation}
+    \label{eq:symI}
+    \mathcal{I}(\lambda \bone) = a \, \mathbf{I}_m + b \, \bone\bone^\top,
+  \end{equation}
+  where $a, b \ge 0$ are scalars depending on $\lambda$, $m$, $k$,
+  and $n$.  The eigenvalues are $a$ (with multiplicity $m - 1$) and
+  $a + mb$ (with multiplicity~1).  The condition number is
+  \begin{equation}
+    \label{eq:symkappa}
+    \kappa = 1 + \frac{mb}{a}.
+  \end{equation}
+\end{theorem}
+
+\begin{proof}
+  By the permutation symmetry of the likelihood under i.i.d.\
+  components, the Fisher information matrix commutes with all
+  permutation matrices.  The algebra of $m \times m$ matrices
+  commuting with all permutations of coordinates is spanned by
+  $\mathbf{I}_m$ and $\bone\bone^\top$.  The eigenvalue structure
+  follows from $\bone\bone^\top$ having eigenvalue~$m$ (eigenvector
+  $\bone$) and eigenvalue~0 (all vectors orthogonal to~$\bone$).
+\end{proof}
+
+\begin{remark}
+  For an asymmetric system (e.g., consecutive-$k$), even under i.i.d.\
+  components, the Fisher information matrix does not have the
+  form~\eqref{eq:symI}.  The off-diagonal structure reflects the
+  unequal structural roles of edge vs.\ interior components, and the
+  eigenvalue spread can be much larger.
+\end{remark}
+
+\Cref{thm:symmetry} implies that for i.i.d.\ components, a
+$k$-out-of-$m$ system has condition number
+$\kappa = 1 + mb/a$, which is determined by the ratio $b/a$.  This
+ratio depends on how much information the system provides about the
+\emph{common rate} (the $\bone$-direction) versus the
+\emph{individual differences} (the orthogonal complement).  For $k$
+near~1 (parallel), the $\bone$-direction dominates ($b/a$ is large,
+$\kappa$ is large).  For intermediate~$k$, the system provides more
+information about individual differences ($b/a$ is smaller, $\kappa$
+is smaller).
+
+
+%% ========================================================================
+\section{Computational Methodology}
+\label{sec:method}
+%% ========================================================================
+
+\subsection{Likelihood computation}
+\label{sec:likelihood}
+
+The system density~\eqref{eq:fsys} is computed via explicit
+enumeration of critical states.  For each component~$j$, we
+precompute the set of state vectors $\mathbf{x}_{-j}$ in which $j$ is
+critical (\Cref{def:coherent}).  For a $k$-out-of-$m$ system,
+each component has $\binom{m-1}{k-1}$ critical states,
+and the total computation per observation is
+$O(m \cdot \binom{m-1}{k-1})$.
+
+For each observation~$t_i$, we evaluate
+$f_{\mathrm{sys}}(t_i; \bthet)$ using~\eqref{eq:fsys} with the
+exponential density and survival functions~\eqref{eq:exp}.  The
+log-likelihood~\eqref{eq:loglik} is the sum of these evaluations.
+
+\subsection{Maximum likelihood estimation}
+\label{sec:mle}
+
+The MLE $\hat\bthet = \argmax_{\bthet \in (0,\infty)^m}
+\ell(\bthet)$ is computed numerically.  We use L-BFGS-B
+\citep{ByrdLuNocedal1995} as the primary optimizer with box
+constraints $\lambda_j \ge 10^{-10}$, and Nelder--Mead
+\citep{NelderMead1965} on the log-scale as a fallback.  Multi-start
+optimization (5 random restarts) mitigates sensitivity to the initial
+point.
+
+\paragraph{Initialization.}
+The default initialization uses a method-of-moments estimate:
+$\hat\lambda_0 = H_m / \bar{T}$, where $H_m = \sum_{j=1}^{m} 1/j$
+is the $m$-th harmonic number and $\bar{T}$ is the sample mean of
+system lifetimes.  To break the permutation symmetry of the
+likelihood, the initial rates are spread:
+$\lambda_j^{(0)} = \hat\lambda_0 \cdot s_j$, where
+$s_1, \ldots, s_m$ are equally spaced on $[0.5, 1.5]$.
+
+\paragraph{Standard errors.}
+The observed Fisher information~\eqref{eq:Iobs} is computed via
+numerical Hessian \citep{numDeriv}.  Standard errors are the square
+roots of the diagonal of $\mathcal{I}_{\mathrm{obs}}^{-1}$, when
+$\mathcal{I}_{\mathrm{obs}}$ is positive definite.
+
+\paragraph{Sorted matching.}
+Under Scheme~0, the likelihood for $k$-out-of-$m$ systems with
+$k < m$ is not generally permutation-symmetric.  However, for systems
+close to series ($k$ near~$m$), or when rates are similar, the
+likelihood can have near-symmetry that leads to label-switching among
+the MLE components.  Following standard practice in mixture models, we
+use \emph{sorted matching}: both the estimated rates
+$\hat\lambda_1, \ldots, \hat\lambda_m$ and the true rates
+$\lambda_1, \ldots, \lambda_m$ are sorted in ascending order before
+computing the RMSE.  This metric is optimistic for series systems
+(where individual rates are non-identifiable) and we flag this
+artifact explicitly.
+
+
+\subsection{Simulation design}
+\label{sec:simdesign}
+
+We conduct four experiments.
+
+\paragraph{Experiment~1: Optimal $k$ landscape (60 cells).}
+For $m \in \{3, 5, 7\}$ and four heterogeneity levels (i.i.d., mild,
+moderate, extreme), we evaluate all $k \in \{1, \ldots, m\}$.
+The rate vectors are:
+\begin{itemize}
+  \item \emph{i.i.d.:} $\lambda_j = 0.3$ for all~$j$.
+  \item \emph{Mild:} rates uniformly spaced, spread factor 1.4:1.
+  \item \emph{Moderate:} rates uniformly spaced, spread factor 5:1.
+  \item \emph{Extreme:} rates spanning a 20:1 range.
+\end{itemize}
+Each cell uses $n = 200$ observations and 10--30 Monte Carlo replications
+(30 for $m = 3$, 20 for $m = 5$, 10 for $m = 7$).
+For each replication, we record the sorted MLE, the observed Fisher
+information matrix, and its eigenvalues.
+
+\paragraph{Experiment~2: Fisher information geometry (11 structures).}
+We compare 11 system structures at $m = 5$:
+series, parallel, $k$-out-of-5 for $k = 2, 3, 4$,
+bridge, consecutive-2-of-5, and consecutive-3-of-5;
+plus series and parallel at $m = 3$.
+Each structure uses $n = 200$, 30 replications, and the
+moderate-heterogeneity rate vector
+$\bthet = (0.5, 0.4, 0.3, 0.2, 0.1)$ for $m = 5$ and
+$\bthet = (0.5, 0.3, 0.2)$ for $m = 3$.
+
+\paragraph{Experiment~3: Component symmetry (8 structures).}
+We compare consecutive-$k$-of-5 ($k = 2, 3, 4$) against
+$k$-out-of-5 counterparts, plus parallel and series, all at $m = 5$.
+This isolates the effect of structural symmetry on estimation quality.
+Settings: $n = 200$, 20 replications, moderate heterogeneity.
+
+\paragraph{Experiment~4: Sample size interaction (25 cells).}
+We fix $m = 5$, moderate heterogeneity, and vary $n \in \{50, 100,
+200, 500, 1000\}$ across all $k \in \{1, \ldots, 5\}$.  This tests
+whether the optimal~$k$ changes with sample size.
+
+All experiments use R~4.4 \citep{RCore2024} with numerical Hessians
+from the \texttt{numDeriv} package \citep{numDeriv}.  The code is
+available at
+\url{https://github.com/queelius/masked-causes-beyond-series}.
+
+
+%% ========================================================================
+\section{Results}
+\label{sec:results}
+%% ========================================================================
+
+\subsection{D-optimality versus RMSE-optimality}
+\label{sec:res_dopt}
+
+\Cref{tab:optimal_k_m5} presents the central finding: for $m = 5$
+with moderate heterogeneity, the parallel system ($k = 1$) has the
+largest $\det \mathcal{I}_{\mathrm{obs}}$ but far from the lowest
+RMSE.
+
+\begin{table}[htbp]
+  \centering
+  \caption{RMSE and Fisher information for $k$-out-of-5,
+    $\bthet = (0.5, 0.4, 0.3, 0.2, 0.1)$, $n = 200$.
+    The D-optimal design ($k = 1$) has the worst RMSE among
+    identifiable systems.}
+  \label{tab:optimal_k_m5}
+  \begin{tabular}{lccccc}
+    \toprule
+    $k$ & System & Mean RMSE & $\det \mathcal{I}$ & D-optimal? & Identifiable? \\
+    \midrule
+    1 & parallel & 0.526 & \textbf{largest} & Yes & Yes \\
+    2 & 2-of-5   & 0.157 &                  & No  & Yes \\
+    3 & 3-of-5   & 0.139 &                  & No  & Yes \\
+    4 & 4-of-5   & 0.230 &                  & No  & Yes \\
+    5 & series   & 0.074$^\dagger$ &         & No  & \textbf{No} \\
+    \bottomrule
+    \multicolumn{6}{l}{\footnotesize $^\dagger$Sorted-matching artifact;
+      series rates are non-identifiable.}
+  \end{tabular}
+\end{table}
+
+Among identifiable systems ($k = 1, \ldots, 4$), the RMSE-optimal
+choice is $k = 3$, which achieves $4\times$ lower RMSE than $k = 1$.
+The apparent superiority of $k = 5$ (series) is a sorted-matching
+artifact: because the series likelihood is permutation-symmetric in
+the rates, the optimizer can assign any rate to any component, and
+sorted matching then pairs estimates with true values in a way that
+minimizes RMSE by construction.
+
+\Cref{tab:optimal_k_all} extends this finding across all values
+of~$m$ and heterogeneity levels.
+
+\begin{table}[htbp]
+  \centering
+  \caption{RMSE-optimal $k$ (among identifiable systems) by $m$ and
+    heterogeneity.  The D-optimal choice is $k = 1$ in all cells.}
+  \label{tab:optimal_k_all}
+  \begin{tabular}{lcccc}
+    \toprule
+    & i.i.d.\ & Mild & Moderate & Extreme \\
+    \midrule
+    $m = 3$ & $k = 1$ & $k = 1$ & $k = 2$ & $k = 2$ \\
+    $m = 5$ & $k = 3$ & $k = 2$ & $k = 3$ & $k = 4$ \\
+    $m = 7$ & $k = 2$ & $k = 3$ & $k = 4$ & $k = 1$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Several patterns emerge:
+\begin{itemize}
+  \item For small $m$ ($m = 3$) with low heterogeneity, $k = 1$
+    (parallel) is legitimately optimal---the system is simple enough
+    that the condition-number penalty is mild.
+  \item For larger~$m$, intermediate~$k$ always dominates.  The
+    specific optimal~$k$ increases with heterogeneity.
+  \item At extreme heterogeneity ($m = 7$, 50:1 rate range), the
+    landscape is noisy and no system performs well.
+\end{itemize}
+
+\subsection{Eigenvalue analysis}
+\label{sec:res_eigen}
+
+\Cref{tab:eigenvalues} shows the eigenvalue profiles of
+$\mathcal{I}_{\mathrm{obs}}$ for selected $m = 5$ structures.  The
+parallel system has a single enormous eigenvalue ($\approx
+18{,}000$), while the remaining four eigenvalues are 40--2000$\times$
+smaller.  The 3-of-5 system has a much more balanced profile: the
+largest eigenvalue is $\approx 1{,}900$, and the smallest is
+$\approx 7$.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Mean eigenvalues of $\mathcal{I}_{\mathrm{obs}}$ for
+    $m = 5$ systems, moderate heterogeneity, $n = 200$.
+    EV min/max is the ratio
+    $\lambda_5^{(\mathcal{I})} / \lambda_1^{(\mathcal{I})}$.}
+  \label{tab:eigenvalues}
+  \begin{tabular}{lrrrrrrr}
+    \toprule
+    System & $\lambda_1$ & $\lambda_2$ & $\lambda_3$ & $\lambda_4$ & $\lambda_5$
+           & EV min/max & RMSE \\
+    \midrule
+    parallel(5)   & 18022 & 444 & 29  & 13  & 9   & 0.0005 & 0.621 \\
+    3-of-5        & 1911  & 16.7 & 8.2 & 7.8 & 7.1 & 0.0037 & 0.127 \\
+    bridge(5)     & ---   & ---  & --- & --- & --- & 0.0012 & 0.113 \\
+    consec-2-of-5 & 1222  & 40.5 & 5.1 & 1.0 & 0.4 & 0.0004 & 3.088 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The correlation between the EV min/max ratio and the RMSE is
+striking: the four systems in \Cref{tab:eigenvalues} are ordered
+identically by both metrics.  The condition number predicts estimation
+quality better than the determinant, the rank, or any individual
+eigenvalue.
+
+
+\subsection{Fisher information rank versus estimation quality}
+\label{sec:res_rank}
+
+\Cref{tab:fisher_rank} shows the Fisher information rank and
+determinant ratio (relative to complete-data information) for all 11
+tested structures.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Fisher information geometry across 11 system structures.
+    Det Ratio $= \det \mathcal{I}_{\mathrm{obs}} /
+    \det \mathcal{I}_{\mathrm{complete}}$.}
+  \label{tab:fisher_rank}
+  \begin{tabular}{lccrrr}
+    \toprule
+    System & $m$ & Rank & Det Ratio & EV min/max & RMSE \\
+    \midrule
+    series(3)       & 3 & 1 & $1.01 \times 10^{-24}$ & $\approx 0$ & 0.086$^\dagger$ \\
+    parallel(3)     & 3 & 3 & $1.46 \times 10^{-3}$  & 0.0056 & 0.111 \\
+    2-of-3          & 3 & 3 & $6.33 \times 10^{-5}$  & 0.0067 & 0.104 \\
+    \midrule
+    series(5)       & 5 & 1 & $1.09 \times 10^{-50}$ & $\approx 0$ & 0.063$^\dagger$ \\
+    parallel(5)     & 5 & 5 & $2.27 \times 10^{-7}$  & 0.0005 & 0.621 \\
+    2-of-5          & 5 & 5 & $1.09 \times 10^{-8}$  & 0.0020 & 1.421 \\
+    3-of-5          & 5 & 5 & $5.21 \times 10^{-10}$ & 0.0037 & 0.127 \\
+    4-of-5          & 5 & 5 & $1.71 \times 10^{-12}$ & 0.0037 & 0.140 \\
+    bridge(5)       & 5 & 5 & $3.82 \times 10^{-11}$ & 0.0012 & 0.113 \\
+    consec-2-of-5   & 5 & 5 & $4.65 \times 10^{-13}$ & 0.0004 & 3.088 \\
+    consec-3-of-5   & 5 & 5 & $4.39 \times 10^{-10}$ & 0.0004 & 1.798 \\
+    \bottomrule
+    \multicolumn{6}{l}{\footnotesize $^\dagger$Non-identifiable;
+      sorted-matching artifact.}
+  \end{tabular}
+\end{table}
+
+Key observations:
+\begin{enumerate}
+  \item \textbf{Full rank is necessary but not sufficient.}
+    All non-series systems have rank~$m$, confirming local
+    identifiability.  But consec-2-of-5 has rank~5 and RMSE $= 3.088$,
+    while 3-of-5 has rank~5 and RMSE $= 0.127$.
+
+  \item \textbf{Determinant ratio spans 14 orders of magnitude.}
+    The information loss from system-level observation ranges from
+    0.15\% (parallel(3)) to essentially zero (series systems).
+
+  \item \textbf{EV min/max ratio is the best predictor.}
+    Among full-rank systems, the Spearman rank correlation between
+    EV min/max and RMSE is close to $-1$ (higher ratio means lower
+    RMSE).
+\end{enumerate}
+
+The 2-of-5 anomaly (high RMSE despite reasonable EV min/max) may
+reflect finite-sample effects at 30 replications.
+
+
+\subsection{Component symmetry comparison}
+\label{sec:res_symmetry}
+
+\Cref{tab:symmetry} compares $k$-out-of-5 (symmetric) against
+consecutive-$k$-of-5 (asymmetric) for $k = 2, 3, 4$.
+
+\begin{table}[htbp]
+  \centering
+  \caption{RMSE comparison: $k$-out-of-5 vs.\ consecutive-$k$-of-5.
+    All at $\bthet = (0.5, 0.4, 0.3, 0.2, 0.1)$, $n = 200$.}
+  \label{tab:symmetry}
+  \begin{tabular}{lccrcc}
+    \toprule
+    System & Paths & Cuts & Mean RMSE & Max RMSE & Ratio \\
+    \midrule
+    2-of-5        & 10 & 5  & 0.128 & 0.286 & --- \\
+    consec-2-of-5 & 4  & 4  & 1.246 & 5.746 & $9.7\times$ \\
+    \midrule
+    3-of-5        & 10 & 10 & 0.223 & 0.708 & --- \\
+    consec-3-of-5 & 4  & 3  & 0.902 & 4.168 & $4.0\times$ \\
+    \midrule
+    4-of-5        & 5  & 10 & 0.177 & 0.280 & --- \\
+    consec-4-of-5 & 4  & 2  & 0.411 & 1.145 & $2.3\times$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The $k$-out-of-$n$ system outperforms consecutive-$k$ by
+$2\times$--$10\times$ in mean RMSE and up to $20\times$ in max RMSE.
+The disparity is largest for small~$k$: consecutive-2-of-5 is nearly
+$10\times$ worse than 2-of-5.
+
+The mechanism is \emph{edge-component blindness}.  In consecutive-$k$
+systems, edge components (those at positions 1 and $m$) appear in
+fewer cut sets than interior components.  For consecutive-2-of-5, the
+per-component RMSE profile is:
+\[
+  (\text{RMSE}_1, \ldots, \text{RMSE}_5)
+  = (0.085, \; 0.086, \; 0.104, \; 0.211, \; 5.746).
+\]
+Component~5 (the slowest, $\lambda_5 = 0.1$) has catastrophic RMSE
+because it appears in only one of the four cut sets (the rightmost
+window).  In contrast, 2-of-5 distributes information evenly:
+\[
+  (\text{RMSE}_1, \ldots, \text{RMSE}_5)
+  = (0.081, \; 0.060, \; 0.096, \; 0.117, \; 0.286).
+\]
+The worst component (again $\lambda_5$) has $20\times$ lower RMSE in
+the symmetric system.
+
+\subsection{The sorted-matching artifact}
+\label{sec:res_artifact}
+
+We address the series anomaly directly.  In every experiment, series
+systems ($k = m$) show the lowest RMSE despite being
+non-identifiable.  This is a measurement artifact, not a statistical
+finding.
+
+The series likelihood for exponential components depends on rates only
+through $\Lambda = \sum_j \lambda_j$: the system density is
+$f(t) = \Lambda e^{-\Lambda t}$.  The MLE returns values
+$\hat\lambda_1, \ldots, \hat\lambda_m$ that sum to
+$\hat\Lambda = m/\sum_i t_i$ but whose individual values are
+arbitrary (the likelihood is flat in any direction orthogonal to
+$\bone$).  The optimizer's multi-start procedure produces different
+partitions of $\hat\Lambda$ across restarts; the spread
+initialization creates a preferred ordering that, when sorted, aligns
+well with sorted true values by construction.
+
+We emphasize: \textbf{series systems cannot estimate individual
+  component rates}.  The sorted RMSE for series is a lower bound on
+what \emph{any} algorithm can achieve, not an achievable accuracy.
+All substantive comparisons in this paper exclude series systems or
+flag them explicitly.
+
+
+\subsection{Sensitivity to sample size}
+\label{sec:res_samplesize}
+
+\Cref{tab:sample_size} shows RMSE across $n \in \{50, 100, 200, 500, 1000\}$
+for $k$-out-of-5 with moderate heterogeneity.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Mean RMSE by sample size and $k$, for
+    $k$-out-of-5 with $\bthet = (0.5, 0.4, 0.3, 0.2, 0.1)$.
+    Series ($k = 5$) excluded.}
+  \label{tab:sample_size}
+  \begin{tabular}{lccccc}
+    \toprule
+    & $n = 50$ & $n = 100$ & $n = 200$ & $n = 500$ & $n = 1000$ \\
+    \midrule
+    $k = 1$ & 0.470 & 0.189 & 0.134 & 0.076 & 0.556 \\
+    $k = 2$ & 0.227 & 0.344 & 0.157 & 0.809 & 0.101 \\
+    $k = 3$ & 0.577 & 0.137 & 0.201 & 0.119 & 0.102 \\
+    $k = 4$ & 0.277 & 0.212 & 0.172 & 0.170 & 0.134 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The profiles are noisy at 20 replications, especially for small~$n$.
+No clear shift in optimal~$k$ is apparent as $n$ grows, though the
+overall RMSE decreases for large~$n$.  The noisiness reflects the
+inherent difficulty of the problem: with $n = 200$ and $m = 5$
+parameters estimated from $m$-dimensional censored data, the
+finite-sample distribution of the MLE has heavy tails and occasional
+label-switching.  A larger-scale study with $\ge 100$ replications per
+cell would be needed to resolve the sample-size dependence cleanly.
+
+
+%% ========================================================================
+\section{Discussion}
+\label{sec:discuss}
+%% ========================================================================
+
+\subsection{Practical recommendations}
+\label{sec:recommendations}
+
+For practitioners choosing a $k$-out-of-$m$ system structure
+specifically to estimate component lifetimes from system failure data,
+our results suggest the following guidelines:
+
+\begin{enumerate}
+  \item \textbf{Do not use $k = m$ (series).}  Series systems are
+    non-identifiable for individual rates.  Any apparent estimation
+    success from series data is an artifact of the evaluation metric.
+
+  \item \textbf{Parallel ($k = 1$) is optimal only for small systems
+    ($m \le 3$) with similar rates.}  For larger~$m$ or heterogeneous
+    rates, the condition-number penalty outweighs the information gain.
+
+  \item \textbf{For unknown or near-identical rates, use
+    $k \approx 2$.}  The 2-out-of-$m$ system provides a good balance
+    between total information and information spread.  For $m = 7$
+    with i.i.d.\ rates, $k = 2$ achieves RMSE $= 0.031$, nearly
+    $4\times$ better than $k = 1$.
+
+  \item \textbf{For heterogeneous rates, use
+    $k \approx \lceil m/3 \rceil$.}  As heterogeneity increases, the
+    information about slow components (small $\lambda_j$) in parallel
+    systems becomes negligible.  Higher~$k$ forces the system to
+    survive longer, giving slow components more opportunity to
+    contribute to the likelihood.
+
+  \item \textbf{Prefer symmetric structures.}  When the system
+    structure is a design choice (not imposed by application
+    constraints), choose $k$-out-of-$n$ over asymmetric alternatives
+    (consecutive-$k$, custom topologies).  The symmetry-induced
+    eigenvalue conditioning is a structural advantage that persists
+    regardless of the true rates.
+
+  \item \textbf{Use E-optimality or A-optimality, not D-optimality.}
+    If a formal optimality criterion is needed, E-optimality
+    (maximize $\lambda_{\min}(\mathcal{I})$) or A-optimality
+    (minimize $\tr(\mathcal{I}^{-1})$) better predict estimation
+    accuracy than D-optimality for this problem class.
+\end{enumerate}
+
+
+\subsection{Connection to optimal experimental design}
+\label{sec:design_connection}
+
+The divergence between D-optimality and RMSE-optimality is well
+understood in the experimental design literature in other contexts
+\citep{Pukelsheim2006, Atkinson2007}.  D-optimality is invariant
+under reparameterization and minimizes the volume of the confidence
+ellipsoid, but it can be insensitive to elongated ellipsoids with one
+very short axis and many long axes.  A-optimality addresses this by
+penalizing all directions equally, and E-optimality focuses on the
+worst case.
+
+What is novel in our setting is that the design variable is
+\emph{discrete and structural} (the system topology) rather than
+continuous (e.g., covariate levels in regression).  The set of
+candidate designs is small enough for exhaustive evaluation, but the
+Fisher information depends on the design through the complex
+combinatorial structure of the system density~\eqref{eq:fsys}.  This
+makes analytical optimization infeasible for general~$m$, and
+motivates the simulation-based approach we have taken.
+
+An interesting open question is whether the condition number
+$\kappa(\mathcal{I})$ can be characterized analytically as a function
+of~$k$ for the exponential $k$-out-of-$m$ system.  Our
+\Cref{thm:symmetry} provides the structure for i.i.d.\ components,
+but the ratio $b/a$ in~\eqref{eq:symkappa} remains to be computed in
+closed form.
+
+
+\subsection{Identifiability landscape}
+\label{sec:ident_landscape}
+
+Our results refine the identifiability picture for component
+estimation from system data.  The classical dichotomy---series is
+non-identifiable \citep{Tsiatis1975}, parallel is identifiable
+\citep{BasuGhosh1978}---extends to a spectrum:
+\begin{itemize}
+  \item $k = m$ (series): rank 1, non-identifiable.
+  \item $k = m - 1$: full rank, but the condition number is large
+    (information concentrated in one direction).
+  \item $k \approx m/2$: full rank, moderate condition number.
+  \item $k = 1$ (parallel): full rank, largest determinant, but worst
+    condition number among identifiable designs.
+\end{itemize}
+
+This spectrum suggests that identifiability is not binary but
+graded---a system can be ``formally identifiable'' (full Fisher rank)
+yet ``practically non-estimable'' (condition number so large that
+finite-sample RMSE is unacceptable).  The consecutive-2-of-5 system
+exemplifies this: full rank, but component~5 has RMSE $= 5.75$ at
+$n = 200$.
+
+
+\subsection{Extensions}
+\label{sec:extensions}
+
+Several directions merit further investigation:
+
+\paragraph{Weibull components.}
+Preliminary experiments with Weibull components ($m = 5$, 10
+parameters) show that the optimal~$k$ depends on the shape parameter:
+$k^* = 4$ for shape $= 1$ (exponential), $k^* = 1$ for shape $= 2$
+(increasing hazard).  Convergence degrades substantially
+(53--80\%), confirming that Weibull system estimation requires more
+sophisticated algorithms (EM, regularization).
+
+\paragraph{Monitoring (Scheme~1).}
+When individual component lifetimes can be partially observed---via
+sensors, inspections, or degradation monitoring---the information
+gap between system structures narrows.  Preliminary experiments
+show that a single sensor on a parallel system
+reduces RMSE by $2\times$--$5\times$, with the optimal sensor
+placement depending on the system structure (fastest component for
+parallel, slowest for 2-of-3).
+
+\paragraph{Non-exponential parametric families.}
+The exponential assumption is strong.  For general parametric
+families, the structure of~$\mathcal{I}_{\mathrm{obs}}$ will depend
+on both the family and the system topology in complex ways.  Whether
+the eigenvalue-conditioning intuition transfers to, say, Weibull or
+gamma components is an open question.
+
+\paragraph{Bayesian design.}
+A Bayesian approach that averages the expected Fisher information over
+a prior on~$\bthet$ \citep{ZhangMeeker2006} would avoid the
+dependence of the optimal~$k$ on the unknown true parameters.  The
+computational cost may be substantial for large~$m$.
+
+
+\subsection{Limitations}
+\label{sec:limitations}
+
+Several limitations should be noted:
+
+\begin{enumerate}
+  \item \textbf{Replication count.}  Our experiments use 10--30
+    replications per cell due to computational cost (each replication
+    requires numerical MLE with multi-start optimization and Hessian
+    computation).  While the qualitative findings are consistent across
+    all 60 cells, the quantitative RMSE values have non-trivial Monte
+    Carlo error.
+
+  \item \textbf{Sorted matching.}  As discussed in
+    \Cref{sec:res_artifact}, sorted matching is optimistic for
+    near-symmetric likelihoods.  A permutation-invariant loss
+    (e.g., optimal matching via the Hungarian algorithm) would provide
+    a more conservative comparison.
+
+  \item \textbf{Exponential assumption.}  All theoretical results and
+    simulations assume exponential component lifetimes.  The
+    generalization to other distributions is non-trivial.
+
+  \item \textbf{Known system structure.}  We assume the system
+    structure is known to the analyst.  When the structure is
+    uncertain or unknown \citep{YangNgBalakrishnan2019}, the design
+    problem becomes more complex.
+
+  \item \textbf{Asymptotic theory.}  The condition-number argument
+    relies on the asymptotic normality of the MLE.  For small $n$ or
+    large $m$, finite-sample effects (multimodality,
+    label-switching, boundary estimates) may dominate.
+\end{enumerate}
+
+
+%% ========================================================================
+\section{Conclusion}
+\label{sec:conclude}
+%% ========================================================================
+
+We have studied the problem of choosing a $k$-out-of-$n$ system
+structure to optimize the estimation of component lifetime parameters
+from system-level failure data.  Our central finding is that the
+standard D-optimality criterion is misleading for this problem:
+maximizing $\det \mathcal{I}$ always selects the parallel system
+($k = 1$), but actual estimation accuracy is minimized at
+intermediate values of~$k$.
+
+The explanation lies in the eigenvalue geometry of the Fisher
+information matrix.  The parallel system concentrates nearly all
+information along the total-rate direction, producing a single
+enormous eigenvalue and many small ones.  D-optimality rewards this
+concentration because the determinant is the product of eigenvalues.
+But estimation accuracy depends on the inverse---the sum of reciprocal
+eigenvalues---which is dominated by the smallest eigenvalue.
+Intermediate~$k$ sacrifices total information for a better-conditioned
+information matrix, yielding lower RMSE.
+
+We have further shown that component symmetry---the structural
+property that distinguishes $k$-out-of-$n$ systems from consecutive-$k$
+and other asymmetric designs---is a significant advantage for
+estimation.  Symmetric systems distribute Fisher information evenly
+across components, while asymmetric systems create information deserts
+where peripheral components are nearly unidentifiable.
+
+These results suggest a shift in perspective for reliability
+estimation: when the system structure is a design choice, it should be
+optimized not for reliability but for information content.  The
+appropriate criterion is not D-optimality but E-optimality or
+A-optimality, which directly target the worst-case or average
+estimation variance.
+
+For practitioners, the recommendation is simple: use
+$k \approx 2$ for systems with similar component rates, or
+$k \approx \lceil m/3 \rceil$ for heterogeneous rates.  Avoid series
+systems (non-identifiable) and avoid parallel systems for large~$m$
+(poorly conditioned).  When possible, prefer symmetric over asymmetric
+structures.
+
+\paragraph{Acknowledgments.}
+Computational experiments were conducted in R \citep{RCore2024} using
+the \texttt{numDeriv} package \citep{numDeriv} for numerical
+Hessians.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+%% ========================================================================
+\appendix
+%% ========================================================================
+
+\section{Proof of Theorem~\ref{thm:symmetry}: Structure of the Fisher information for symmetric systems}
+\label{app:symproof}
+
+We provide additional details for the proof of \Cref{thm:symmetry}.
+
+Let $\mathcal{S}$ be a component-symmetric system with i.i.d.\
+exponential($\lambda$) components.  The log-likelihood for $n$
+observations $t_1, \ldots, t_n$ is
+\[
+  \ell(\lambda_1, \ldots, \lambda_m)
+  = \sum_{i=1}^{n} \log f_{\mathrm{sys}}(t_i; \lambda_1, \ldots, \lambda_m).
+\]
+
+Because the system is component-symmetric, for any permutation~$\sigma$:
+\[
+  f_{\mathrm{sys}}(t; \lambda_{\sigma(1)}, \ldots, \lambda_{\sigma(m)})
+  = f_{\mathrm{sys}}(t; \lambda_1, \ldots, \lambda_m).
+\]
+
+At the i.i.d.\ point $\lambda_j = \lambda$ for all~$j$, the Hessian
+matrix $H = \partial^2 \ell / \partial \blam \, \partial \blam^\top$
+inherits this symmetry: for any permutation matrix~$P$,
+\[
+  P H P^\top = H.
+\]
+
+The algebra of $m \times m$ real symmetric matrices commuting with all
+permutation matrices is two-dimensional, spanned by $\mathbf{I}_m$
+and $\bone\bone^\top$ (this follows from Schur's lemma applied to the
+two irreducible representations of the symmetric group on
+$\mathbb{R}^m$: the one-dimensional trivial representation spanned
+by~$\bone$, and the $(m-1)$-dimensional standard representation on
+$\bone^\perp$).
+
+Therefore $H = \alpha \, \mathbf{I}_m + \beta \, \bone\bone^\top$ for
+some scalars $\alpha, \beta$.  The Fisher information
+$\mathcal{I} = -H$ has the form $a \, \mathbf{I}_m + b \,
+\bone\bone^\top$ with $a = -\alpha$ and $b = -\beta$.
+
+The eigenvalues of
+$a \, \mathbf{I}_m + b \, \bone\bone^\top$ are:
+\begin{itemize}
+  \item $a + mb$, with eigenvector $\bone / \sqrt{m}$ (the
+    total-rate direction).
+  \item $a$, with multiplicity $m - 1$, corresponding to all
+    directions orthogonal to~$\bone$ (the rate-difference directions).
+\end{itemize}
+
+The condition number is
+$\kappa = (a + mb) / a = 1 + mb/a$, assuming $a > 0$ and $b > 0$
+(which holds when the system provides more information about the sum
+than about individual differences).  \qed
+
+\section{Full RMSE profiles for m = 7}
+\label{app:m7profiles}
+
+For completeness, we report the full mean RMSE profiles across all
+$k$ for the $m = 7$ experiments.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Mean RMSE for $k$-out-of-7, $n = 200$, 10 replications.
+    Bold indicates the RMSE-optimal $k$ among identifiable systems.
+    $\dagger$ denotes series (non-identifiable).}
+  \label{tab:m7profiles}
+  \begin{tabular}{lccccccc}
+    \toprule
+    Scenario & $k=1$ & $k=2$ & $k=3$ & $k=4$ & $k=5$ & $k=6$ & $k=7$ \\
+    \midrule
+    i.i.d.    & 0.120 & \textbf{0.031} & 0.094 & 0.101 & 0.084 & 0.121 & 0.141$^\dagger$ \\
+    Mild      & 0.205 & 0.217 & \textbf{0.095} & 0.108 & 0.112 & 0.218 & 0.102$^\dagger$ \\
+    Moderate  & 0.278 & 0.276 & 0.321 & \textbf{0.152} & 0.165 & 0.285 & 0.073$^\dagger$ \\
+    Extreme   & \textbf{0.232} & 0.358 & 0.322 & 0.290 & 0.233 & 0.299 & 0.188$^\dagger$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+\end{document}

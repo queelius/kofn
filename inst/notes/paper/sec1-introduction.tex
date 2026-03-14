@@ -1,0 +1,149 @@
+% Section 1: Introduction
+\section{Introduction}
+\label{sec:introduction}
+
+A parallel system of $m$ components functions as long as at least one
+component survives; its lifetime is $T = \max(T_1, \ldots, T_m)$.  Such
+systems arise in redundant engineering designs---backup power supplies,
+server clusters, communication networks---where each component provides
+an independent path to system functionality.  A basic engineering
+question is: given observed system lifetimes, what can be learned about
+the individual component lifetime distributions?
+
+This question arises in practice whenever component-level testing is
+impractical or impossible: satellites with redundant subsystems
+observable only at system level, wind turbine gearboxes where
+individual bearing instrumentation is costly, nuclear safety systems
+tested by activating the entire redundant chain, and data center
+servers whose component failures are recorded only at the machine
+level.  In each case, system failure times are the primary data source,
+and component-level inference requires exploiting the system structure.
+
+For the dual topology---a series system with
+$T = \min(T_1, \ldots, T_m)$---this question has generated a vast
+literature under the heading of \emph{competing risks} and
+\emph{masked cause of failure}.  The foundational result of
+\citet{Tsiatis1975} establishes that component distributions are
+\emph{not} identifiable from system data alone; additional
+information about the cause of failure is needed.  Estimation under
+partial cause information (masking) has been studied extensively
+\citep{Miyakawa1984, UsherHodgson1988, LinUsherGuess1993,
+GuessUsherHodgson1991, KunduBasu2000, CraiuReiser2006}.
+
+The parallel case has received far less attention, despite sitting on
+the opposite side of an identifiability divide.  \citet{BasuGhosh1980}
+showed that the distribution of $\max(T_1, \ldots, T_m)$ uniquely
+determines the component distributions under independence---a result
+with no series counterpart.  Yet no paper has derived a closed-form
+maximum likelihood estimator or EM algorithm for the component rates
+of an exponential parallel system from system-level data.
+\citet{SarhanElBassiouny2003} treat the exponential parallel system
+under a masking framing, deriving MLE and Bayes estimators
+numerically, but do not establish identifiability or exploit the
+inclusion-exclusion structure.  \citet{CramerNavarro2015} show that
+component failure times from a coherent system can be represented as
+progressively Type-II censored order statistics---a result that
+specializes to our censoring equivalence for the parallel case---but
+do not derive closed-form exponential MLE from it.  Other approaches
+are nonparametric and signature-based
+\citep{BhattacharyaSamaniego2010, NgNavarroBalakrishnan2017,
+YangNgBalakrishnan2019, Asadi2020}, Bayesian without closed-form
+posteriors \citep{BheringPereiraPolpo2014}, or focused on
+non-estimation aspects of system reliability.
+Recent work has extended the problem in complementary directions:
+\citet{QuNgMoon2024a,QuNgMoon2024b} develop nonparametric tests for
+component distribution homogeneity from system data,
+\citet{BiswasGangulyMitra2025} propose semiparametric models for
+load-sharing parallel systems, and \citet{Jasinski2023,Jasinski2024}
+derive closed-form MLE for discrete (geometric) lifetimes in
+$k$-out-of-$n$ systems.  None of these addresses the continuous
+exponential case with the censoring perspective developed here.
+
+The key obstacle has been a misidentification of the incomplete-data
+structure.  Several authors
+\citep{LiuShiZhangBai2017, RodriguesPereiraBheringPolpo2018,
+Sarhan2001} have transplanted the \emph{masking} framework
+(conditions C1--C3) from series to parallel systems.  But masking
+presupposes uncertainty about \emph{which} component caused system
+failure---a question that is meaningful for series systems (where one
+component fails and the rest survive) but structurally meaningless for
+parallel systems (where every component has failed by the time the
+system fails).
+
+The natural incomplete-data problem for parallel systems is not masking
+but \emph{censoring}.  When the system fails at time $T = t$, we know
+that all components have failed and that exactly one failed at time~$t$
+(the last survivor), but we do not know \emph{when} the other
+components failed---only that they failed before~$t$.  This is
+component-level left-censoring with latent identity, and it is the
+correct framing for estimation.  The censoring perspective was
+introduced by \citet{BheringPereiraPolpo2014} in a Bayesian Weibull
+context, but its frequentist consequences have not been developed.
+
+\subsection*{Contributions}
+
+We formalize the censoring equivalence and exploit it for exponential
+parallel systems with independent components.
+
+\begin{enumerate}
+  \item \textbf{Censoring equivalence} (\Cref{prop:censoring-equiv}).
+    We prove that observing $T = \max(T_1, \ldots, T_m)$ is
+    informationally equivalent to observing one exact and $m-1$
+    left-censored component lifetimes with latent identity $J =
+    \argmax_j T_j$.
+
+  \item \textbf{Closed-form likelihood via inclusion-exclusion}
+    (\Cref{lem:ie,lem:density-decomp,lem:integral-wj}).
+    The system density decomposes as $f_T(t) = \sum_j w_j(t)$, where
+    each component weight $w_j$ and its integrals have closed forms
+    through the inclusion-exclusion expansion of the system CDF.
+    This yields a tractable log-likelihood for exact, right-censored,
+    and interval-censored system observations without numerical
+    quadrature.
+
+  \item \textbf{Elementary identifiability proof}
+    (\Cref{thm:identifiability,cor:duality}).
+    We provide a self-contained proof that the distribution of
+    $T = \max T_j$ uniquely determines the component rates, by
+    induction on the number of components via reversed hazard rate
+    tail extraction.  A duality corollary formalizes the contrast:
+    series systems determine only $\sum \lambda_j$; parallel systems
+    determine all individual~$\lambda_j$.
+
+  \item \textbf{EM algorithm with closed-form steps}
+    (\Cref{prop:em-algorithm}).
+    The censoring equivalence yields an EM algorithm whose E-step
+    uses the posterior $P(J = j \mid T = t)$ and the truncated
+    exponential mean, and whose M-step is a simple reciprocal.
+    Both steps are in closed form---no simulation or numerical
+    integration is needed.
+
+  \item \textbf{Monte Carlo validation and information efficiency}
+    (\Cref{sec:simulations}).
+    Simulations confirm consistency and nominal coverage, and reveal
+    an information asymmetry governed by $P(T_j = T)$: slow components
+    are estimated precisely, while fast components carry little
+    system-level information.  Fisher information analysis
+    quantifies this: the per-component efficiency is approximately
+    proportional to $P(T_j = T)$, and the joint efficiency
+    collapses exponentially with~$m$.
+
+  \item \textbf{$k$-out-of-$n$ generalization}
+    (\Cref{prop:kofn-censoring}).
+    The censoring equivalence extends to $k$-out-of-$n$ systems:
+    observing $T = T_{(n-k+1)}$ yields one exact, $n-k$ left-censored,
+    and $k-1$ right-censored component observations with latent identity.
+    This unifies the parallel ($k=1$) and series ($k=n$) cases and
+    reveals a monotone information structure as~$k$ varies.
+\end{enumerate}
+
+\subsection*{Outline}
+
+\Cref{sec:model} introduces the model and the censoring equivalence.
+\Cref{sec:likelihood} develops the inclusion-exclusion machinery and
+establishes identifiability.
+\Cref{sec:estimation} presents the direct MLE and EM algorithm.
+\Cref{sec:simulations} reports simulation results, including a Fisher
+information comparison.
+\Cref{sec:discussion} extends the censoring equivalence to
+$k$-out-of-$n$ systems and discusses limitations and future directions.

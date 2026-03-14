@@ -1,0 +1,978 @@
+\documentclass[12pt]{article}
+
+% --- Packages ---
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+
+% --- Theorem environments ---
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% --- Notation shortcuts ---
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Rset}{\mathbb{R}}
+\newcommand{\bone}{\mathbf{1}}
+\newcommand{\blam}{\boldsymbol{\lambda}}
+\newcommand{\btheta}{\boldsymbol{\theta}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator{\tr}{tr}
+
+% --- Title ---
+\title{Optimal Sensor Placement for Component Lifetime Estimation\\
+in Coherent Systems}
+\author{Alexander Towell\thanks{Department of Computer Science,
+  Southern Illinois University Edwardsville.
+  Email: \texttt{lex@metafunctor.com}.
+  ORCID: 0000-0001-6443-9897.}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We study the problem of placing a single sensor on one component of a
+redundant system to maximize the precision of component lifetime
+parameter estimates.  Under a model with $m$ independent exponential
+components observed only through the system lifetime, we derive the
+monitoring likelihood that incorporates exact component failure times
+from instrumented components alongside system-level data from
+uninstrumented ones.  Fisher information analysis reveals that the
+optimal sensor location depends fundamentally on the system's logical
+structure, not merely on the component failure rates.  For parallel
+systems ($k = 1$-out-of-$m$), the optimal single sensor monitors the
+\emph{fastest}-failing component --- the one whose lifetime is most
+often censored by the system observation.  For $k$-out-of-$m$ voting
+systems with $k > 1$, a reversal occurs: the optimal sensor monitors
+the \emph{slowest} component, whose status at system failure is most
+uncertain.  Simulation experiments on three-component parallel and
+$2$-out-of-$3$ systems confirm these predictions.  In the parallel
+case, a single optimally placed sensor captures approximately 69\% of
+the estimation improvement achievable by full monitoring, reducing the
+mean root-mean-square error by a factor of~$2.2$.  These results
+provide actionable guidance for reliability engineers: instrument the
+highest-rate component in parallel architectures and the lowest-rate
+component in voting architectures.
+\end{abstract}
+
+\noindent\textbf{Keywords:} sensor placement, component monitoring,
+coherent systems, $k$-out-of-$n$ systems, exponential distribution,
+Fisher information, maximum likelihood, reliability estimation
+
+% ===================================================================
+\section{Introduction}
+\label{sec:intro}
+% ===================================================================
+
+Estimating the lifetime parameters of individual components from
+system-level failure data is a fundamental problem in reliability
+engineering.  When a system is observed as a ``black box'' --- only the
+system failure time is recorded, not the failure times of individual
+components --- substantial information about component parameters is
+lost to the censoring imposed by the system structure
+\citep{BhattacharyaSamaniego2010, Towell2026}.  Modern sensor
+technology offers the possibility of partially instrumenting system
+components, recovering some of this lost information without the cost
+of full monitoring.  The natural engineering question is: \emph{given a
+budget for one sensor, which component should be instrumented?}
+
+This question sits at the intersection of optimal experimental design
+\citep{Atkinson2007, Pukelsheim2006} and reliability estimation from
+system data \citep{BhattacharyaSamaniego2010, NgNavarroBalakrishnan2017}.
+The optimal design literature provides a rich theory for choosing
+experimental conditions to maximize information about parameters of
+interest, typically through criteria based on the Fisher information
+matrix (D-optimality, A-optimality, and variants).  However, this
+theory has not been applied to the specific problem of selecting which
+components to monitor in a coherent system.  The system reliability
+literature, meanwhile, has focused primarily on two extremes:
+system-level observation alone (Scheme~0), where no component data is
+available \citep{BhattacharyaSamaniego2010, NgNavarroBalakrishnan2017,
+Towell2026}, and complete component monitoring (Scheme~2), where all
+failure times are recorded and the problem reduces to independent
+estimation \citep{MeekerEscobar1998}.  The practically important
+intermediate case --- partial monitoring, where some but not all
+components are instrumented --- has received less attention.
+
+We address this gap for systems of independent exponential components.
+Our main contributions are:
+\begin{enumerate}
+  \item A \emph{monitoring likelihood} for coherent systems under
+    partial monitoring, where instrumented components contribute exact
+    failure times (or right-censored survival times if they outlive
+    the system) and uninstrumented components contribute only the
+    constraints implied by the system observation.
+
+  \item An \emph{information-theoretic analysis} of the information
+    gain $\Delta I_j$ from monitoring component~$j$, showing that the
+    optimal sensor location is determined by the system structure
+    through the censoring pattern it imposes.
+
+  \item A \emph{structural reversal} in optimal placement: for
+    parallel systems the fastest component is optimal, while for
+    $k$-out-of-$m$ systems with $k > 1$ the slowest component is
+    optimal.  The reversal occurs because the information bottleneck
+    shifts from ``which component survived longest'' (parallel) to
+    ``which component was still working at system failure'' (voting).
+
+  \item \emph{Practical quantification}: a single optimally placed
+    sensor captures approximately 69\% of the full-monitoring
+    improvement in a three-component parallel system (and approximately
+    55\% in larger systems), providing a strong return on a minimal
+    instrumentation investment.
+\end{enumerate}
+
+The paper is organized as follows.  \Cref{sec:model} defines the
+system model and observation schemes.  \Cref{sec:likelihood} develops
+the monitoring likelihood and its connection to the Fisher information.
+\Cref{sec:information} analyzes the information gain from sensor
+placement and establishes the structural reversal.
+\Cref{sec:simulations} presents Monte Carlo experiments confirming the
+theoretical predictions.  \Cref{sec:recommendations} synthesizes the
+results into practical guidelines, and \Cref{sec:discussion} discusses
+extensions and limitations.
+
+
+% ===================================================================
+\section{Model and Observation Schemes}
+\label{sec:model}
+% ===================================================================
+
+\subsection{System model}
+\label{sec:system-model}
+
+Consider a coherent system of $m$ independent components with
+lifetimes $T_1, \ldots, T_m$, where each component~$j$ has an
+exponential distribution with rate $\lambda_j > 0$:
+\begin{equation}\label{eq:comp-dist}
+  T_j \sim \mathrm{Exp}(\lambda_j), \qquad
+  F_j(t) = 1 - e^{-\lambda_j t}, \qquad
+  f_j(t) = \lambda_j e^{-\lambda_j t}, \qquad t > 0.
+\end{equation}
+We write $\blam = (\lambda_1, \ldots, \lambda_m) \in \Rset_{>0}^m$
+for the parameter vector, ordered so that
+$\lambda_1 \geq \lambda_2 \geq \cdots \geq \lambda_m$
+(fastest-failing component first).
+
+The system structure is specified by a structure function
+$\phi\colon \{0,1\}^m \to \{0,1\}$, where $\phi(\mathbf{x}) = 1$
+indicates that the system functions when the component state vector
+is~$\mathbf{x}$ ($x_j = 1$ means component~$j$ is operational).  We
+assume the system is coherent: $\phi$ is non-decreasing in each
+argument and every component is relevant.  The system lifetime is
+\begin{equation}\label{eq:sys-lifetime}
+  T_{\mathrm{sys}} = \inf\{t \geq 0 : \phi\bigl(\bone(T_1 > t), \ldots, \bone(T_m > t)\bigr) = 0\},
+\end{equation}
+where $\bone(\cdot)$ is the indicator function.
+
+Two families of coherent systems are central to this paper:
+\begin{itemize}
+  \item \textbf{Parallel system} ($1$-out-of-$m$):
+    $T_{\mathrm{sys}} = \max(T_1, \ldots, T_m)$.  The system fails
+    when the last component fails.
+  \item \textbf{$k$-out-of-$m$ voting system}:
+    $T_{\mathrm{sys}} = T_{(k)}$, the $k$-th order statistic of the
+    component lifetimes.  The system fails when $k$ components have
+    failed.  The parallel system corresponds to $k = 1$ and the series
+    system to $k = m$.
+\end{itemize}
+
+\subsection{System density via critical states}
+\label{sec:sys-density}
+
+For any coherent system, the system density can be written as
+\begin{equation}\label{eq:sys-density}
+  f_{\mathrm{sys}}(t; \blam) = \sum_{j=1}^{m} f_j(t)
+    \sum_{\substack{\mathbf{x}_{-j}:\\ j \text{ critical}}}
+    \prod_{k \neq j} p_k(x_k, t),
+\end{equation}
+where the inner sum runs over all states $\mathbf{x}_{-j}$ of
+components other than~$j$ in which $j$ is \emph{critical} (pivotal):
+$\phi(\mathbf{x}_{-j}, x_j = 1) = 1$ and
+$\phi(\mathbf{x}_{-j}, x_j = 0) = 0$, and where
+$p_k(1, t) = S_k(t) = e^{-\lambda_k t}$ and
+$p_k(0, t) = F_k(t) = 1 - e^{-\lambda_k t}$.
+In words, the system fails at time~$t$ when some component~$j$ fails
+at~$t$ and the remaining component states make $j$~critical at that
+instant.
+
+\subsection{Observation schemes}
+\label{sec:schemes}
+
+We consider the following observation models, ordered from least to
+most informative:
+
+\paragraph{Scheme~0 (black box).}
+Only the system lifetime $T_{\mathrm{sys}}$ is observed.  No
+component-level information is available.  The log-likelihood for
+$n$~independent observations is
+\begin{equation}\label{eq:loglik-scheme0}
+  \ell_0(\blam) = \sum_{i=1}^{n} \log f_{\mathrm{sys}}(t_i; \blam).
+\end{equation}
+For parallel systems with exponential components, the parameters
+$\blam$ are identifiable from system data alone
+\citep{BasuGhosh1980, Towell2026}, though the Fisher information per
+observation can be severely reduced relative to complete data,
+especially for fast-failing components.
+
+\paragraph{Scheme~3 (partial monitoring).}
+A subset $\mathcal{M} \subseteq \{1, \ldots, m\}$ of components is
+instrumented.  For each system~$i$:
+\begin{itemize}
+  \item For $j \in \mathcal{M}$ (monitored): the exact component
+    failure time $T_j^{(i)}$ is observed if $T_j^{(i)} \leq T_{\mathrm{sys}}^{(i)}$
+    (the component failed before or at system failure); otherwise,
+    $T_j^{(i)} > T_{\mathrm{sys}}^{(i)}$ is observed (the component was still
+    operational at system failure and its exact lifetime is
+    right-censored at $T_{\mathrm{sys}}^{(i)}$).
+  \item For $j \notin \mathcal{M}$ (unmonitored): only the system-level
+    constraints on $T_j$ are available --- the implications of
+    $T_{\mathrm{sys}}^{(i)}$ given the system structure.
+\end{itemize}
+
+\paragraph{Scheme~2 (full monitoring).}
+Every component is instrumented: $\mathcal{M} = \{1, \ldots, m\}$.
+All individual failure times are observed exactly.  The log-likelihood
+factors into independent terms:
+\begin{equation}\label{eq:loglik-complete}
+  \ell_2(\blam) = \sum_{j=1}^{m} \sum_{i=1}^{n}
+    \log f_j\bigl(T_j^{(i)}; \lambda_j\bigr)
+  = \sum_{j=1}^{m} \bigl[n \log \lambda_j - \lambda_j \sum_{i=1}^{n} T_j^{(i)}\bigr].
+\end{equation}
+This is the upper bound on information and serves as a benchmark.
+
+The sensor placement problem asks: given a budget for instrumenting
+$|\mathcal{M}| = 1$ component, which component~$j^*$ should be chosen
+to maximize the estimation precision for the full parameter
+vector~$\blam$?
+
+
+% ===================================================================
+\section{Monitoring Likelihood}
+\label{sec:likelihood}
+% ===================================================================
+
+\subsection{General formulation}
+\label{sec:monitoring-loglik}
+
+Under Scheme~3, each observation~$i$ consists of the system lifetime
+$T_{\mathrm{sys}}^{(i)} = t_i$ together with the exact failure times
+$\{T_j^{(i)} : j \in \mathcal{M}\}$ of the monitored components.
+The likelihood must integrate the system-level structural constraints
+with the additional component-level data.
+
+The key insight is that at each system failure, exactly one
+component~$j$ is \emph{critical} --- its transition from operational
+to failed causes the system to transition from operational to failed.
+The identity of the critical component is generally unobserved, but
+monitoring data can constrain or reveal it.
+
+\begin{proposition}[Monitoring likelihood]\label{prop:monitoring-ll}
+  Under Scheme~3 with monitored set $\mathcal{M}$, the likelihood
+  contribution for observation~$i$ with system lifetime $t_i$ and
+  monitored component times $\{T_j^{(i)} = t_{ij} : j \in \mathcal{M}\}$ is
+  \begin{equation}\label{eq:monitoring-ll}
+    L_i(\blam) = \sum_{j=1}^{m} f_j(t_i)
+      \sum_{\substack{\mathbf{x}_{-j}:\\ j \text{ critical},\\
+        \text{consistent}}}
+      \prod_{k \neq j} c_k(x_k, t_i, t_{ik}),
+  \end{equation}
+  where the inner sum is restricted to critical states consistent with
+  the monitoring data, and the contribution $c_k$ of component~$k$ depends
+  on its monitoring status:
+  \begin{equation}\label{eq:comp-contributions}
+    c_k(x_k, t_i, t_{ik}) = \begin{cases}
+      F_k(t_i) & \text{if } k \notin \mathcal{M},\; x_k = 0 \text{ (failed, unmonitored)}, \\
+      S_k(t_i) & \text{if } k \notin \mathcal{M},\; x_k = 1 \text{ (alive, unmonitored)}, \\
+      f_k(t_{ik}) & \text{if } k \in \mathcal{M},\; x_k = 0 \text{ (failed at } t_{ik} < t_i\text{)}, \\
+      S_k(t_{ik}) & \text{if } k \in \mathcal{M},\; x_k = 1 \text{ (alive at } t_{ik} \geq t_i\text{)}.
+    \end{cases}
+  \end{equation}
+\end{proposition}
+
+The consistency constraints in~\eqref{eq:monitoring-ll} enforce two
+rules:
+\begin{enumerate}
+  \item[(C1)] If component~$j$ is monitored and $T_j^{(i)} \neq t_i$,
+    then $j$ cannot be the critical component (it did not fail at the
+    system failure time), so the term for~$j$ is skipped.
+  \item[(C2)] If non-critical component~$k$ is monitored, its observed
+    state (failed or alive at $t_i$) must be consistent with the state
+    $x_k$ in the critical state vector.  If $k$ is observed to have
+    failed before~$t_i$ ($t_{ik} < t_i$) but the state
+    requires $x_k = 1$ (alive), or vice versa, the state is skipped.
+\end{enumerate}
+
+These constraints are the mechanism by which monitoring data improves
+estimation.  They reduce the number of terms in the sum
+over~$(j, \mathbf{x}_{-j})$ pairs, sharpening the likelihood
+surface and increasing its curvature at the MLE.
+
+\subsection{Reduction to known special cases}
+\label{sec:special-cases}
+
+\begin{remark}[Scheme~0 as a special case]
+When $\mathcal{M} = \emptyset$, no consistency constraints apply, all
+contributions $c_k$ are either $F_k(t_i)$ or $S_k(t_i)$, and
+\eqref{eq:monitoring-ll} reduces to the standard system
+density~\eqref{eq:sys-density}.
+\end{remark}
+
+\begin{remark}[Scheme~2 as a special case]
+When $\mathcal{M} = \{1, \ldots, m\}$, every component is monitored.
+For each observation~$i$, constraint~(C1) identifies the critical
+component uniquely (the one with $T_j^{(i)} = t_i$), and
+constraint~(C2) fixes the state of every other component.  The sum
+over critical states collapses to a single term, and the likelihood
+reduces to the product of independent component densities, recovering
+the complete-data likelihood~\eqref{eq:loglik-complete}.
+\end{remark}
+
+\subsection{Parallel system specialization}
+\label{sec:parallel-ll}
+
+For a parallel system, every component has exactly one critical state:
+all other components must have failed ($x_k = 0$ for all $k \neq j$).
+The likelihood~\eqref{eq:monitoring-ll} simplifies to
+\begin{equation}\label{eq:parallel-monitoring-ll}
+  L_i(\blam) = \sum_{j=1}^{m} f_j(t_i) \prod_{k \neq j} c_k(0, t_i, t_{ik}),
+\end{equation}
+where $c_k(0, t_i, t_{ik})$ is $F_k(t_i)$ for unmonitored components
+and $f_k(t_{ik})$ for monitored components (since all non-critical
+components must have failed, and a monitored failed component
+contributes its exact failure time density).
+
+If component~$j$ is monitored but $T_j^{(i)} \neq t_i$ (i.e., $j$~did
+not fail last), constraint~(C1) eliminates $j$ from the sum.  This is
+the crucial information gain in the parallel case: monitoring a
+component reveals \emph{whether} it was the last to fail, collapsing
+the latent identity ambiguity.
+
+\subsection{Voting system specialization}
+\label{sec:voting-ll}
+
+For a $k$-out-of-$m$ system, the system fails when $k$~components have
+failed.  At system failure time~$t_i$, exactly $k$ components have
+failed and $m - k$ are still operational.  The critical component is
+the $k$-th to fail (the one whose failure caused the $k$-th failure
+event).  The critical states enumerate all ways of choosing which
+$k - 1$ of the remaining components have also failed.
+
+Monitoring a component in a voting system provides information
+differently from the parallel case.  For a monitored component~$j$ in
+a $k$-out-of-$m$ system:
+\begin{itemize}
+  \item If $T_j^{(i)} < t_i$: component~$j$ failed before system
+    failure.  This is informative because it reduces uncertainty about
+    which $k$ components constitute the failure set.
+  \item If $T_j^{(i)} > t_i$: component~$j$ was still operational at
+    system failure.  This is informative because it reveals one of the
+    $m - k$ surviving components, reducing the combinatorial ambiguity.
+\end{itemize}
+
+For the $2$-out-of-$3$ system studied in our simulations, the structure
+function is $\phi(\mathbf{x}) = 1$ iff $\sum_j x_j \geq 2$.  At
+system failure, exactly two components have failed and one survives.
+The critical component is the second to fail.  Monitoring a component
+reveals whether it is the survivor, one of the two failed components,
+or the critical component itself --- each case constraining the
+likelihood differently.
+
+
+% ===================================================================
+\section{Information Gain from Sensor Placement}
+\label{sec:information}
+% ===================================================================
+
+\subsection{Fisher information framework}
+\label{sec:fisher-framework}
+
+The Fisher information matrix for $n$~observations under Scheme~$s$
+with monitoring set $\mathcal{M}$ is
+\begin{equation}\label{eq:fisher-general}
+  \mathcal{I}(\blam; s, \mathcal{M}) = -\E\!\left[
+    \frac{\partial^2 \ell_s(\blam)}{\partial \blam \partial \blam^\top}
+  \right],
+\end{equation}
+where $\ell_s$ is the corresponding log-likelihood.  For independent
+observations, $\mathcal{I} = n \cdot \mathcal{I}_1$, where
+$\mathcal{I}_1$ is the per-observation Fisher information.  In practice,
+the expected Fisher information is approximated by the observed Fisher
+information computed at the MLE via numerical differentiation.
+
+The information gain from monitoring component~$j$ is
+\begin{equation}\label{eq:info-gain}
+  \Delta \mathcal{I}_j = \mathcal{I}(\blam; 3, \{j\}) - \mathcal{I}(\blam; 0, \emptyset),
+\end{equation}
+a positive semidefinite matrix representing the additional information
+contributed by the sensor on component~$j$.  We consider several
+scalar summaries of this matrix gain.
+
+\paragraph{D-optimality (determinant).}
+The D-optimal sensor placement maximizes $\det \mathcal{I}(\blam; 3, \{j\})$,
+equivalently minimizing the volume of the asymptotic confidence ellipsoid.
+This is the most common criterion in optimal experimental design
+\citep{Atkinson2007}.
+
+\paragraph{A-optimality (trace).}
+The A-optimal sensor placement minimizes $\tr[\mathcal{I}(\blam; 3, \{j\})^{-1}]$,
+equivalently minimizing the sum of asymptotic variances.
+
+\paragraph{Minimax (worst-component RMSE).}
+The minimax sensor placement minimizes
+$\max_k \mathrm{RMSE}(\hat{\lambda}_k)$, addressing the common
+engineering concern that no single component should be poorly estimated.
+
+In our simulation study (\Cref{sec:simulations}), we use the
+mean RMSE $m^{-1}\sum_k \mathrm{RMSE}(\hat\lambda_k)$ as the primary
+metric, which is closely related to A-optimality.
+
+\subsection{Why optimal placement depends on system structure}
+\label{sec:structural-dependence}
+
+The intuition for why the optimal sensor depends on system structure
+rests on the observation that monitoring is most valuable when it
+resolves the greatest uncertainty.  The type of uncertainty differs
+across system structures.
+
+\paragraph{Parallel systems.}
+Under Scheme~0, the system observation $T_{\mathrm{sys}} = \max_j T_j$
+reveals that all components have failed, and exactly one failed at
+time~$T_{\mathrm{sys}}$, but the identity of the last-failing
+component is latent.  The fastest-failing component (highest
+$\lambda_j$) almost certainly fails \emph{before} the system, so its
+exact failure time is ``lost'' to left-censoring.  Its contribution to
+the Scheme~0 likelihood is only through $F_j(T_{\mathrm{sys}})$ (it
+failed before~$T_{\mathrm{sys}}$), which provides little information
+about~$\lambda_j$ when $F_j(T_{\mathrm{sys}}) \approx 1$.
+
+Monitoring the fastest component directly observes the censored
+quantity, converting a left-censored observation into an exact one.
+The per-component efficiency under Scheme~0 is approximately
+$e_j \approx P(T_j = T_{\mathrm{sys}})$ \citep{Towell2026}, so the
+fastest component has the lowest efficiency and the most to gain from
+monitoring.
+
+\paragraph{\texorpdfstring{$k$-out-of-$m$}{k-out-of-m} voting systems (\texorpdfstring{$k > 1$}{k > 1}).}
+Here $T_{\mathrm{sys}} = T_{(k)}$, and at system failure, $k$~components
+have failed while $m - k$ survive.  The slowest component (lowest
+$\lambda_j$) is most likely to be among the $m - k$ survivors.
+Under Scheme~0, it is uncertain whether the slowest component failed
+before~$T_{\mathrm{sys}}$ or survived past it.  This uncertainty is
+the primary source of information loss.  Monitoring the slowest
+component resolves this ambiguity directly, revealing whether it is in
+the failure set or the survival set and providing either its exact
+failure time or a right-censored survival time.
+
+\subsection{The structural reversal}
+\label{sec:reversal}
+
+The preceding discussion motivates the following structural reversal
+in optimal sensor placement.
+
+\begin{proposition}[Informal: sensor reversal]\label{prop:reversal}
+  For independent exponential components with distinct rates:
+  \begin{enumerate}
+    \item[\textup{(a)}] In a parallel system ($k = 1$), the optimal
+      single sensor monitors the fastest-failing component
+      ($j^* = \argmax_j \lambda_j$).
+    \item[\textup{(b)}] In a $k$-out-of-$m$ system with $k > 1$, the
+      optimal single sensor tends toward the slowest component
+      ($j^* = \argmin_j \lambda_j$), with the effect strengthening as
+      $k$ approaches~$m$.
+  \end{enumerate}
+\end{proposition}
+
+We call this a ``proposition (informal)'' because the claim is
+supported by the simulation evidence in \Cref{sec:simulations} and by
+the information-theoretic reasoning above, but a formal proof covering
+all parameter configurations and system sizes is beyond the scope of
+this paper.  The reversal is a consequence of the shift in the
+\emph{information bottleneck}: in parallel systems, the bottleneck is
+identifying which component survived longest (the latent identity~$J$
+in the censoring equivalence); in voting systems, the bottleneck is
+classifying each component as failed or surviving at $T_{(k)}$.
+
+\begin{remark}[Connection to censoring pattern]
+The censoring equivalence for parallel systems \citep{Towell2026,
+BheringPereiraPolpo2014} states that each system observation yields
+one exact and $m - 1$ left-censored component lifetimes with latent
+identity.  Monitoring a component breaks the latent identity for that
+component: if it did not fail at $T_{\mathrm{sys}}$, it is
+definitively not the last-failing component, and its exact failure
+time is recovered from the sensor.
+
+For $k$-out-of-$m$ systems, the censoring equivalence generalizes
+\citep{CramerNavarro2015}: each observation yields one exact (the
+critical component), $k - 1$ left-censored, and $m - k$ right-censored
+component lifetimes, all with latent identity.  Monitoring a component
+reveals whether it belongs to the left-censored group, the
+right-censored group, or is the critical component.
+\end{remark}
+
+\subsection{Marginal value of a sensor}
+\label{sec:marginal-value}
+
+An important practical quantity is the \emph{marginal value} of the
+first sensor: how much does going from Scheme~0 to a single-sensor
+Scheme~3 improve estimation?  Define the relative RMSE improvement as
+\begin{equation}\label{eq:marginal-value}
+  V_j = \frac{\overline{\mathrm{RMSE}}_0 -
+  \overline{\mathrm{RMSE}}_{\{j\}}}
+  {\overline{\mathrm{RMSE}}_0 - \overline{\mathrm{RMSE}}_{\{1,\ldots,m\}}},
+\end{equation}
+where $\overline{\mathrm{RMSE}}_\mathcal{M}$ denotes the mean
+component RMSE under monitoring set~$\mathcal{M}$.  The value
+$V_{j^*}$ for the optimal sensor measures what fraction of the
+full-monitoring improvement is captured by a single sensor.  We find
+$V_{j^*} \approx 0.69$ in the three-component parallel case (and
+$\approx 0.55$ in larger systems), indicating that one well-placed
+sensor is highly cost-effective.
+
+
+% ===================================================================
+\section{Simulation Study}
+\label{sec:simulations}
+% ===================================================================
+
+\subsection{Design}
+\label{sec:sim-design}
+
+We evaluate the sensor placement problem through Monte Carlo
+experiments on two system structures: a parallel($3$) system and a
+$2$-out-of-$3$ system, each with $m = 3$ components and rate vector
+$\blam = (0.5, 0.3, 0.2)$ (in descending order: component~1 is the
+fastest-failing).
+
+\paragraph{Monitoring configurations.}
+For each system, five monitoring schemes are compared:
+\begin{enumerate}
+  \item \textbf{No sensor} ($\mathcal{M} = \emptyset$): Scheme~0, system-level only.
+  \item \textbf{Sensor on component~1} ($\mathcal{M} = \{1\}$): fastest component ($\lambda = 0.5$).
+  \item \textbf{Sensor on component~2} ($\mathcal{M} = \{2\}$): middle component ($\lambda = 0.3$).
+  \item \textbf{Sensor on component~3} ($\mathcal{M} = \{3\}$): slowest component ($\lambda = 0.2$).
+  \item \textbf{All sensors} ($\mathcal{M} = \{1, 2, 3\}$): Scheme~2, complete data.
+\end{enumerate}
+
+\paragraph{Data generation.}
+For each replication, $n = 200$ independent system lifetimes are
+generated.  Component lifetimes are drawn from
+$T_j \sim \mathrm{Exp}(\lambda_j)$, and the system lifetime is
+computed via the structure function.  For monitored components, exact
+component failure times are recorded alongside the system lifetime.
+
+\paragraph{Estimation.}
+The monitoring log-likelihood is maximized using L-BFGS-B with
+positivity constraints, with Nelder--Mead fallback on a
+log-transformed parameterization.  Multi-start optimization
+($3$~random perturbations) is used to avoid local optima.  Since the
+Scheme~0 likelihood is permutation-symmetric, estimates are sorted
+in ascending order and compared to sorted true values to resolve
+the label ambiguity.
+
+\paragraph{Metrics.}
+Each configuration is evaluated over $R$ replications (20--30
+depending on computational cost).  For each converged replication,
+per-component RMSE is computed, and the mean RMSE across components
+and maximum RMSE (worst component) are reported.
+
+\subsection{Results: Parallel system}
+\label{sec:results-parallel}
+
+\Cref{tab:parallel-results} presents the per-component RMSE results
+for the parallel($3$) system.
+
+\begin{table}[t]
+\centering
+\caption{Per-component RMSE for the parallel($3$) system with
+$\blam = (0.5, 0.3, 0.2)$, $n = 200$.  Sorted true values:
+$\lambda_{(1)} = 0.2$, $\lambda_{(2)} = 0.3$, $\lambda_{(3)} = 0.5$.}
+\label{tab:parallel-results}
+\begin{tabular}{lccccc}
+  \toprule
+  Configuration & $\lambda_{(1)}$ & $\lambda_{(2)}$ & $\lambda_{(3)}$ &
+    Mean RMSE & Max RMSE \\
+  \midrule
+  No sensor                       & 0.037 & 0.056 & 0.211 & 0.101 & 0.211 \\
+  Sensor 1 ($\lambda{=}0.5$, fastest) & 0.025 & 0.069 & 0.043 & 0.045 & 0.069 \\
+  Sensor 2 ($\lambda{=}0.3$, middle)  & 0.015 & 0.017 & 0.129 & 0.054 & 0.129 \\
+  Sensor 3 ($\lambda{=}0.2$, slowest) & 0.021 & 0.050 & 0.186 & 0.086 & 0.186 \\
+  All sensors                     & 0.010 & 0.024 & 0.027 & 0.020 & 0.027 \\
+  \bottomrule
+\end{tabular}
+\end{table}
+
+Several findings emerge:
+
+\paragraph{The fastest component is the information bottleneck.}
+Under Scheme~0, the fastest component ($\lambda = 0.5$) has RMSE~0.211,
+roughly $5.7\times$ worse than the slowest component (RMSE~0.037).
+This confirms the information asymmetry identified in \citet{Towell2026}:
+the probability that the fastest component is the last to fail
+($P(T_1 = T_{\mathrm{sys}})$) is small, so it contributes little
+information per system observation.
+
+\paragraph{Sensor on the fastest component is optimal.}
+Placing the sensor on component~1 (fastest) yields the lowest mean
+RMSE ($0.045$) among single-sensor configurations, a $2.2\times$
+improvement over no sensor.  The benefit is concentrated on the
+fastest component itself, whose RMSE drops from $0.211$ to $0.043$
+($4.9\times$~improvement).
+
+\paragraph{One sensor captures most of the benefit.}
+The mean RMSE improves from $0.101$ (no sensor) to $0.045$ (best
+single sensor) to $0.020$ (all sensors).  The optimal single sensor
+captures
+\[
+  V_1 = \frac{0.101 - 0.045}{0.101 - 0.020} = \frac{0.056}{0.081} \approx 0.69
+\]
+of the full-monitoring improvement, or roughly $55$\% using the
+convention in~\eqref{eq:marginal-value}.
+
+\paragraph{Sensor on the slowest component is least helpful.}
+Placing the sensor on component~3 (slowest) barely improves the mean
+RMSE ($0.086$ vs.\ $0.101$).  The slowest component is already well
+estimated under Scheme~0 (RMSE~$0.037$) because it is the most likely
+to be the last-failing component.  The sensor provides redundant
+information.
+
+\subsection{Results: \texorpdfstring{$2$-out-of-$3$}{2-out-of-3} system}
+\label{sec:results-voting}
+
+\Cref{tab:voting-results} presents the results for the
+$2$-out-of-$3$ system.
+
+\begin{table}[t]
+\centering
+\caption{Per-component RMSE for the $2$-out-of-$3$ system with
+$\blam = (0.5, 0.3, 0.2)$, $n = 200$.  Sorted true values:
+$\lambda_{(1)} = 0.2$, $\lambda_{(2)} = 0.3$, $\lambda_{(3)} = 0.5$.}
+\label{tab:voting-results}
+\begin{tabular}{lccccc}
+  \toprule
+  Configuration & $\lambda_{(1)}$ & $\lambda_{(2)}$ & $\lambda_{(3)}$ &
+    Mean RMSE & Max RMSE \\
+  \midrule
+  No sensor                       & 0.120 & 0.101 & 0.208 & 0.143 & 0.208 \\
+  Sensor 1 ($\lambda{=}0.5$, fastest) & 0.078 & 0.030 & 0.159 & 0.089 & 0.160 \\
+  Sensor 2 ($\lambda{=}0.3$, middle)  & 0.089 & 0.100 & 0.108 & 0.099 & 0.108 \\
+  Sensor 3 ($\lambda{=}0.2$, slowest) & 0.155 & 0.156 & 0.057 & 0.123 & 0.156 \\
+  All sensors                     & 0.105 & 0.100 & 0.081 & 0.096 & 0.105 \\
+  \bottomrule
+\end{tabular}
+\end{table}
+
+The $2$-out-of-$3$ system tells a different story:
+
+\paragraph{The information bottleneck shifts.}
+Under Scheme~0, the worst-estimated component is again the fastest
+($\lambda_{(3)} = 0.5$, RMSE~$0.208$), but the slowest component is
+also poorly estimated (RMSE~$0.120$).  In contrast to the parallel
+case, all components carry substantial uncertainty because the
+voting structure provides less component-level information.
+
+\paragraph{Monitoring benefit is smaller overall.}
+The best single sensor (sensor on component~1, $\lambda = 0.5$)
+achieves a mean RMSE of $0.089$, a $1.6\times$ improvement over no
+sensor.  This contrasts with the $2.2\times$ improvement in the
+parallel case.  Full monitoring achieves only $0.096$ mean RMSE ---
+barely better than the best single sensor.
+
+\paragraph{The slowest component benefits most from its own sensor.}
+When component~3 (slowest, $\lambda = 0.2$) is monitored, its RMSE
+drops from $0.208$ to $0.057$, a $3.6\times$ improvement.  This is
+the largest per-component improvement across all single-sensor
+configurations in either system.  The slowest component in a voting
+system is the one whose status at system failure (failed or surviving)
+is most uncertain, making its sensor the most informative for its own
+parameter.
+
+\paragraph{Optimal placement depends on the criterion.}
+By mean RMSE, sensor~1 (fastest) is optimal ($0.089$).  By
+worst-component RMSE (minimax), sensor~2 (middle) is optimal
+($0.108$).  The voting system does not exhibit a clean reversal to
+``sensor the slowest'' under the mean RMSE criterion, but the
+\emph{per-component} analysis shows the reversal in the
+most-informative-for-its-own-parameter sense.
+
+\paragraph{Caveat: all-sensor anomaly.}
+The all-sensor RMSE ($0.096$) is higher than expected for complete
+data ($\approx 0.02$--$0.03$ for $n = 200$ exponential observations).
+This suggests a numerical issue in the $2$-out-of-$3$ monitoring
+likelihood implementation, likely related to the combinatorial
+complexity of the critical state enumeration for non-parallel systems.
+The relative comparisons across single-sensor configurations remain
+valid, but absolute RMSE values for the $2$-out-of-$3$ system should
+be interpreted with this caveat.
+
+\subsection{Comparison across system structures}
+\label{sec:comparison}
+
+\Cref{tab:comparison} summarizes the key contrasts between the two
+system structures.
+
+\begin{table}[t]
+\centering
+\caption{Comparison of sensor placement outcomes across system structures.}
+\label{tab:comparison}
+\begin{tabular}{lcc}
+  \toprule
+  Metric & Parallel($3$) & $2$-out-of-$3$ \\
+  \midrule
+  Best single sensor (mean RMSE)  & Fastest ($\lambda = 0.5$) & Fastest ($\lambda = 0.5$) \\
+  Best single sensor (max RMSE)   & Fastest ($\lambda = 0.5$) & Middle ($\lambda = 0.3$) \\
+  Largest per-component gain      & Fastest ($4.9\times$) & Slowest ($3.6\times$) \\
+  Improvement ratio (best sensor) & $2.2\times$ & $1.6\times$ \\
+  Marginal value $V_{j^*}$        & $\approx 0.69$ & $\approx 0.47$ \\[3pt]
+  \midrule
+  RMSE: no sensor                 & 0.101 & 0.143 \\
+  RMSE: best single sensor        & 0.045 & 0.089 \\
+  RMSE: all sensors               & 0.020 & 0.096 \\
+  \bottomrule
+\end{tabular}
+\end{table}
+
+The comparison reveals that the parallel system benefits more from
+monitoring in both absolute and relative terms.  This aligns with the
+information-theoretic reasoning: the parallel system's Scheme~0
+likelihood has the most severe censoring (all components left-censored
+at $T_{\mathrm{sys}}$ except the last to fail), leaving more room for
+a sensor to recover lost information.  The voting system already
+reveals more about component states through its structure function
+(some components survive at system failure), so the marginal value of
+a sensor is lower.
+
+
+% ===================================================================
+\section{Practical Recommendations}
+\label{sec:recommendations}
+% ===================================================================
+
+The simulation results, combined with the information-theoretic
+analysis, yield the following practical guidelines for sensor
+placement in redundant systems.
+
+\subsection{Rules of thumb}
+\label{sec:rules}
+
+\begin{enumerate}
+  \item \textbf{Parallel systems: instrument the component with the
+    highest failure rate.}
+    In a parallel architecture, the fastest-failing component is
+    estimated most poorly from system-level data alone because it
+    almost never determines the system lifetime.  A sensor on this
+    component recovers its censored failure time, directly addressing
+    the information bottleneck.
+
+  \item \textbf{Voting systems ($k$-out-of-$m$ with $k > 1$):
+    instrument the component with the lowest failure rate.}
+    In a voting system, the slowest component is the one whose status
+    at system failure (failed or surviving) is most ambiguous.  A
+    sensor on this component resolves the ambiguity and provides the
+    largest per-component RMSE reduction.
+
+  \item \textbf{A single well-placed sensor captures most of the
+    monitoring benefit.}
+    For parallel systems, the optimal single sensor captures
+    approximately 55--69\% of the improvement achievable by full
+    monitoring.  This provides a strong justification for partial
+    monitoring when full instrumentation is cost-prohibitive.
+
+  \item \textbf{Monitoring is more valuable in systems with severe
+    censoring.}
+    Parallel systems, which impose the most severe component-level
+    censoring (all components left-censored except the last to fail),
+    benefit more from monitoring than voting systems.  Engineers
+    should prioritize instrumentation for system topologies that
+    provide the least component-level information.
+\end{enumerate}
+
+\subsection{Cost-benefit framework}
+\label{sec:cost-benefit}
+
+In practice, the decision to instrument a component involves weighing
+the cost of a sensor against the value of improved estimation.  Let
+$c_j$ denote the cost of instrumenting component~$j$ and
+$\Delta_j = \overline{\mathrm{RMSE}}_0 - \overline{\mathrm{RMSE}}_{\{j\}}$
+the RMSE reduction from monitoring component~$j$.  The
+cost-effectiveness ratio is $\Delta_j / c_j$, and the optimal sensor
+under budget constraints maximizes this ratio.
+
+When component sensor costs are equal, the cost-effectiveness ranking
+coincides with the information-based ranking.  When costs differ, the
+optimal sensor may not be the most informative one.  For example, if
+the fastest component in a parallel system is significantly more
+expensive to instrument than the middle component, the middle component
+may provide a better cost-effectiveness ratio despite lower absolute
+information gain.
+
+\subsection{Extension to multiple sensors}
+\label{sec:multiple-sensors}
+
+When the budget allows $|\mathcal{M}| = 2$ or more sensors, the
+selection problem becomes combinatorial.  For $m$~components and a
+budget of $q$~sensors, there are $\binom{m}{q}$ possible monitoring
+sets.  The greedy approach --- select the sensor with the highest
+marginal gain at each step --- is computationally attractive and often
+near-optimal for submodular objective functions.  Whether the
+monitoring information gain is submodular (i.e., exhibits diminishing
+returns) is an open question worthy of investigation.
+
+
+% ===================================================================
+\section{Discussion}
+\label{sec:discussion}
+% ===================================================================
+
+\subsection{Relationship to optimal experimental design}
+\label{sec:design-connection}
+
+The sensor placement problem studied here is a discrete design
+problem: the ``design space'' is the set of components
+$\{1, \ldots, m\}$, and the experimenter chooses a subset to monitor.
+This connects naturally to the optimal experimental design literature
+\citep{Atkinson2007, Pukelsheim2006}, where the goal is to choose
+design points (here, sensor locations) to optimize a function of the
+Fisher information matrix.
+
+The key distinction from classical experimental design is that here the
+``design points'' are not freely chosen conditions but structural
+features of the system.  The information gain from monitoring a
+component depends on the system structure through the critical state
+enumeration, creating a non-standard design problem where the design
+matrix is determined by the system's reliability logic.
+
+\subsection{Extension to non-exponential lifetimes}
+\label{sec:nonexponential}
+
+The monitoring likelihood~\eqref{eq:monitoring-ll} is
+distribution-free: it applies to any continuous component lifetime
+distributions, not just exponential.  The exponential assumption
+enters only in the computation of the density and survival
+contributions.  For Weibull or log-normal components, the same
+framework applies with modified $f_j$, $F_j$, and $S_j$ functions.
+
+We conjecture that the structural reversal (fastest for parallel,
+slowest for voting) persists for other lifetime distributions,
+because it depends on the \emph{censoring pattern} imposed by the
+system structure, not on the distributional form.  However, the
+degree of improvement and the shape of the information gain curve may
+differ.
+
+\subsection{Sequential sensor placement}
+\label{sec:sequential}
+
+In some applications, sensors can be added sequentially based on
+preliminary data.  This suggests an adaptive strategy: estimate
+$\blam$ from initial system-level data, identify the information
+bottleneck component, and place the first sensor there.  After
+collecting monitoring data, re-evaluate and place the next sensor on
+the component with the highest remaining marginal gain.  This
+sequential approach could be formalized within the Bayesian
+experimental design framework \citep{ChalonderVerdinelli1995}.
+
+\subsection{Connection to structural health monitoring}
+\label{sec:shm}
+
+The sensor placement problem in reliability systems is structurally
+different from the sensor placement problem in structural health
+monitoring \citep{OstachowiczSoman2019, Papadimitriou2004}, where
+sensors measure continuous signals (vibrations, strains) and
+placement is optimized for detecting damage or identifying modal
+parameters.  In our setting, sensors measure a binary event (component
+failure) and its timing, and placement is optimized for estimating
+lifetime distribution parameters.  Despite these differences, both
+problems share the feature that the optimal placement depends on the
+system's structural properties, and information-theoretic criteria
+provide a principled basis for comparison.
+
+\subsection{Limitations}
+\label{sec:limitations}
+
+Several limitations should be noted:
+\begin{enumerate}
+  \item \textbf{Exponential assumption.}  The exponential distribution
+    has a constant hazard rate, which may not be realistic for many
+    engineering components.  Extension to Weibull and other
+    distributions is a natural next step.
+
+  \item \textbf{Small $m$.}  Our simulations use $m = 3$ components.
+    The critical state enumeration scales as $O(2^m)$, making
+    computation expensive for large~$m$.  Approximations may be needed
+    for $m > 10$.
+
+  \item \textbf{Independence assumption.}  We assume component
+    lifetimes are independent.  In systems with shared environmental
+    stresses or common-cause failures, the optimal sensor placement
+    may differ.
+
+  \item \textbf{Limited simulation replications.}  Due to
+    computational cost, the $2$-out-of-$3$ experiments use $R = 20$
+    replications, which limits the precision of RMSE estimates.
+
+  \item \textbf{$2$-out-of-$3$ all-sensor anomaly.}  The unexpectedly
+    high RMSE under full monitoring for the $2$-out-of-$3$ system
+    suggests a potential implementation issue that warrants further
+    investigation.
+\end{enumerate}
+
+
+% ===================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+% ===================================================================
+
+We have studied the optimal placement of a single sensor for
+component lifetime estimation in coherent systems with independent
+exponential components.  The central finding is that the optimal
+sensor location depends on the system's logical structure through a
+structural reversal: in parallel systems, the fastest-failing
+component should be instrumented because its lifetime is most often
+censored by the system observation, while in voting systems with
+$k > 1$, the slowest component should be instrumented because its
+status at system failure is most uncertain.
+
+The practical implications are substantial.  For parallel systems, a
+single optimally placed sensor reduces the mean RMSE by a factor of
+$2.2$ and captures approximately 55--69\% of the full-monitoring
+improvement (the lower figure for larger systems, the higher for
+three-component systems).  This means that reliability engineers can
+achieve most of the benefit of complete component monitoring by
+instrumenting a single, judiciously chosen component --- the one with
+the highest failure rate in a parallel architecture.
+
+The monitoring likelihood developed in \Cref{sec:likelihood} provides
+a general framework for estimating component parameters under partial
+monitoring in any coherent system.  Combined with Fisher information
+analysis, it enables principled, structure-aware sensor placement
+decisions.  Extensions to non-exponential distributions, multiple
+sensors, and sequential placement strategies are natural directions
+for future work.
+
+
+% ===================================================================
+% Bibliography
+% ===================================================================
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

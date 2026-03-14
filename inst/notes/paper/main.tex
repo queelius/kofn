@@ -1,0 +1,84 @@
+\documentclass[12pt]{article}
+
+% --- Packages ---
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+% --- Theorem environments ---
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% --- Notation shortcuts ---
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Rset}{\mathbb{R}}
+\newcommand{\bone}{\mathbf{1}}
+\newcommand{\blam}{\boldsymbol{\lambda}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% --- Title ---
+\title{Exponential Parallel System Estimation\\via the Censoring Equivalence}
+\author{Alexander Towell\thanks{Department of Computer Science,
+  Southern Illinois University Edwardsville.
+  Email: \texttt{lex@metafunctor.com}.
+  ORCID: 0000-0001-6443-9897.}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We show that observing the lifetime of a parallel system is equivalent to
+observing one exact and $m-1$ left-censored component lifetimes with latent
+identity. This censoring equivalence---formalized for independent exponential
+components---enables closed-form maximum likelihood estimation via
+inclusion-exclusion, an EM algorithm with analytical E- and M-steps, and an
+elementary proof that the component rates are identifiable from system data
+alone. The identifiability result stands in sharp contrast to the classical
+non-identifiability of series (competing risks) systems, revealing a
+structural duality: series systems mask \emph{which} component failed,
+while parallel systems mask \emph{when} each component failed. Monte Carlo
+simulations confirm that the MLE is consistent with nominal coverage and
+reveal an information asymmetry governed by the probability that each
+component is the last to fail: slow components are estimated precisely,
+while fast components carry little system-level information.  A Fisher
+information analysis quantifies this asymmetry, showing that the
+per-component efficiency is approximately proportional to $P(T_j = T)$
+and that the joint efficiency collapses exponentially with the number of
+components.  The censoring equivalence extends to $k$-out-of-$n$ systems,
+unifying the parallel ($k = 1$) and series ($k = n$) cases within a
+single framework.
+\end{abstract}
+
+\noindent\textbf{Keywords:} parallel systems, $k$-out-of-$n$ systems,
+exponential distribution, maximum likelihood, identifiability, censoring,
+Fisher information, EM algorithm, reliability
+
+\input{sec1-introduction}
+\input{sec2-model}
+\input{sec3-likelihood}
+\input{sec4-estimation}
+\input{sec5-simulations}
+\input{sec6-discussion}
+
+\bibliographystyle{plainnat}
+\bibliography{../references}
+
+\input{appendix}
+
+\end{document}

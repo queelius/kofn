@@ -1,0 +1,321 @@
+% Section 4: Maximum Likelihood Estimation
+\section{Maximum Likelihood Estimation}
+\label{sec:estimation}
+
+Given $n$ independent observations $t_1,\ldots,t_n$ from the parallel
+system $T = \max(T_1,\ldots,T_m)$ with $T_j \sim \mathrm{Exp}(\lambda_j)$,
+the observed-data log-likelihood under Scheme~0 is
+\eqref{eq:loglik-exact}, restated here for reference:
+\[
+  \ell(\blam)
+  = \sum_{i=1}^{n} \ln f_T(t_i;\blam)
+  = \sum_{i=1}^{n} \ln \Biggl[\,\sum_{j=1}^{m} w_j(t_i;\blam)\Biggr].
+\]
+\Cref{thm:identifiability} guarantees that the maximizer is unique
+(up to permutation of equal rates), and \Cref{thm:fisher} ensures
+that the Fisher information is positive definite at distinct rates, so the
+MLE is well-defined.
+
+We present two approaches to computing the MLE: direct numerical
+maximization (\S\ref{sub:direct-mle}) and an EM algorithm with
+closed-form steps (\S\ref{sub:em-algorithm}).  Both converge to the
+same estimate; the EM is particularly attractive because it avoids
+gradient computation and is guaranteed to increase the likelihood at
+every iteration.
+
+% ===================================================================
+\subsection{Direct maximization}
+\label{sub:direct-mle}
+% ===================================================================
+
+The log-likelihood is a smooth function of
+$\blam \in \Rset_{>0}^m$, and its gradient and Hessian are available
+analytically through the inclusion-exclusion expansion of
+\Cref{lem:ie}.  The score vector has components
+\begin{equation}
+  \label{eq:score}
+  \frac{\partial \ell}{\partial \lambda_j}
+  = \sum_{i=1}^{n}
+    \frac{1}{f_T(t_i)}
+    \Biggl[
+      \frac{\partial w_j(t_i)}{\partial \lambda_j}
+      + \sum_{k \neq j} \frac{\partial w_k(t_i)}{\partial \lambda_j}
+    \Biggr],
+\end{equation}
+where the partial derivatives~\eqref{eq:dwj-dlamj}--\eqref{eq:dwk-dlamj}
+are finite sums of exponentials, so the score and observed Fisher information
+$I_{\mathrm{obs}}(\hat\blam) = -\nabla^2 \ell(\hat\blam)$
+are analytically tractable.  Standard errors are obtained as
+$\widehat{\mathrm{se}}(\hat\lambda_j)
+= \bigl[I_{\mathrm{obs}}^{-1}(\hat\blam)\bigr]_{jj}^{1/2}$.
+
+In practice, we maximize~$\ell(\blam)$ using the L-BFGS-B algorithm
+with box constraints $\lambda_j > 0$ for $j = 1,\ldots,m$.  As a
+fallback for robustness, we re-optimize with the
+Nelder--Mead simplex method on the reparametrized scale
+$\log\lambda_j \in \Rset$, which enforces positivity without box
+constraints; the solution yielding the higher log-likelihood is
+retained.
+
+\paragraph{Starting values.}
+For a parallel system of $m$ i.i.d.\ $\mathrm{Exp}(\lambda)$ components,
+$\E[T] = H_m / \lambda$ where $H_m = \sum_{k=1}^{m} 1/k$ is the $m$-th
+harmonic number.  Writing $\hat\lambda_0 = H_m / \bar{t}$ for the
+method-of-moments estimate (where $\bar{t}$ is the sample mean of the
+observed system lifetimes), we initialize with a spread:
+\begin{equation}\label{eq:spread-init}
+  \lambda_j^{(0)} = \hat\lambda_0 \cdot
+  \Bigl(\tfrac{1}{2} + \tfrac{j-1}{m-1}\Bigr), \qquad j = 1,\ldots,m.
+\end{equation}
+This places the initial rates in the correct order of magnitude while
+breaking the permutation symmetry of the Scheme~0 log-likelihood.
+A uniform initialization $\lambda_j^{(0)} = \hat\lambda_0$ for all~$j$
+sits at a saddle point of the likelihood surface---where all rates are
+equal---and gradient-based optimizers fail to escape.
+
+% ===================================================================
+\subsection{EM algorithm}
+\label{sub:em-algorithm}
+% ===================================================================
+
+The censoring equivalence (\Cref{prop:censoring-equiv})
+suggests a natural data-augmentation scheme: augment each observed
+system lifetime~$T$ with the latent identity $J = \argmax_j T_j$ and
+the unobserved component lifetimes $T_1,\ldots,T_m$.  This leads to an
+EM algorithm in which both the E-step and the M-step admit closed-form
+expressions.
+
+\begin{proposition}[EM algorithm for exponential parallel systems]
+  \label{prop:em-algorithm}
+  Let $t_1,\ldots,t_n$ be $n$ i.i.d.\ observations from
+  $T = \max(T_1,\ldots,T_m)$ with $T_j \sim \mathrm{Exp}(\lambda_j)$,
+  $\lambda_j > 0$.  Define the complete data as
+  $(T_1,\ldots,T_m,\, J)$ where $J = \argmax_j T_j$.
+
+  Given current parameter estimates $\blam^{(s)}$, the EM update
+  $\blam^{(s)} \mapsto \blam^{(s+1)}$ proceeds as follows.
+
+  \medskip\noindent
+  \textbf{E-step.}\enspace
+  For each observation $t_i$ and each component $j = 1,\ldots,m$,
+  compute:
+  \begin{enumerate}
+    \item[\textup{(i)}]
+      The posterior probability that component $j$ was the last to fail:
+      \begin{equation}
+        \label{eq:em-posterior}
+        p_{ij}
+        \;\coloneqq\; P\bigl(J = j \mid T = t_i;\, \blam^{(s)}\bigr)
+        = \frac{w_j\bigl(t_i;\, \blam^{(s)}\bigr)}
+              {f_T\bigl(t_i;\, \blam^{(s)}\bigr)}\,.
+      \end{equation}
+
+    \item[\textup{(ii)}]
+      The conditional mean of $T_j$ given that component $j$ was the
+      last to fail:
+      \begin{equation}
+        \label{eq:em-exact}
+        \E\bigl[T_j \mid T = t_i,\, J = j;\, \blam^{(s)}\bigr] = t_i\,.
+      \end{equation}
+
+    \item[\textup{(iii)}]
+      The conditional mean of $T_j$ given that component $j$ was
+      \emph{not} the last to fail:
+      \begin{equation}
+        \label{eq:em-truncated}
+        \E\bigl[T_j \mid T = t_i,\, J \neq j;\, \blam^{(s)}\bigr]
+        = \E\bigl[T_j \mid T_j < t_i;\, \lambda_j^{(s)}\bigr]
+        = \frac{1}{\lambda_j^{(s)}}
+          - \frac{t_i}{e^{\lambda_j^{(s)}\, t_i} - 1}\,.
+      \end{equation}
+  \end{enumerate}
+  The overall conditional expectation of $T_j$ given observation $t_i$
+  is then
+  \begin{equation}
+    \label{eq:em-etj}
+    \hat\tau_{ij}
+    \;\coloneqq\; \E\bigl[T_j \mid T = t_i;\, \blam^{(s)}\bigr]
+    = p_{ij}\cdot t_i
+      + (1 - p_{ij})\biggl[
+        \frac{1}{\lambda_j^{(s)}}
+        - \frac{t_i}{e^{\lambda_j^{(s)}\, t_i} - 1}
+      \biggr].
+  \end{equation}
+
+  \medskip\noindent
+  \textbf{M-step.}\enspace
+  Update each rate as
+  \begin{equation}
+    \label{eq:em-mstep}
+    \lambda_j^{(s+1)}
+    = \frac{n}{\displaystyle\sum_{i=1}^{n} \hat\tau_{ij}}\,,
+    \qquad j = 1,\ldots,m.
+  \end{equation}
+\end{proposition}
+
+\begin{proof}
+We verify each component of the E-step and derive the M-step.
+
+\smallskip\noindent
+\emph{Part~\textup{(i)}.}\enspace
+By \Cref{lem:density-decomp},
+$w_j(t;\blam)/f_T(t;\blam) = P(J = j \mid T = t;\blam)$.
+Evaluating at $\blam = \blam^{(s)}$ gives~\eqref{eq:em-posterior}.
+
+\smallskip\noindent
+\emph{Part~\textup{(ii)}.}\enspace
+Conditioning on $J = j$ means that component~$j$ achieved the maximum:
+$T_j = T = t_i$.  Hence
+$\E[T_j \mid T = t_i,\, J = j] = t_i$.
+
+\smallskip\noindent
+\emph{Part~\textup{(iii)}.}\enspace
+Conditioning on $J \neq j$ means $T_j < T = t_i$, so $T_j$ follows
+an $\mathrm{Exp}(\lambda_j)$ distribution truncated above at~$t_i$.
+Its conditional density on $(0,\, t_i)$ is
+$g(u) = \lambda_j\, e^{-\lambda_j u}\big/\bigl(1 - e^{-\lambda_j t_i}\bigr)$.
+The conditional mean is
+\begin{align*}
+  \E[T_j \mid T_j < t_i]
+  &= \frac{\displaystyle\int_0^{t_i} u\,\lambda_j\, e^{-\lambda_j u}\,du}
+          {1 - e^{-\lambda_j t_i}}
+  = \frac{1/\lambda_j - (1/\lambda_j + t_i)\,e^{-\lambda_j t_i}}
+          {1 - e^{-\lambda_j t_i}}
+  = \frac{1}{\lambda_j}
+    - \frac{t_i}{e^{\lambda_j t_i} - 1}\,,
+\end{align*}
+where the numerator follows from integration by parts and the final
+form is obtained by dividing numerator and denominator by
+$e^{-\lambda_j t_i}$.
+
+\smallskip\noindent
+\emph{M-step derivation.}\enspace
+The complete-data log-likelihood for a single system~$i$ with augmented
+data $(T_{i1},\ldots,T_{im},\, J_i)$ is
+\[
+  \ell_c^{(i)}(\blam)
+  = \sum_{j=1}^{m}\bigl(\ln \lambda_j - \lambda_j\, T_{ij}\bigr)
+    + \text{terms not depending on~$\blam$},
+\]
+since each $T_{ij} \sim \mathrm{Exp}(\lambda_j)$ independently.  The
+complete-data sufficient statistic for~$\lambda_j$ is
+$\sum_{i=1}^n T_{ij}$, and the complete-data MLE is
+$\hat\lambda_j = n \big/ \sum_{i} T_{ij}$.  Taking the conditional
+expectation given the observed data and current parameters yields
+$\E\bigl[\sum_i T_{ij} \mid t_1,\ldots,t_n;\, \blam^{(s)}\bigr]
+= \sum_i \hat\tau_{ij}$.  The M-step maximizes the expected
+complete-data log-likelihood, giving~\eqref{eq:em-mstep}.
+
+\smallskip\noindent
+\emph{Monotonicity.}\enspace
+By the general theory of \citet{DempsterLairdRubin1977},
+$\ell\bigl(\blam^{(s+1)}\bigr) \geq \ell\bigl(\blam^{(s)}\bigr)$ at
+every iteration, with equality if and only if $\blam^{(s)}$ is a fixed
+point of the EM map.  The complete-data model belongs to the exponential
+family, so each M-step has a unique closed-form maximum.
+\end{proof}
+
+\begin{remark}[Closed-form character]
+  \label{rem:em-closed-form}
+  Both the E-step and M-step require only elementary operations:
+  the E-step evaluates $w_j$ via the inclusion-exclusion expansion
+  ($2^{m-1}$ terms per component) and the truncated exponential
+  mean~\eqref{eq:em-truncated}; the M-step computes a reciprocal
+  of a weighted average.  No numerical integration or Monte Carlo
+  sampling is needed at any step.  This contrasts with the stochastic
+  EM of \citet{NgNavarroBalakrishnan2017}, which requires simulation
+  in the E-step for general system signatures, and with the Bayesian
+  approach of \citet{BheringPereiraPolpo2014}, which uses MCMC.
+\end{remark}
+
+\begin{algorithm}[t]
+  \caption{EM algorithm for exponential parallel system MLE}
+  \label{alg:em}
+  \begin{algorithmic}[1]
+    \Require Observations $t_1,\ldots,t_n > 0$;\;
+             number of components~$m$;\;
+             tolerance $\varepsilon > 0$
+    \Ensure  MLE $\hat\blam = (\hat\lambda_1,\ldots,\hat\lambda_m)$
+    \State $\hat\lambda_0 \gets H_m / \bar{t}$
+      \Comment{$H_m = \sum_{k=1}^m 1/k$,\; $\bar{t} = n^{-1}\sum_i t_i$}
+    \State Initialize $\lambda_j^{(0)} \gets \hat\lambda_0 \cdot
+      \bigl(\tfrac{1}{2} + \tfrac{j-1}{m-1}\bigr)$ for $j = 1,\ldots,m$
+      \Comment{spread init~\eqref{eq:spread-init}}
+    \State $s \gets 0$
+    \Repeat
+      \For{$i = 1,\ldots,n$;\; $j = 1,\ldots,m$}
+        \Comment{\textbf{E-step}}
+        \State $p_{ij} \gets w_j(t_i;\blam^{(s)}) \,\big/\, f_T(t_i;\blam^{(s)})$
+        \State $\mu_{ij} \gets 1/\lambda_j^{(s)} - t_i\big/(e^{\lambda_j^{(s)} t_i} - 1)$
+          \Comment{truncated mean}
+        \State $\hat\tau_{ij} \gets p_{ij}\cdot t_i + (1 - p_{ij})\cdot \mu_{ij}$
+      \EndFor
+      \For{$j = 1,\ldots,m$}
+        \Comment{\textbf{M-step}}
+        \State $\lambda_j^{(s+1)} \gets n \,\big/\, \sum_{i=1}^n \hat\tau_{ij}$
+      \EndFor
+      \State $s \gets s + 1$
+    \Until{$\bigl|\ell(\blam^{(s)}) - \ell(\blam^{(s-1)})\bigr| \big/ \bigl|\ell(\blam^{(s-1)})\bigr| < \varepsilon$}
+    \State \Return $\hat\blam \gets \blam^{(s)}$
+  \end{algorithmic}
+\end{algorithm}
+
+% ===================================================================
+\subsection{Practical considerations}
+\label{sub:practical}
+% ===================================================================
+
+\paragraph{Convergence criterion.}
+We terminate the EM when the relative change in log-likelihood falls
+below a threshold~$\varepsilon$:
+$|\ell(\blam^{(s)}) - \ell(\blam^{(s-1)})| / |\ell(\blam^{(s-1)})| < \varepsilon$.
+In our simulations (\Cref{sec:simulations}), $\varepsilon = 10^{-8}$
+was used, and convergence typically required 50--200 iterations.
+
+\paragraph{Agreement of methods.}
+Both the direct maximization and the EM
+algorithm target the same log-likelihood~\eqref{eq:loglik-exact}.  Since
+\Cref{thm:identifiability} guarantees a unique global maximum
+(up to label permutation), they converge to the same point estimate.
+The direct method supplies the observed Fisher information at the MLE
+as a byproduct; when using the EM, standard errors are obtained by
+evaluating the Hessian of~$\ell$ at the converged estimate~$\hat\blam$.
+
+\paragraph{Computational cost.}
+Each evaluation of $f_T(t;\blam)$ requires
+the inclusion-exclusion expansion for each of $m$ components, involving
+$2^{m-1}$ terms per component.  Over $n$ observations, a single
+likelihood evaluation costs $O(n \cdot m \cdot 2^{m-1})$.  The
+exponential scaling in~$m$ is the binding constraint: for the
+exponential model, systems with $m \leq 15$--$20$ are computationally
+feasible on standard hardware.
+
+% ===================================================================
+\subsection{Extension to censored system data}
+\label{sub:censored-extension}
+% ===================================================================
+
+In practice, the system lifetime~$T$ may itself be subject to censoring.
+The inclusion-exclusion machinery of \Cref{sec:likelihood}
+accommodates all standard censoring types in closed form.
+
+If system~$i$ is known only to survive past time~$\tau_i$
+(i.e., $T_i > \tau_i$), its likelihood contribution is the system
+survival function
+$S_T(\tau_i;\blam) = 1 - F_T(\tau_i;\blam)$,
+available in closed form via \Cref{lem:ie}.
+If the system failure is known to lie in an interval $(a_i,\, b_i]$,
+the likelihood contribution is
+$F_T(b_i;\blam) - F_T(a_i;\blam)$,
+a difference of two inclusion-exclusion expansions.
+
+For a dataset containing exact, right-censored, and interval-censored
+observations, the mixed log-likelihood~\eqref{eq:loglik}
+applies directly, with every term in closed form.  Both the direct
+maximization and EM approaches extend to this setting without
+modification.  For the EM, the E-step conditions on the appropriate
+censoring information: exact observations contribute as in
+\Cref{prop:em-algorithm}; censored observations contribute the
+conditional expectation of the component lifetimes given the
+censoring constraint, which involves only exponential and truncated
+exponential calculations.
