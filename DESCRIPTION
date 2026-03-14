@@ -1,0 +1,33 @@
+Package: kofn
+Title: Component Lifetime Estimation from k-out-of-n System Data
+Version: 0.1.0
+Authors@R: person("Alexander", "Towell",
+    email = "lex@metafunctor.com",
+    role = c("aut", "cre"),
+    comment = c(ORCID = "0000-0001-6443-9897"))
+Description: Maximum likelihood estimation of component lifetime parameters
+    from system-level observations of k-out-of-n coherent systems. Supports
+    exponential and Weibull component distributions under multiple observation
+    schemes: Scheme 0 (system lifetime only), Scheme 1 (periodic inspection),
+    and Scheme 2 (complete monitoring). Provides an EM algorithm for Weibull
+    parallel systems, Fisher information comparison across schemes, and
+    coherent system infrastructure via minimal path/cut sets. The k-out-of-n
+    framework unifies series (k=n, via maskedcauses) and parallel (k=1)
+    systems as a censoring problem on component lifetimes.
+License: MIT + file LICENSE
+URL: https://github.com/queelius/kofn
+BugReports: https://github.com/queelius/kofn/issues
+Imports:
+    stats,
+    numDeriv
+Suggests:
+    likelihood.model,
+    maskedcauses,
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+Config/testthat/edition: 3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+VignetteBuilder: knitr
