@@ -1,58 +1,31 @@
 # ===========================================================================
-# S3 Generics for kofn
+# Re-exports from likelihood.model and generics
 # ===========================================================================
 #
 # These generics follow the likelihood.model interface convention:
 # each returns a closure that can be evaluated at data + parameters.
-#
-# Once likelihood.model's dependency chain is fixed (algebraic.mle),
-# these should be replaced with re-exports from likelihood.model.
 # ===========================================================================
 
-#' Compute log-likelihood function
-#'
-#' @param model A model object
-#' @param ... Additional arguments
-#' @return A closure `function(df, par)` returning the log-likelihood
+#' @importFrom likelihood.model loglik
 #' @export
-loglik <- function(model, ...) UseMethod("loglik")
+likelihood.model::loglik
 
-#' Compute score (gradient of log-likelihood)
-#'
-#' @param model A model object
-#' @param ... Additional arguments
-#' @return A closure `function(df, par)` returning the score vector
+#' @importFrom likelihood.model score
 #' @export
-score <- function(model, ...) UseMethod("score")
+likelihood.model::score
 
-#' Compute Hessian of log-likelihood
-#'
-#' @param model A model object
-#' @param ... Additional arguments
-#' @return A closure `function(df, par)` returning the Hessian matrix
+#' @importFrom likelihood.model hess_loglik
 #' @export
-hess_loglik <- function(model, ...) UseMethod("hess_loglik")
+likelihood.model::hess_loglik
 
-#' Fit model via maximum likelihood
-#'
-#' @param model A model object
-#' @param ... Additional arguments
-#' @return A closure `function(df, par0, ...)` returning MLE results
+#' @importFrom likelihood.model assumptions
 #' @export
-fit <- function(model, ...) UseMethod("fit")
+likelihood.model::assumptions
 
-#' Generate random data from model
-#'
-#' @param model A model object
-#' @param ... Additional arguments
-#' @return A closure `function(theta, n, ...)` returning a data frame
+#' @importFrom likelihood.model rdata
 #' @export
-rdata <- function(model, ...) UseMethod("rdata")
+likelihood.model::rdata
 
-#' List model assumptions
-#'
-#' @param model A model object
-#' @param ... Additional arguments
-#' @return A list of assumption strings
+#' @importFrom generics fit
 #' @export
-assumptions <- function(model, ...) UseMethod("assumptions")
+generics::fit

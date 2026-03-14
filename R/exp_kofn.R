@@ -194,7 +194,7 @@ hess_loglik.exp_kofn <- function(model, ...) {
 #' Nelder-Mead on the log-scale as fallback. Standard errors are computed
 #' from the observed Fisher information (negative Hessian) at the MLE.
 #'
-#' @param model An `exp_kofn` object created by [kofn()].
+#' @param object An `exp_kofn` object created by [kofn()].
 #' @param ... Additional arguments (ignored).
 #' @return A function `function(df, par0 = NULL, n_starts = 5L)` returning
 #'   a list with components:
@@ -208,18 +208,18 @@ hess_loglik.exp_kofn <- function(model, ...) {
 #'
 #' @method fit exp_kofn
 #' @export
-fit.exp_kofn <- function(model, ...) {
-  ll_fn   <- loglik(model)
-  hess_fn <- hess_loglik(model)
-  m       <- model$m
-  lt      <- model$lifetime
-  om      <- model$omega
+fit.exp_kofn <- function(object, ...) {
+  ll_fn   <- loglik(object)
+  hess_fn <- hess_loglik(object)
+  m       <- object$m
+  lt      <- object$lifetime
+  om      <- object$omega
 
   function(df, par0 = NULL, n_starts = 5L) {
 
     # ---- Default initial values: method-of-moments ----
     if (is.null(par0)) {
-      par0 <- default_init_exp(df, m, lt, om, model$lifetime_upper)
+      par0 <- default_init_exp(df, m, lt, om, object$lifetime_upper)
     }
     if (length(par0) != m) {
       stop(sprintf("Initial parameter vector has length %d but model has %d components",

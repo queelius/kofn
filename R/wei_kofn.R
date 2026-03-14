@@ -195,7 +195,7 @@ hess_loglik.wei_kofn <- function(model, ...) {
 #'     Works for any k-out-of-n structure.}
 #' }
 #'
-#' @param model A \code{wei_kofn} object.
+#' @param object A \code{wei_kofn} object.
 #' @param ... Additional arguments (currently unused).
 #' @return A function \code{function(df, par0, ...)} that returns a
 #'   \code{fisher_mle} object (from the likelihood.model package).
@@ -214,13 +214,13 @@ hess_loglik.wei_kofn <- function(model, ...) {
 #' }
 #'
 #' @export
-fit.wei_kofn <- function(model, ...) {
-  m <- model$m
-  k <- model$k
-  method <- model$method
-  system <- model$system
-  lt <- model$lifetime
-  ll_fn <- loglik(model, ...)
+fit.wei_kofn <- function(object, ...) {
+  m <- object$m
+  k <- object$k
+  method <- object$method
+  system <- object$system
+  lt <- object$lifetime
+  ll_fn <- loglik(object, ...)
   n_par <- 2L * m
 
   if (method == "em") {
@@ -228,10 +228,10 @@ fit.wei_kofn <- function(model, ...) {
     if (k != 1L) {
       stop("EM algorithm is only available for parallel systems (k = 1)")
     }
-    em_solver(model, ll_fn, ...)
+    em_solver(object, ll_fn, ...)
   } else {
     # Direct MLE
-    mle_solver(model, ll_fn, ...)
+    mle_solver(object, ll_fn, ...)
   }
 }
 

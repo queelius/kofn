@@ -4,10 +4,10 @@
 \alias{fit.exp_kofn}
 \title{MLE fitting for exponential k-out-of-n model}
 \usage{
-\method{fit}{exp_kofn}(model, ...)
+\method{fit}{exp_kofn}(object, ...)
 }
 \arguments{
-\item{model}{An \code{exp_kofn} object created by \code{\link[=kofn]{kofn()}}.}
+\item{object}{An \code{exp_kofn} object created by \code{\link[=kofn]{kofn()}}.}
 
 \item{...}{Additional arguments (ignored).}
 }
