@@ -19,14 +19,16 @@ make_mle_result(par, loglik, hessian, score, nobs, converged, ...)
 
 \item{converged}{Logical indicating convergence.}
 
-\item{...}{Additional named elements to include in the result.}
+\item{...}{Additional named elements stored as attributes on the result.}
 }
 \value{
-A list with class \code{"mle_result"} containing: par, se,
-loglik, convergence, fisher_info, score, nobs, and any extra fields.
+A \code{fisher_mle} object (from likelihood.model) with
+any extra fields (shapes, scales, iterations) attached.
 }
 \description{
-Creates a standardized result structure from maximum likelihood
-estimation. Compatible with the likelihood.model fisher_mle interface.
+Creates a \code{\link[likelihood.model]{fisher_mle}} object from
+optimization results. This gives kofn results full base R stats
+compatibility: \code{coef()}, \code{vcov()}, \code{logLik()},
+\code{AIC()}, \code{BIC()}, \code{confint()}, \code{summary()}.
 }
 \keyword{internal}

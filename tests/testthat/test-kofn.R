@@ -65,7 +65,7 @@ test_that("exponential parallel MLE converges", {
 
   fitter <- fit(model)
   result <- fitter(df, n_starts = 3)
-  expect_equal(result$convergence, 0L)
+  expect_true(result$converged)
   expect_true(all(is.finite(result$par)))
   expect_true(all(result$par > 0))
 })
@@ -78,7 +78,7 @@ test_that("Weibull EM converges for parallel system", {
 
   fitter <- fit(model)
   result <- fitter(df, n_starts = 2)
-  expect_equal(result$convergence, 0L)
+  expect_true(result$converged)
   expect_true(all(result$shapes > 0))
   expect_true(all(result$scales > 0))
 })

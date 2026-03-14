@@ -290,29 +290,27 @@ fit.exp_kofn <- function(object, ...) {
       }
     }
 
-    # ---- Standard errors from observed Fisher information ----
-    se <- rep(NA_real_, m)
-    fisher_info <- NULL
+    # ---- Build fisher_mle result ----
+    hessian_mat <- matrix(NA_real_, m, m)
+    score_val <- rep(NA_real_, m)
     if (result$convergence == 0L && !any(is.na(result$par))) {
       H <- tryCatch(hess_fn(df, result$par), error = function(e) NULL)
       if (!is.null(H) && all(is.finite(H))) {
-        fisher_info <- -H
-        ev <- tryCatch(
-          eigen(fisher_info, symmetric = TRUE, only.values = TRUE)$values,
-          error = function(e) NULL
-        )
-        if (!is.null(ev) && all(is.finite(ev)) && all(ev > 0)) {
-          se <- sqrt(diag(solve(fisher_info)))
-        }
+        hessian_mat <- -H  # Hessian of neg-loglik (observed Fisher info)
       }
+      score_val <- tryCatch(
+        numDeriv::grad(function(p) ll_fn(df, p), result$par),
+        error = function(e) rep(NA_real_, m)
+      )
     }
 
-    list(
-      par         = result$par,
-      se          = se,
-      loglik      = -result$value,
-      convergence = result$convergence,
-      fisher_info = fisher_info
+    make_mle_result(
+      par       = result$par,
+      loglik    = -result$value,
+      hessian   = hessian_mat,
+      score     = score_val,
+      nobs      = nrow(df),
+      converged = (result$convergence == 0L)
     )
   }
 }

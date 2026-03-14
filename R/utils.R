@@ -4,8 +4,10 @@
 
 #' Construct an MLE result object
 #'
-#' Creates a standardized result structure from maximum likelihood
-#' estimation. Compatible with the likelihood.model fisher_mle interface.
+#' Creates a \code{\link[likelihood.model]{fisher_mle}} object from
+#' optimization results. This gives kofn results full base R stats
+#' compatibility: \code{coef()}, \code{vcov()}, \code{logLik()},
+#' \code{AIC()}, \code{BIC()}, \code{confint()}, \code{summary()}.
 #'
 #' @param par Numeric vector of parameter estimates.
 #' @param loglik Scalar log-likelihood at the MLE.
@@ -13,43 +15,31 @@
 #' @param score Score vector at the MLE (should be near zero).
 #' @param nobs Number of observations.
 #' @param converged Logical indicating convergence.
-#' @param ... Additional named elements to include in the result.
-#' @return A list with class \code{"mle_result"} containing: par, se,
-#'   loglik, convergence, fisher_info, score, nobs, and any extra fields.
+#' @param ... Additional named elements stored as attributes on the result.
+#' @return A \code{fisher_mle} object (from likelihood.model) with
+#'   any extra fields (shapes, scales, iterations) attached.
 #' @keywords internal
 make_mle_result <- function(par, loglik, hessian, score, nobs,
                             converged, ...) {
-  se <- rep(NA_real_, length(par))
-  fisher_info <- NULL
-
-  if (all(is.finite(hessian))) {
-    fisher_info <- hessian
-    ev <- tryCatch(
-      eigen(fisher_info, symmetric = TRUE, only.values = TRUE)$values,
-      error = function(e) NULL
-    )
-    if (!is.null(ev) && all(is.finite(ev)) && all(ev > 0)) {
-      se <- sqrt(diag(solve(fisher_info)))
-    }
-  }
-
-  result <- list(
-    par         = par,
-    se          = se,
-    loglik      = loglik,
-    convergence = if (converged) 0L else 1L,
-    fisher_info = fisher_info,
-    score       = score,
-    nobs        = nobs
+  # Callers pass the Hessian of the NEGATIVE log-likelihood (observed
+  # Fisher info, positive definite). fisher_mle expects the Hessian of
+  # the log-likelihood itself, so we negate.
+  hess_loglik <- if (all(is.finite(hessian))) -hessian else NULL
+  result <- likelihood.model::fisher_mle(
+    par        = par,
+    loglik_val = loglik,
+    hessian    = hess_loglik,
+    score_val  = score,
+    nobs       = nobs,
+    converged  = converged
   )
 
-  # Add any extra fields (shapes, scales, iterations, etc.)
+  # Attach extra fields (shapes, scales, iterations, etc.)
   extras <- list(...)
   for (nm in names(extras)) {
     result[[nm]] <- extras[[nm]]
   }
 
-  class(result) <- "mle_result"
   result
 }
 
