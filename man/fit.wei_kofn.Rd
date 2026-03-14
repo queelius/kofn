@@ -4,10 +4,10 @@
 \alias{fit.wei_kofn}
 \title{Fit Weibull k-out-of-n system model}
 \usage{
-\method{fit}{wei_kofn}(object, ...)
+\method{fit}{wei_kofn}(model, ...)
 }
 \arguments{
-\item{object}{A \code{wei_kofn} object.}
+\item{model}{A \code{wei_kofn} object.}
 
 \item{...}{Additional arguments (currently unused).}
 }
