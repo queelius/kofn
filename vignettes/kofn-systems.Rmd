@@ -1,0 +1,455 @@
+---
+title: "Coherent Systems and the k-out-of-n Spectrum"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Coherent Systems and the k-out-of-n Spectrum}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 6,
+  fig.height = 4
+)
+set.seed(42)
+```
+
+The `kofn` package provides infrastructure for component lifetime estimation
+from system-level data, framed as a censoring problem. At its foundation is a
+**coherent system engine** that represents arbitrary system structures via
+minimal path sets, computes dual cut-set representations, and determines the
+censoring pattern that each structure imposes on component lifetimes.
+
+This vignette walks through the system engine and shows how system structure
+affects estimation quality. For Weibull-specific EM estimation, see the
+`weibull-em` vignette.
+
+```{r load-package}
+library(kofn)
+```
+
+
+## 1. Coherent systems
+
+A **coherent system** is defined by its minimal path sets: the smallest sets of
+components whose simultaneous functioning guarantees system functioning. The
+`coherent_system()` constructor takes a list of integer vectors (each a minimal
+path set) and precomputes the dual minimal cut sets eagerly.
+
+```{r coherent-system-basic}
+# A custom system: works if {1,2} or {2,3} are both functioning
+sys <- coherent_system(list(c(1, 2), c(2, 3)), m = 3)
+sys
+```
+
+The package provides constructors for all standard system types:
+
+```{r standard-constructors}
+# Series: single path containing all components (all must work)
+series_system(4)
+
+# Parallel: one path per component (any one suffices)
+parallel_system(4)
+
+# k-out-of-n: works when at least k of n components function
+kofn_system(2, 4)
+
+# Bridge: the classic reliability textbook system (5 components)
+bridge_system()
+```
+
+A **k-out-of-n system** unifies series and parallel as endpoints of a spectrum.
+Setting k = 1 gives parallel (the system needs at least one functioning
+component), while k = n gives series (all must function). Every intermediate k
+value defines a distinct censoring structure on the component lifetimes.
+
+
+## 2. Path sets and cut sets
+
+Path sets and cut sets are dual representations of the same system. A **minimal
+cut set** is a smallest set of components whose simultaneous failure causes
+system failure. The `min_cuts()` accessor retrieves them:
+
+```{r path-cut-duality}
+sys_24 <- kofn_system(2, 4)
+
+# Minimal path sets: all pairs (since any 2 functioning = system works)
+cat("Path sets:\n")
+for (p in sys_24$min_paths) cat("  {", paste(p, collapse = ", "), "}\n")
+
+# Minimal cut sets: all triples (need 3 failures to kill the system)
+cat("\nCut sets:\n")
+for (cc in min_cuts(sys_24)) cat("  {", paste(cc, collapse = ", "), "}\n")
+```
+
+The cut sets are computed via the **Berge transversal algorithm**: a minimal
+transversal (hitting set) of the path set hypergraph is exactly a minimal cut
+set. The algorithm iteratively extends partial transversals by elements of each
+path set, then prunes non-minimal results:
+
+```{r berge-demo}
+# Bridge system: 4 paths, complex structure
+br <- bridge_system()
+cat("Bridge paths:\n")
+for (p in br$min_paths) cat("  {", paste(p, collapse = ", "), "}\n")
+
+cat("\nBridge cuts (computed via Berge transversal):\n")
+for (cc in min_cuts(br)) cat("  {", paste(cc, collapse = ", "), "}\n")
+```
+
+The path-cut duality extends to lifetimes. Given path sets $P_1, \ldots, P_r$
+and cut sets $C_1, \ldots, C_s$:
+
+$$T_{\mathrm{sys}} = \max_P \min_{j \in P} T_j = \min_C \max_{j \in C} T_j$$
+
+The min-of-max (cut-based) representation is used internally by
+`system_lifetime()` because it is computationally more natural for determining
+when the system fails.
+
+
+## 3. Structure function and lifetime
+
+The **structure function** $\phi(\mathbf{x})$ maps a logical component state
+vector to a system state. The system works if and only if at least one minimal
+path set is fully operational:
+
+```{r structure-function}
+sys <- kofn_system(2, 3)
+
+# 2-of-3: need at least 2 functioning components
+phi(sys, c(TRUE, TRUE, FALSE))   # two up -> works
+phi(sys, c(TRUE, FALSE, FALSE))  # only one up -> fails
+phi(sys, c(TRUE, TRUE, TRUE))    # all up -> works
+```
+
+The `system_lifetime()` function computes $T_{\mathrm{sys}}$ from component
+lifetimes using the min-of-max cut-set formula:
+
+```{r system-lifetime}
+times <- c(1.5, 2.3, 0.8)
+
+# Parallel (k=1): T = max(T_j) = 2.3
+system_lifetime(parallel_system(3), times)
+
+# Series (k=3): T = min(T_j) = 0.8
+system_lifetime(series_system(3), times)
+
+# 2-of-3: T = T_(2) = 1.5 (second order statistic)
+system_lifetime(kofn_system(2, 3), times)
+```
+
+For a k-out-of-n system with i.i.d. components, the system lifetime is the
+k-th order statistic $T_{(k)}$. For non-i.i.d. components or general coherent
+systems, `system_lifetime()` handles the general case via the cut-set
+computation.
+
+
+## 4. System signatures
+
+The **system signature** is the probability vector $\mathbf{s}$ where
+$s_k = P(T_{\mathrm{sys}} = T_{(k)})$ under i.i.d. continuous component
+lifetimes. It depends only on the system structure, not on the component
+distribution.
+
+```{r signatures}
+# Series: always fails at the first order statistic
+system_signature(series_system(4))
+
+# Parallel: always fails at the last order statistic
+system_signature(parallel_system(4))
+
+# 2-out-of-4: spread across middle order statistics
+system_signature(kofn_system(2, 4))
+
+# Bridge: non-trivial mixture
+system_signature(bridge_system())
+```
+
+The signature tells us which order statistics contribute to the system lifetime.
+This directly affects estimation quality: signatures concentrated on extreme
+order statistics (series or parallel) carry less information about individual
+component parameters than signatures spread across the middle.
+
+```{r signature-comparison}
+# Compare signatures for k-out-of-5 systems
+sig_table <- data.frame(
+  order_stat = paste0("T_(", 1:5, ")"),
+  k1_parallel = system_signature(kofn_system(1, 5)),
+  k2         = system_signature(kofn_system(2, 5)),
+  k3         = system_signature(kofn_system(3, 5)),
+  k4         = system_signature(kofn_system(4, 5)),
+  k5_series  = system_signature(kofn_system(5, 5))
+)
+knitr::kable(sig_table, digits = 3,
+             caption = "System signatures for k-out-of-5 systems")
+```
+
+
+## 5. Censoring patterns
+
+The key insight of the censoring framework: observing a system lifetime creates
+structured censoring on the individual component lifetimes. The
+`system_censoring()` function determines, for each component, whether its
+lifetime is observed exactly, left-censored (failed before the system), or
+right-censored (still alive at system failure):
+
+```{r censoring-basic}
+# Parallel system (k=1): system fails when ALL components fail
+sys_par <- parallel_system(3)
+times <- c(1.5, 2.3, 0.8)
+cens <- system_censoring(sys_par, times)
+cat("System lifetime:", cens$T_sys, "\n")
+cat("Critical component:", cens$critical, "\n")
+cat("Censoring status:", paste(cens$status, collapse = ", "), "\n")
+```
+
+For a k-out-of-n system with lifetime $T = T_{(k)}$:
+
+- **1 component** observed exactly (the critical component, $T_j = T$)
+- **n - k components** left-censored at $T$ (failed before the system)
+- **k - 1 components** right-censored at $T$ (still alive at system failure)
+
+Let us verify this pattern across the k-out-of-5 spectrum:
+
+```{r censoring-spectrum}
+m <- 5
+# Use well-separated times so the pattern is unambiguous
+times <- c(1.0, 2.0, 3.0, 4.0, 5.0)
+
+cens_table <- data.frame(
+  k = 1:5,
+  system_type = c("parallel", "2-of-5", "3-of-5", "4-of-5", "series"),
+  T_sys = NA_real_,
+  exact = NA_integer_,
+  left = NA_integer_,
+  right = NA_integer_
+)
+
+for (i in 1:5) {
+  sys <- kofn_system(i, m)
+  cens <- system_censoring(sys, times)
+  cens_table$T_sys[i] <- cens$T_sys
+  cens_table$exact[i] <- sum(cens$status == "exact")
+  cens_table$left[i]  <- sum(cens$status == "left")
+  cens_table$right[i] <- sum(cens$status == "right")
+}
+
+knitr::kable(cens_table,
+             caption = "Censoring pattern for k-out-of-5 systems")
+```
+
+The table confirms the general rule: k = 1 (parallel) gives 1 exact + 4 left,
+k = 5 (series) gives 1 exact + 4 right, and intermediate values interpolate
+between these extremes. This is the **censoring equivalence** that unifies
+parallel and series systems as endpoints of a spectrum.
+
+
+## 6. Estimation across system structures
+
+How does the system structure affect our ability to estimate component
+parameters? We generate data from k-out-of-5 exponential systems for each k
+value and compare estimation quality.
+
+```{r estimation-comparison}
+m <- 5
+true_rates <- c(0.5, 0.8, 1.0, 1.3, 1.8)
+n <- 200
+results <- data.frame(k = 1:5, system_type = paste0(1:5, "-of-5"),
+                      rmse = NA_real_, stringsAsFactors = FALSE)
+
+for (k in 1:5) {
+  sys <- kofn_system(k, m)
+  dat <- rdata_system(sys, par = true_rates, family = "exponential", n = n)
+  res <- fit_system(dat$t, sys, family = "exponential", n_starts = 3)
+  if (res$convergence == 0) {
+    results$rmse[k] <- sqrt(mean((sort(res$par) - sort(true_rates))^2))
+  }
+}
+
+knitr::kable(results, digits = 4,
+             caption = "Single-sample estimation quality by system structure")
+```
+
+A single sample gives only a rough indication. A small Monte Carlo study gives
+more reliable RMSE estimates:
+
+```{r monte-carlo-comparison, fig.height = 4.5}
+m <- 3
+true_rates <- c(0.5, 1.0, 2.0)
+n <- 150
+n_rep <- 30
+
+mc_results <- data.frame(
+  k = integer(), replicate = integer(),
+  rmse = numeric(), stringsAsFactors = FALSE
+)
+
+for (k in 1:3) {
+  sys <- kofn_system(k, m)
+  for (rep in seq_len(n_rep)) {
+    dat <- rdata_system(sys, par = true_rates, family = "exponential", n = n)
+    res <- fit_system(dat$t, sys, family = "exponential", n_starts = 3)
+    if (res$convergence == 0) {
+      est_sorted <- sort(res$par)
+      rmse <- sqrt(mean((est_sorted - sort(true_rates))^2))
+      mc_results <- rbind(mc_results, data.frame(
+        k = k, replicate = rep, rmse = rmse, stringsAsFactors = FALSE
+      ))
+    }
+  }
+}
+
+boxplot(rmse ~ k, data = mc_results,
+        main = "Estimation RMSE by System Structure (k-out-of-3)",
+        xlab = "k (1 = parallel, 3 = series)",
+        ylab = "RMSE of sorted rate estimates",
+        col = "lightblue", border = "steelblue")
+```
+
+The censoring pattern explains the differences. Under k = 1 (parallel), most
+component lifetimes are left-censored: we know they failed before the system
+but not exactly when. Under k = 3 (series), most are right-censored: we know
+they survived past the system failure but not how long. Intermediate values
+of k balance left and right censoring, potentially yielding the most
+information about individual component lifetimes.
+
+
+## 7. Beyond k-out-of-n
+
+The coherent system engine is not limited to k-out-of-n systems. Any system
+that can be described by its minimal path sets is supported. Two additional
+constructors demonstrate this generality.
+
+### Bridge systems
+
+The **bridge system** is a classic 5-component reliability structure with four
+minimal path sets. It cannot be represented as any k-out-of-n system:
+
+```{r bridge-signature}
+br <- bridge_system()
+cat("Bridge signature:\n")
+print(round(system_signature(br), 4))
+```
+
+The signature has support on $T_{(2)}$, $T_{(3)}$, and $T_{(4)}$ -- a pattern
+impossible for any k-out-of-n system, which always concentrates on a single
+order statistic plus its neighbors.
+
+We can generate data and estimate parameters for the bridge system using the
+same engine:
+
+```{r bridge-estimation}
+br <- bridge_system()
+true_rates <- c(0.5, 0.8, 1.0, 1.3, 1.6)
+n <- 200
+
+dat <- rdata_system(br, par = true_rates, family = "exponential", n = n)
+res <- fit_system(dat$t, br, family = "exponential", n_starts = 5)
+
+if (res$convergence == 0) {
+  comp_df <- data.frame(
+    component = 1:5,
+    true_rate = sort(true_rates),
+    estimated = sort(res$par),
+    se = sort(res$se)  # approximate: SEs are for unsorted parameters
+  )
+  knitr::kable(comp_df, digits = 3,
+               caption = "Bridge system estimation (n = 200, sorted)")
+}
+```
+
+### Consecutive-k systems
+
+A **consecutive-k-out-of-n system** fails when k consecutive components all
+fail. This models physical systems where failures propagate along a chain
+(pipelines, relay networks, communication links):
+
+```{r consecutive-k}
+# Consecutive-2-out-of-5: fails if any two adjacent components fail
+cons <- consecutive_k_system(2, 5)
+cons
+
+# Consecutive system signature
+cat("Consecutive-2-of-5 signature:\n")
+print(round(system_signature(cons), 4))
+```
+
+The censoring pattern of a consecutive-k system depends on the spatial
+arrangement of failures, not just their count. This makes it structurally
+different from ordinary k-out-of-n systems:
+
+```{r consecutive-censoring}
+cons <- consecutive_k_system(2, 5)
+
+# Scenario 1: non-adjacent failures (system survives longer)
+times1 <- c(1.0, 5.0, 2.0, 5.0, 3.0)  # failures at positions 1,3,5 first
+cens1 <- system_censoring(cons, times1)
+cat("Non-adjacent early failures:\n")
+cat("  T_sys =", cens1$T_sys, "\n")
+cat("  Status:", paste(cens1$status, collapse = ", "), "\n\n")
+
+# Scenario 2: adjacent failures (system fails earlier)
+times2 <- c(5.0, 1.0, 2.0, 5.0, 5.0)  # components 2,3 fail early
+cens2 <- system_censoring(cons, times2)
+cat("Adjacent early failures:\n")
+cat("  T_sys =", cens2$T_sys, "\n")
+cat("  Status:", paste(cens2$status, collapse = ", "), "\n")
+```
+
+### General coherent systems
+
+Any coherent system can be specified directly via `coherent_system()`. Here is a
+system with an asymmetric structure:
+
+```{r custom-system}
+# Custom: works if {1,2,3} all work, OR if {3,4} both work
+custom <- coherent_system(list(c(1, 2, 3), c(3, 4)), m = 4)
+custom
+
+cat("Signature:\n")
+print(round(system_signature(custom), 4))
+```
+
+The system density engine (`f_sys_general`, `S_sys_general`) and the fitting
+engine (`fit_system`) handle all coherent systems uniformly. The computational
+cost scales as $O(2^m)$ per time point, which is practical for systems with up
+to about 15 components.
+
+```{r general-fit}
+custom <- coherent_system(list(c(1, 2, 3), c(3, 4)), m = 4)
+true_rates <- c(0.5, 1.0, 1.5, 2.0)
+
+dat <- rdata_system(custom, par = true_rates, family = "exponential", n = 200)
+res <- fit_system(dat$t, custom, family = "exponential", n_starts = 5)
+
+if (res$convergence == 0) {
+  cat("True rates (sorted): ", paste(sort(true_rates), collapse = ", "), "\n")
+  cat("Estimated (sorted):  ", paste(round(sort(res$par), 3), collapse = ", "), "\n")
+}
+```
+
+## Summary
+
+The coherent system engine in `kofn` provides a unified framework for:
+
+1. **Representing** arbitrary system structures via minimal path sets, with
+   automatic computation of dual cut sets via the Berge transversal algorithm.
+
+2. **Computing** system lifetimes, structure functions, and system signatures
+   for any coherent system.
+
+3. **Determining** the censoring pattern that each system structure imposes on
+   component lifetimes -- the foundation of the censoring-based estimation
+   framework.
+
+4. **Estimating** component lifetime parameters from system-level data,
+   regardless of system structure, using the general system density engine.
+
+The k-out-of-n family provides a natural one-parameter spectrum from parallel
+(k = 1) to series (k = n), with each value of k defining a distinct balance of
+left and right censoring on the component lifetimes. General coherent systems
+(bridge, consecutive-k, custom) are handled by the same machinery, enabling
+estimation under any system architecture.

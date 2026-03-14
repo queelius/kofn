@@ -1,0 +1,429 @@
+---
+title: "The Censoring Framework for k-out-of-n Systems"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The Censoring Framework for k-out-of-n Systems}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.5,
+  fig.align = "center"
+)
+```
+
+## The fundamental problem
+
+Suppose you observe system-level failure times from a multi-component system.
+The system is a "black box": you record *when* it fails, but not which
+components failed, nor in what order. Can you still learn about the individual
+component lifetime distributions?
+
+This is the core question that `kofn` addresses. The answer depends on the
+system structure, and the key insight is that *system structure induces
+structured censoring on component lifetimes*. This vignette develops that
+insight for $k$-out-of-$n$ systems.
+
+```{r}
+library(kofn)
+```
+
+
+## Series vs parallel: two kinds of incomplete data
+
+A **series system** ($k = n$) fails when its *first* component fails:
+$T = \min(T_1, \ldots, T_m)$. At system failure, one component has just
+failed and all others are still working. The incomplete-data problem is:
+*which component caused the failure?* This is the classical **masked
+cause-of-failure** problem.
+
+A **parallel system** ($k = 1$) fails when its *last* component fails:
+$T = \max(T_1, \ldots, T_m)$. At system failure, all components have already
+failed. The incomplete-data problem is different: *when did each component
+fail?* This is a **censoring** problem --- we know every component failed
+before $T$, but we do not know the individual failure times.
+
+```{r}
+# Create both system types
+series_sys <- series_system(3)
+parallel_sys <- parallel_system(3)
+
+# Same component lifetimes, different system behavior
+comp_times <- c(1.5, 3.2, 2.8)
+
+system_lifetime(series_sys, comp_times)   # min = 1.5
+system_lifetime(parallel_sys, comp_times) # max = 3.2
+```
+
+The `system_censoring()` function reveals what each system structure tells us
+about the individual components:
+
+```{r}
+# Series: component 1 observed exactly, components 2 and 3 right-censored
+system_censoring(series_sys, comp_times)
+
+# Parallel: component 2 observed exactly, components 1 and 3 left-censored
+system_censoring(parallel_sys, comp_times)
+```
+
+In the series case, surviving components have $T_j > T$ (they outlasted the
+system), so they are **right-censored**. In the parallel case, already-failed
+components have $T_j < T$ (they failed before the system did), so they are
+**left-censored**. The censoring direction reverses between the two extremes.
+
+
+## The censoring equivalence for k-out-of-n systems
+
+A $k$-out-of-$n$ system functions as long as at least $k$ of its $n$
+components survive. It fails when the $(n - k + 1)$-th component fails, so
+the system lifetime is the $(n - k + 1)$-th order statistic:
+$$T = T_{(n-k+1)}.$$
+
+At system failure time $T = t$, the components partition into three groups:
+
+1. **One component observed exactly** --- the $(n-k+1)$-th to fail, whose
+   lifetime equals $T$.
+2. **$n - k$ components left-censored** at $T$ --- they failed before the
+   system ($T_j < T$), but we do not know when.
+3. **$k - 1$ components right-censored** at $T$ --- they are still functioning
+   ($T_j > T$), but we do not know how long they will last.
+4. **All identities are latent** --- we do not know which components belong to
+   which group.
+
+This is the **censoring equivalence**: observing a $k$-out-of-$n$ system
+failure is informationally equivalent to observing 1 exact, $n - k$
+left-censored, and $k - 1$ right-censored component lifetimes with unknown
+assignment.
+
+```{r}
+# 2-out-of-4 system: k=2, n=4
+sys_2of4 <- kofn_system(2, 4)
+comp_times_4 <- c(1.5, 3.2, 2.8, 4.1)
+
+cens <- system_censoring(sys_2of4, comp_times_4)
+cens
+```
+
+```{r}
+# Count the censoring types
+table(cens$status)
+```
+
+For this 2-out-of-4 system ($k = 2$, $n = 4$), we expect:
+
+- $n - k = 2$ left-censored (failed before the system)
+- $k - 1 = 1$ right-censored (still functioning)
+- 1 exact (the critical component)
+
+
+## Censoring patterns across k
+
+The parameter $k$ controls the split between left- and right-censored
+components. As $k$ increases from 1 (parallel) to $n$ (series), right-censored
+components replace left-censored ones:
+
+| System | $k$ | Left-censored | Exact | Right-censored |
+|--------|-----|:-------------:|:-----:|:--------------:|
+| Parallel ($k=1$)  | 1 | $n-1$ | 1 | 0 |
+| 2-out-of-$n$      | 2 | $n-2$ | 1 | 1 |
+| ...                | ... | ... | 1 | ... |
+| $(n\!-\!1)$-out-of-$n$ | $n-1$ | 1 | 1 | $n-2$ |
+| Series ($k=n$)    | $n$ | 0 | 1 | $n-1$ |
+
+The total number of censored components is always $n - 1$; only the
+*direction* changes. Let us verify this empirically by simulating many
+system failures and tallying the censoring patterns.
+
+```{r censoring-pattern-plot, fig.height = 5}
+set.seed(42)
+n_comp <- 5
+n_sim <- 2000
+rates <- c(0.5, 1.0, 1.5, 2.0, 2.5)
+
+# For each k, simulate systems and count censoring types
+results <- data.frame(
+  k = integer(), left = numeric(), exact = numeric(), right = numeric()
+)
+
+for (k in 1:n_comp) {
+  sys <- kofn_system(k, n_comp)
+  left_count <- exact_count <- right_count <- 0
+  for (i in seq_len(n_sim)) {
+    times <- rexp(n_comp, rate = rates)
+    cens <- system_censoring(sys, times)
+    left_count  <- left_count  + sum(cens$status == "left")
+    exact_count <- exact_count + sum(cens$status == "exact")
+    right_count <- right_count + sum(cens$status == "right")
+  }
+  results <- rbind(results, data.frame(
+    k = k,
+    left  = left_count  / n_sim,
+    exact = exact_count / n_sim,
+    right = right_count / n_sim
+  ))
+}
+
+# Plot stacked bar chart
+cols <- c("left" = "#e41a1c", "exact" = "#4daf4a", "right" = "#377eb8")
+bp <- barplot(
+  t(as.matrix(results[, c("left", "exact", "right")])),
+  beside = FALSE,
+  names.arg = results$k,
+  col = cols,
+  xlab = "k (system parameter)",
+  ylab = "Average component count per observation",
+  main = "Censoring pattern by system type (n = 5)",
+  ylim = c(0, n_comp + 0.5)
+)
+legend("topright",
+  legend = c("Left-censored", "Exact", "Right-censored"),
+  fill = cols, bty = "n"
+)
+```
+
+As expected, each observation always yields exactly 1 exact component
+lifetime and $n - 1 = 4$ censored ones. The $k$ parameter controls only
+the left/right split.
+
+
+## Parallel systems (k = 1): the deeply-censored fast components
+
+The parallel system is the most challenging case: all $m - 1$ non-critical
+components are left-censored. Which components are hardest to estimate?
+
+A "fast" component (high failure rate $\lambda_j$) tends to fail early ---
+long before the system fails. Its lifetime is deeply left-censored: we know
+$T_j < T$, but $T_j$ may be far below $T$. A "slow" component (low
+$\lambda_j$) tends to be the last to fail, so its lifetime is often observed
+exactly.
+
+The probability $P(T_j = T)$ --- that component $j$ determines the system
+lifetime --- governs how much information each system observation carries
+about $\lambda_j$.
+
+```{r information-demo, fig.height = 5}
+set.seed(123)
+n_sim <- 5000
+rates <- c(0.5, 1.0, 2.0, 4.0)
+m <- length(rates)
+sys <- parallel_system(m)
+
+# Track which component is critical (last to fail)
+critical_counts <- integer(m)
+for (i in seq_len(n_sim)) {
+  times <- rexp(m, rate = rates)
+  cens <- system_censoring(sys, times)
+  critical_counts[cens$critical] <- critical_counts[cens$critical] + 1L
+}
+
+# P(T_j = T) is the proportion of times component j is critical
+p_critical <- critical_counts / n_sim
+
+par(mfrow = c(1, 2), mar = c(5, 4, 3, 1))
+
+# Left panel: rates
+barplot(rates, names.arg = paste0("Comp ", 1:m),
+        col = "#377eb8", ylab = expression(lambda[j]),
+        main = "Component failure rates")
+
+# Right panel: P(T_j = T)
+barplot(p_critical, names.arg = paste0("Comp ", 1:m),
+        col = "#e41a1c", ylab = expression(P(T[j] == T)),
+        main = "Probability of being critical")
+```
+
+Component 1 (the slowest, $\lambda_1 = 0.5$) is critical in roughly
+`r round(100 * p_critical[1])`% of observations. Component 4 (the fastest,
+$\lambda_4 = 4$) is critical in only
+`r round(100 * p_critical[4], 1)`% of observations. This asymmetry
+translates directly into estimation precision: slow components are
+well-estimated from system data, while fast components require enormous
+sample sizes or additional monitoring.
+
+
+## Why this matters: predicting estimation difficulty
+
+The censoring framework does more than restate the likelihood --- it provides
+a predictive tool. Before collecting data, one can compute $P(T_j = T)$ for
+each component and anticipate which parameters will be hard to estimate.
+
+For exponential components with rates $\lambda_1, \ldots, \lambda_m$:
+$$P(T_j = T) = \int_0^\infty f_j(t) \prod_{i \neq j} F_i(t) \, dt$$
+which in the `kofn` package is computed by the inclusion-exclusion expansion.
+Components with $P(T_j = T) \approx 0$ are effectively invisible to
+system-level data.
+
+```{r estimation-demo}
+# Generate data and fit a parallel system model
+set.seed(99)
+model <- kofn(k = 1, m = 3, family = "exponential")
+true_rates <- c(0.5, 1.0, 3.0)
+
+gen <- rdata(model)
+df <- gen(theta = true_rates, n = 500)
+
+fit_fn <- fit(model)
+result <- fit_fn(df)
+
+# Compare estimates to truth
+est <- coef(result)
+se <- sqrt(diag(vcov(result)))
+cat("Component | True rate | Estimate |   SE   | Relative SE\n")
+cat("---------+-----------+----------+--------+------------\n")
+for (j in seq_along(true_rates)) {
+  cat(sprintf("    %d     |   %.1f     |  %.3f   | %.3f  |   %.1f%%\n",
+              j, true_rates[j], est[j], se[j], 100 * se[j] / est[j]))
+}
+```
+
+The slow component ($\lambda_1 = 0.5$) is estimated precisely.
+The fast component ($\lambda_3 = 3.0$) has a much larger relative standard
+error --- exactly as the censoring framework predicts.
+
+
+## Visualizing censoring depth
+
+To see the censoring structure concretely, we can look at latent component
+lifetimes alongside the observed system lifetime. The gap between a
+component's true failure time and the system failure time shows how deeply
+it is censored.
+
+```{r censoring-depth-plot, fig.height = 5.5}
+set.seed(7)
+n_show <- 30
+true_rates <- c(0.5, 1.5, 3.0)
+m <- length(true_rates)
+sys <- parallel_system(m)
+
+# Generate data and extract latent lifetimes
+model <- kofn(k = 1, m = m, family = "exponential")
+gen <- rdata(model)
+df <- gen(theta = true_rates, n = n_show)
+comp_times <- attr(df, "comp_lifetimes")
+
+par(mar = c(5, 4, 3, 1))
+plot(NULL, xlim = c(0, max(comp_times) * 1.05), ylim = c(0.5, n_show + 0.5),
+     xlab = "Time", ylab = "Observation",
+     main = "Component lifetimes vs system lifetime (parallel, m = 3)")
+
+comp_cols <- c("#377eb8", "#e41a1c", "#4daf4a")
+
+for (i in seq_len(n_show)) {
+  t_sys <- df$t[i]
+  # System lifetime (vertical dashed line for this obs)
+  segments(t_sys, i - 0.3, t_sys, i + 0.3, lwd = 2, col = "grey40")
+
+  for (j in seq_len(m)) {
+    y_offset <- (j - 2) * 0.15
+    t_j <- comp_times[i, j]
+    # Component failure time
+    points(t_j, i + y_offset, pch = if (t_j == t_sys) 16 else 1,
+           col = comp_cols[j], cex = 0.8)
+    # Arrow from component failure to system failure (shows censoring depth)
+    if (t_j < t_sys) {
+      arrows(t_j, i + y_offset, t_sys, i + y_offset,
+             length = 0.03, col = adjustcolor(comp_cols[j], alpha = 0.4))
+    }
+  }
+}
+
+legend("topright",
+  legend = c(
+    expression(lambda[1] == 0.5 ~ "(slow)"),
+    expression(lambda[2] == 1.5 ~ "(medium)"),
+    expression(lambda[3] == 3.0 ~ "(fast)")
+  ),
+  col = comp_cols, pch = 16, bty = "n", cex = 0.9
+)
+legend("right",
+  legend = c("Exact (critical)", "Left-censored", "System failure"),
+  pch = c(16, 1, NA), lty = c(NA, NA, 1), lwd = c(NA, NA, 2),
+  col = c("black", "black", "grey40"), bty = "n", cex = 0.9
+)
+```
+
+The slow component (blue, $\lambda_1 = 0.5$) is usually the last to fail
+--- its failure time coincides with the system lifetime (filled circles). The
+fast component (green, $\lambda_3 = 3.0$) fails early and is deeply
+left-censored: the arrows show the gap between its true failure time (open
+circle) and the system failure time (grey bar). This gap is the information
+lost by observing only the system.
+
+
+## Connection to the series case (maskedcauses)
+
+When $k = n$, the $k$-out-of-$n$ system becomes a series system, and the
+censoring equivalence reduces to the classical masked cause-of-failure
+structure:
+
+- 1 component observed exactly (the first to fail)
+- $n - 1$ components right-censored (still functioning)
+- The identity of the failed component may be masked
+
+This is precisely the setting handled by the `maskedcauses` package. The
+`kofn` package recovers this as a special case:
+
+```{r series-equivalence}
+# k-out-of-n with k = n is a series system
+sys_series <- kofn_system(k = 4, n = 4)
+comp_times <- c(2.1, 0.8, 3.5, 1.9)
+
+cens_series <- system_censoring(sys_series, comp_times)
+cens_series
+```
+
+Component 2 (the first to fail, at $t = 0.8$) is observed exactly, and all
+others are right-censored. The unknown in the series case is *which*
+component failed --- the classical masking problem. In the parallel case, the
+unknown is *when* each component failed --- a censoring problem. The `kofn`
+package treats both within a single framework.
+
+
+## The censoring equivalence in code
+
+The `system_censoring()` function works for any coherent system, not just
+$k$-out-of-$n$ systems. Here is a bridge system example:
+
+```{r bridge}
+bridge <- bridge_system()
+bridge
+
+comp_times <- c(2.1, 1.3, 0.5, 3.8, 2.9)
+system_censoring(bridge, comp_times)
+```
+
+For general coherent systems, the censoring pattern depends on the specific
+realization of component lifetimes and the system's cut-set structure. The
+$k$-out-of-$n$ case is special because the *counts* (how many left, exact,
+right) are deterministic --- only the *identities* are random.
+
+
+## Summary
+
+The censoring framework provides a unified view of component estimation from
+system data:
+
+- **Every system observation** yields one exact component lifetime and $m - 1$
+  censored ones. The system structure determines the censoring direction.
+
+- **The parameter $k$** controls the left/right split: parallel ($k = 1$)
+  gives all left-censoring, series ($k = n$) gives all right-censoring,
+  intermediate $k$ gives a mixture.
+
+- **Estimation difficulty** is governed by $P(T_j = T)$: components that
+  rarely determine the system lifetime are deeply censored and hard to
+  estimate.
+
+- **The series case** ($k = n$) recovers the masked cause-of-failure problem
+  handled by `maskedcauses`. The parallel case ($k = 1$) is the opposite
+  extreme, where all components have failed but their individual failure
+  times are left-censored.
+
+This framework is developed formally as Propositions 1 and 5 in Towell (2026),
+*"Component lifetime estimation from parallel system data: a censoring
+approach."*
