@@ -1,6 +1,6 @@
 Package: kofn
 Title: Component Lifetime Estimation from k-out-of-n System Data
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: person("Alexander", "Towell",
     email = "lex@metafunctor.com",
     role = c("aut", "cre"),

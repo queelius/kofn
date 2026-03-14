@@ -47,6 +47,25 @@ weibull_w_j <- function(t, shapes, scales, j) {
 }
 
 
+#' System survival function for Weibull parallel system (internal)
+#'
+#' Computes S_sys(t) = 1 - prod_j F_j(t) for a parallel system.
+#'
+#' @param t Numeric scalar. Time point.
+#' @param shapes Numeric vector. Weibull shape parameters.
+#' @param scales Numeric vector. Weibull scale parameters.
+#' @return Numeric scalar S_sys(t).
+#' @keywords internal
+weibull_S_sys <- function(t, shapes, scales) {
+  if (t <= 0) return(1)
+  m <- length(shapes)
+  log_F_prod <- sum(vapply(seq_len(m), function(j) {
+    stats::pweibull(t, shape = shapes[j], scale = scales[j], log.p = TRUE)
+  }, numeric(1)))
+  1 - exp(log_F_prod)
+}
+
+
 #' System density for Weibull parallel system (internal)
 #'
 #' Computes f_sys(t) = sum_j f_j(t) * prod_{i != j} F_i(t).
@@ -102,20 +121,40 @@ loglik.wei_kofn <- function(model, ...) {
   k <- model$k
   system <- model$system
   lt <- model$lifetime
+  om <- model$omega
 
-  if (k == 1L) {
+  if (isTRUE(k == 1L)) {
     # Parallel system: direct density computation
     function(df, par) {
       if (any(!is.finite(par)) || any(par <= 0)) return(-Inf)
       shapes <- wei_par_to_shapes(par, m)
       scales <- wei_par_to_scales(par, m)
       t_obs <- df[[lt]]
-      vals <- vapply(t_obs, function(t) {
-        f <- weibull_f_sys(t, shapes, scales)
-        if (f <= 0) return(-1e20)
-        log(f)
-      }, numeric(1))
-      sum(vals)
+
+      # Handle omega column if present; default all observations to "exact"
+      omega_vals <- if (om %in% names(df)) {
+        as.character(df[[om]])
+      } else {
+        rep("exact", length(t_obs))
+      }
+
+      ll <- 0
+      for (i in seq_along(t_obs)) {
+        ti <- t_obs[i]
+        if (omega_vals[i] == "exact") {
+          f <- weibull_f_sys(ti, shapes, scales)
+          if (f <= 0) return(-Inf)
+          ll <- ll + log(f)
+        } else if (omega_vals[i] == "right") {
+          s <- weibull_S_sys(ti, shapes, scales)
+          if (s <= 0) return(-Inf)
+          ll <- ll + log(s)
+        } else {
+          stop("Weibull parallel loglik supports 'exact' and 'right' ",
+               "observation types; got '", omega_vals[i], "'")
+        }
+      }
+      ll
     }
   } else {
     # General k-out-of-n: delegate to system density engine
@@ -225,7 +264,7 @@ fit.wei_kofn <- function(object, ...) {
 
   if (method == "em") {
     # EM algorithm (parallel systems only)
-    if (k != 1L) {
+    if (!isTRUE(k == 1L)) {
       stop("EM algorithm is only available for parallel systems (k = 1)")
     }
     em_solver(object, ll_fn, ...)
@@ -282,6 +321,7 @@ em_solver <- function(model, ll_fn, ...) {
       ll_prev <- loglik_wei(shapes, scales)
       trace <- data.frame(iter = 0L, loglik = ll_prev)
       log_t <- log(t_obs)
+      converged_flag <- FALSE
 
       for (iter in seq_len(maxiter)) {
         # ========== E-step ==========
@@ -364,6 +404,7 @@ em_solver <- function(model, ll_fn, ...) {
           shapes <- new_shapes
           scales <- new_scales
           ll_prev <- ll_new
+          converged_flag <- TRUE
           break
         }
 
@@ -373,7 +414,7 @@ em_solver <- function(model, ll_fn, ...) {
       }
 
       list(shapes = shapes, scales = scales, loglik = ll_prev,
-           converged = iter < maxiter, iterations = iter, trace = trace)
+           converged = converged_flag, iterations = iter, trace = trace)
     }
 
     # --- Multi-start ---
@@ -439,7 +480,6 @@ em_solver <- function(model, ll_fn, ...) {
 #' @keywords internal
 mle_solver <- function(model, ll_fn, ...) {
   m <- model$m
-  system <- model$system
   lt <- model$lifetime
   n_par <- 2L * m
 
@@ -463,70 +503,11 @@ mle_solver <- function(model, ll_fn, ...) {
       val
     }
 
-    neg_ll_log <- function(log_p) neg_ll(exp(log_p))
-
-    fit_from_init <- function(init_par) {
-      result <- tryCatch(
-        stats::optim(par = init_par, fn = neg_ll, method = "L-BFGS-B",
-                     lower = rep(1e-10, n_par), upper = rep(Inf, n_par)),
-        error = function(e) {
-          list(par = rep(NA_real_, n_par), value = Inf, convergence = 99L)
-        }
-      )
-      if (result$convergence != 0) {
-        result2 <- tryCatch(
-          stats::optim(par = log(pmax(init_par, 1e-10)), fn = neg_ll_log,
-                       method = "Nelder-Mead"),
-          error = function(e) {
-            list(par = rep(NA_real_, n_par), value = Inf, convergence = 99L)
-          }
-        )
-        if (result2$convergence == 0 && result2$value < result$value) {
-          result <- list(par = exp(result2$par), value = result2$value,
-                         convergence = result2$convergence)
-        }
-      }
-      result
-    }
-
-    # Multi-start
-    best <- fit_from_init(par0)
-    if (n_starts > 1L) {
-      for (s in seq_len(n_starts - 1L)) {
-        init_s <- par0 * exp(stats::rnorm(n_par, sd = 0.5))
-        init_s <- pmax(init_s, 1e-10)
-        res_s <- fit_from_init(init_s)
-        if (res_s$convergence == 0 &&
-            (best$convergence != 0 || res_s$value < best$value)) {
-          best <- res_s
-        }
-      }
-    }
-
-    # Hessian of neg log-likelihood and score at MLE
-    H <- tryCatch(
-      numDeriv::hessian(neg_ll, x = best$par, method = "Richardson"),
-      error = function(e) NULL
-    )
-    hessian_mat <- if (!is.null(H) && all(is.finite(H))) H else {
-      matrix(NA_real_, nrow = n_par, ncol = n_par)
-    }
-    score_val <- tryCatch(
-      numDeriv::grad(func = function(p) ll_fn(df, p), x = best$par,
-                     method = "Richardson"),
-      error = function(e) rep(NA_real_, n_par)
-    )
-
-    make_mle_result(
-      par        = best$par,
-      loglik     = -best$value,
-      hessian    = hessian_mat,
-      score      = score_val,
-      nobs       = n,
-      converged  = (best$convergence == 0),
-      shapes     = best$par[seq(1L, n_par, by = 2L)],
-      scales     = best$par[seq(2L, n_par, by = 2L)]
-    )
+    result <- multistart_mle(neg_ll, par0, n_par = n_par,
+                             n_starts = n_starts, nobs = n)
+    result$shapes <- result$par[seq(1L, n_par, by = 2L)]
+    result$scales <- result$par[seq(2L, n_par, by = 2L)]
+    result
   }
 }
 
@@ -574,7 +555,7 @@ rdata.wei_kofn <- function(model, ...) {
     }
 
     # Compute system lifetimes
-    if (k == 1L) {
+    if (isTRUE(k == 1L)) {
       # Parallel: T = max
       sys_times <- apply(comp_times, 1, max)
     } else {

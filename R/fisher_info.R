@@ -78,8 +78,6 @@ compare_fisher_info <- function(shapes = NULL, scales = NULL, rates = NULL,
   if (family == "exponential") {
     if (is.null(rates)) stop("rates required for exponential family")
     m <- length(rates)
-    shapes <- rep(1, m)
-    scales <- 1 / rates
     par_true <- rates
   } else {
     if (is.null(shapes) || is.null(scales)) {
@@ -88,6 +86,9 @@ compare_fisher_info <- function(shapes = NULL, scales = NULL, rates = NULL,
     m <- length(shapes)
     par_true <- as.numeric(rbind(shapes, scales))
   }
+  pp <- parse_params(par_true, m, family)
+  shapes <- pp$shapes
+  scales <- pp$scales
 
   n_par <- length(par_true)
 
@@ -126,30 +127,10 @@ compare_fisher_info <- function(shapes = NULL, scales = NULL, rates = NULL,
     # --- Scheme 0: System-level only ---
     neg_ll_s0 <- function(p) {
       if (any(!is.finite(p)) || any(p <= 0)) return(.Machine$double.xmax / 2)
-      if (family == "exponential") {
-        sh <- rep(1, m)
-        sc <- 1 / p
-      } else {
-        sh <- p[seq(1L, 2L * m, by = 2L)]
-        sc <- p[seq(2L, 2L * m, by = 2L)]
-      }
+      pp_s0 <- parse_params(p, m, family)
       ll <- 0
       for (i in seq_along(sys_times)) {
-        ti <- sys_times[i]
-        wj <- numeric(m)
-        for (j in seq_len(m)) {
-          f_j <- stats::dweibull(ti, shape = sh[j], scale = sc[j])
-          if (f_j <= 0) next
-          log_prod <- 0
-          for (k in seq_len(m)) {
-            if (k == j) next
-            F_k <- stats::pweibull(ti, shape = sh[k], scale = sc[k])
-            if (F_k <= 0) return(.Machine$double.xmax / 2)
-            log_prod <- log_prod + log(F_k)
-          }
-          wj[j] <- f_j * exp(log_prod)
-        }
-        f_sys <- sum(wj)
+        f_sys <- weibull_f_sys(sys_times[i], pp_s0$shapes, pp_s0$scales)
         if (f_sys <= 0) return(.Machine$double.xmax / 2)
         ll <- ll + log(f_sys)
       }
@@ -182,32 +163,14 @@ compare_fisher_info <- function(shapes = NULL, scales = NULL, rates = NULL,
 
     neg_ll_s1 <- function(p) {
       if (any(!is.finite(p)) || any(p <= 0)) return(.Machine$double.xmax / 2)
-      if (family == "exponential") {
-        sh <- rep(1, m)
-        sc <- 1 / p
-      } else {
-        sh <- p[seq(1L, 2L * m, by = 2L)]
-        sc <- p[seq(2L, 2L * m, by = 2L)]
-      }
+      pp_s1 <- parse_params(p, m, family)
+      sh <- pp_s1$shapes
+      sc <- pp_s1$scales
       lower_cols <- paste0("comp_lower_", seq_len(m))
       upper_cols <- paste0("comp_upper_", seq_len(m))
       ll <- 0
       for (i in seq_len(n)) {
-        ti <- df_s1$t[i]
-        wj <- numeric(m)
-        for (j in seq_len(m)) {
-          f_j <- stats::dweibull(ti, shape = sh[j], scale = sc[j])
-          if (f_j <= 0) next
-          log_prod <- 0
-          for (k in seq_len(m)) {
-            if (k == j) next
-            F_k <- stats::pweibull(ti, shape = sh[k], scale = sc[k])
-            if (F_k <= 0) return(.Machine$double.xmax / 2)
-            log_prod <- log_prod + log(F_k)
-          }
-          wj[j] <- f_j * exp(log_prod)
-        }
-        f_sys <- sum(wj)
+        f_sys <- weibull_f_sys(df_s1$t[i], sh, sc)
         if (f_sys <= 0) return(.Machine$double.xmax / 2)
         ll <- ll + log(f_sys)
 

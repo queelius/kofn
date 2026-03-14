@@ -201,7 +201,7 @@ series_system <- function(m) {
 #'
 #' @export
 parallel_system <- function(m) {
-  coherent_system(as.list(as.list(seq_len(m))), m = m)
+  coherent_system(as.list(seq_len(m)), m = m)
 }
 
 
@@ -223,6 +223,7 @@ parallel_system <- function(m) {
 #'
 #' @export
 kofn_system <- function(k, n) {
+  stopifnot(k >= 1L, k <= n, n >= 1L)
   cols <- utils::combn(n, k)
   paths <- lapply(seq_len(ncol(cols)), function(i) cols[, i])
   coherent_system(paths, m = n)

@@ -46,7 +46,7 @@ loglik.exp_kofn <- function(model, ...) {
   cs    <- model$candset
   lt_up <- model$lifetime_upper
 
-  if (k == 1L) {
+  if (isTRUE(k == 1L)) {
     # Parallel fast path: IE-based closed-form likelihood
     function(df, par) {
       if (any(par <= 0)) return(-Inf)
@@ -80,14 +80,13 @@ loglik.exp_kofn <- function(model, ...) {
       # --- Left-censored observations ---
       for (i in which(d$omega == "left")) {
         cand <- which(d$C[i, ])
-        num <- sum(vapply(
+        val <- sum(vapply(
           cand,
           function(j) w_j_integral(0, d$t[i], par, j),
           numeric(1)
         ))
-        denom <- F_sys_exp(d$t[i], par)
-        if (num <= 0 || denom <= 0) return(-Inf)
-        ll <- ll + log(num) - log(denom)
+        if (val <= 0) return(-Inf)
+        ll <- ll + log(val)
       }
 
       # --- Interval-censored observations ---
@@ -95,14 +94,13 @@ loglik.exp_kofn <- function(model, ...) {
         cand <- which(d$C[i, ])
         a <- d$t[i]
         b <- d$t_upper[i]
-        num <- sum(vapply(
+        val <- sum(vapply(
           cand,
           function(j) w_j_integral(a, b, par, j),
           numeric(1)
         ))
-        denom <- F_sys_exp(b, par) - F_sys_exp(a, par)
-        if (num <= 0 || denom <= 0) return(-Inf)
-        ll <- ll + log(num) - log(denom)
+        if (val <= 0) return(-Inf)
+        ll <- ll + log(val)
       }
 
       ll
@@ -209,15 +207,12 @@ hess_loglik.exp_kofn <- function(model, ...) {
 #' @method fit exp_kofn
 #' @export
 fit.exp_kofn <- function(object, ...) {
-  ll_fn   <- loglik(object)
-  hess_fn <- hess_loglik(object)
-  m       <- object$m
-  lt      <- object$lifetime
-  om      <- object$omega
+  ll_fn <- loglik(object)
+  m     <- object$m
+  lt    <- object$lifetime
+  om    <- object$omega
 
   function(df, par0 = NULL, n_starts = 5L) {
-
-    # ---- Default initial values: method-of-moments ----
     if (is.null(par0)) {
       par0 <- default_init_exp(df, m, lt, om, object$lifetime_upper)
     }
@@ -232,86 +227,8 @@ fit.exp_kofn <- function(object, ...) {
       val
     }
 
-    # ---- Single optimisation from a given start ----
-    fit_from_init <- function(init_par) {
-      # Try L-BFGS-B first
-      result <- tryCatch(
-        stats::optim(
-          par    = init_par,
-          fn     = neg_ll,
-          method = "L-BFGS-B",
-          lower  = rep(1e-10, m),
-          upper  = rep(Inf, m),
-          hessian = FALSE
-        ),
-        error = function(e) {
-          list(par = rep(NA_real_, m), value = Inf, convergence = 99L,
-               message = conditionMessage(e))
-        }
-      )
-
-      # Nelder-Mead fallback on the log-scale (enforces positivity)
-      if (result$convergence != 0L) {
-        neg_ll_log <- function(log_par) neg_ll(exp(log_par))
-        result2 <- tryCatch(
-          stats::optim(
-            par    = log(init_par),
-            fn     = neg_ll_log,
-            method = "Nelder-Mead"
-          ),
-          error = function(e) {
-            list(par = rep(NA_real_, m), value = Inf, convergence = 99L,
-                 message = conditionMessage(e))
-          }
-        )
-        if (result2$convergence == 0L && result2$value < result$value) {
-          result <- list(
-            par         = exp(result2$par),
-            value       = result2$value,
-            convergence = result2$convergence,
-            message     = result2$message
-          )
-        }
-      }
-      result
-    }
-
-    # ---- Multi-start optimisation ----
-    result <- fit_from_init(par0)
-    if (n_starts > 1L) {
-      for (s in seq_len(n_starts - 1L)) {
-        # Log-normal perturbation around the spread initialisation
-        init_s <- par0 * exp(stats::rnorm(m, sd = 0.5))
-        init_s <- pmax(init_s, 1e-10)
-        res_s  <- fit_from_init(init_s)
-        if (res_s$convergence == 0L && res_s$value < result$value) {
-          result <- res_s
-        }
-      }
-    }
-
-    # ---- Build fisher_mle result ----
-    hessian_mat <- matrix(NA_real_, m, m)
-    score_val <- rep(NA_real_, m)
-    if (result$convergence == 0L && !any(is.na(result$par))) {
-      H <- tryCatch(hess_fn(df, result$par), error = function(e) NULL)
-      if (!is.null(H) && all(is.finite(H))) {
-        hessian_mat <- -H  # Hessian of neg-loglik (observed Fisher info)
-      }
-      score_val <- tryCatch(
-        numDeriv::grad(function(p) ll_fn(df, p), result$par),
-        error = function(e) rep(NA_real_, m)
-      )
-    }
-
-    make_mle_result(
-      par       = result$par,
-      loglik    = -result$value,
-      hessian   = hessian_mat,
-      score     = score_val,
-      nobs      = nrow(df),
-      converged = (result$convergence == 0L)
-    )
+    multistart_mle(neg_ll, par0, n_par = m, n_starts = n_starts,
+                   nobs = nrow(df))
   }
 }
 

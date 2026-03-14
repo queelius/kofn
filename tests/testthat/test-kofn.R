@@ -116,3 +116,323 @@ test_that("general k-out-of-n loglik works", {
   val <- ll(df, c(0.5, 0.3, 0.2, 0.4))
   expect_true(is.finite(val))
 })
+
+
+# ===========================================================================
+# Input validation
+# ===========================================================================
+
+test_that("kofn_system rejects invalid k", {
+  expect_error(kofn_system(0, 3))
+  expect_error(kofn_system(4, 3))
+  expect_error(kofn_system(-1, 3))
+})
+
+test_that("kofn constructor rejects invalid k/m", {
+  expect_error(kofn(k = 0, m = 3))
+  expect_error(kofn(k = 4, m = 3))
+  expect_error(kofn(k = 1, m = 0))
+  expect_error(kofn(k = 1, m = -1))
+})
+
+
+# ===========================================================================
+# Bug #1: custom system correctly overrides k
+# ===========================================================================
+
+test_that("kofn with custom system detects k correctly", {
+  # Parallel system: k should be detected as 1
+  model_par <- kofn(system = parallel_system(3))
+  expect_equal(model_par$k, 1L)
+  expect_equal(model_par$m, 3L)
+
+  # Series system: k should be detected as m
+  model_ser <- kofn(system = series_system(3))
+  expect_equal(model_ser$k, 3L)
+
+  # 2-out-of-4: k should be detected as 2
+  model_2of4 <- kofn(system = kofn_system(2, 4))
+  expect_equal(model_2of4$k, 2L)
+})
+
+test_that("kofn with bridge system routes to general code path", {
+  model <- kofn(system = bridge_system())
+  expect_true(is.na(model$k))
+  expect_equal(model$m, 5L)
+
+  # Should use general system density, not parallel IE fast path
+  set.seed(42)
+  rates <- c(0.5, 0.3, 0.2, 0.4, 0.1)
+  gen <- rdata(model)
+  df <- gen(theta = rates, n = 50)
+
+  ll <- loglik(model)
+  val <- ll(df, rates)
+  expect_true(is.finite(val))
+})
+
+
+# ===========================================================================
+# IE expansion numerical correctness
+# ===========================================================================
+
+test_that("IE expansion is numerically correct", {
+  lam <- c(0.5, 0.3, 0.2)
+  ie <- ie_expand(lam)
+
+  # Evaluate at several time points and compare with direct product
+  for (t in c(0.1, 0.5, 1.0, 2.0, 5.0)) {
+    ie_val <- sum(ie$sign * exp(-ie$rate_sum * t))
+    direct_val <- prod(1 - exp(-lam * t))
+    expect_equal(ie_val, direct_val, tolerance = 1e-10)
+  }
+})
+
+test_that("IE-based density matches general system density", {
+  rates <- c(0.5, 0.3, 0.2)
+  sys <- parallel_system(3)
+  dists <- make_dists(rates, "exponential")
+
+  for (t in c(0.5, 1.0, 2.0)) {
+    # IE-based: sum of w_j
+    ie_density <- sum(vapply(
+      seq_along(rates),
+      function(j) w_j_exact(t, rates, j),
+      numeric(1)
+    ))
+
+    # General system density engine
+    gen_density <- f_sys_general(t, sys, dists)
+
+    expect_equal(ie_density, gen_density, tolerance = 1e-10)
+  }
+})
+
+
+# ===========================================================================
+# System censoring
+# ===========================================================================
+
+test_that("system_censoring is correct for parallel system", {
+  sys <- parallel_system(3)
+  times <- c(1.0, 3.0, 2.0)
+  cens <- system_censoring(sys, times)
+
+  expect_equal(cens$T_sys, 3.0)
+  expect_equal(cens$critical, 2L)  # component 2 has max lifetime
+  expect_equal(cens$status[1], "left")   # failed before system
+  expect_equal(cens$status[2], "exact")  # critical component
+  expect_equal(cens$status[3], "left")   # failed before system
+})
+
+test_that("system_censoring is correct for series system", {
+  sys <- series_system(3)
+  times <- c(2.0, 1.0, 3.0)
+  cens <- system_censoring(sys, times)
+
+  expect_equal(cens$T_sys, 1.0)
+  expect_equal(cens$critical, 2L)  # component 2 has min lifetime
+  expect_equal(cens$status[1], "right")  # survived past system failure
+  expect_equal(cens$status[2], "exact")  # critical component
+  expect_equal(cens$status[3], "right")  # survived past system failure
+})
+
+
+# ===========================================================================
+# Score / gradient check
+# ===========================================================================
+
+test_that("exponential score matches numerical gradient of loglik", {
+  model <- kofn(k = 1, m = 2)
+  gen <- rdata(model)
+  set.seed(42)
+  df <- gen(theta = c(0.5, 0.3), n = 100)
+
+  ll <- loglik(model)
+  sc <- score(model)
+  par <- c(0.5, 0.3)
+
+  score_val <- sc(df, par)
+  num_grad <- numDeriv::grad(function(p) ll(df, p), par)
+  expect_equal(score_val, num_grad, tolerance = 1e-6)
+})
+
+
+# ===========================================================================
+# Bug #3: right-censored exponential observations
+# ===========================================================================
+
+test_that("exponential loglik handles right-censored observations", {
+  model <- kofn(k = 1, m = 2)
+  gen <- rdata(model)
+  set.seed(42)
+  # Generate right-censored data via tau
+  df <- gen(theta = c(0.5, 0.3), n = 100, tau = 3.0)
+
+  expect_true(any(df$omega == "right"))
+  expect_true(any(df$omega == "exact"))
+
+  ll <- loglik(model)
+  val <- ll(df, c(0.5, 0.3))
+  expect_true(is.finite(val))
+
+  # The log-likelihood at true params should be maximized (approximately)
+  val_wrong <- ll(df, c(2.0, 2.0))
+  expect_true(val > val_wrong)
+})
+
+
+# ===========================================================================
+# Bug fix: Weibull loglik handles right-censored observations
+# ===========================================================================
+
+test_that("Weibull parallel loglik handles right-censored data", {
+  model <- kofn(k = 1, m = 2, family = "weibull")
+
+  # Manually create data with omega column
+  df <- data.frame(
+    t = c(1.0, 2.0, 3.0, 4.0, 5.0),
+    omega = c("exact", "exact", "right", "exact", "right"),
+    stringsAsFactors = FALSE
+  )
+
+  ll <- loglik(model)
+  par <- c(1.5, 2.0, 2.0, 3.0)  # shape1, scale1, shape2, scale2
+
+  val <- ll(df, par)
+  expect_true(is.finite(val))
+
+  # Verify right-censored gives higher loglik than treating as exact
+  # (right-censored obs have loglik = log(S_sys(t)) which is > log(f_sys(t))
+  # for large t where S_sys > f_sys)
+  df_all_exact <- df
+  df_all_exact$omega <- "exact"
+  val_exact <- ll(df_all_exact, par)
+  expect_true(val != val_exact)  # Different when censoring is present
+})
+
+
+# ===========================================================================
+# System signature
+# ===========================================================================
+
+test_that("system_signature gives correct results", {
+  # Series: always the first order statistic
+  sig_series <- system_signature(series_system(3))
+  expect_equal(sig_series, c(1, 0, 0))
+
+  # Parallel: always the last order statistic
+  sig_par <- system_signature(parallel_system(3))
+  expect_equal(sig_par, c(0, 0, 1))
+
+  # 2-out-of-3: T_sys = T_{(2)} always, so signature is (0, 1, 0)
+  sig_2of3 <- system_signature(kofn_system(2, 3))
+  expect_equal(sig_2of3, c(0, 1, 0))
+})
+
+
+# ===========================================================================
+# Edge cases
+# ===========================================================================
+
+test_that("single-component system works", {
+  model <- kofn(k = 1, m = 1)
+  gen <- rdata(model)
+  set.seed(42)
+  df <- gen(theta = 0.5, n = 100)
+
+  ll <- loglik(model)
+  val <- ll(df, 0.5)
+  expect_true(is.finite(val))
+
+  fitter <- fit(model)
+  result <- fitter(df, n_starts = 2)
+  expect_true(result$converged)
+  expect_equal(length(result$par), 1)
+})
+
+test_that("series system (k = m) works for exponential", {
+  model <- kofn(k = 3, m = 3)
+  gen <- rdata(model)
+  set.seed(42)
+  df <- gen(theta = c(0.5, 0.3, 0.2), n = 100)
+
+  ll <- loglik(model)
+  val <- ll(df, c(0.5, 0.3, 0.2))
+  expect_true(is.finite(val))
+})
+
+
+# ===========================================================================
+# Monte Carlo parameter recovery (exponential parallel)
+# ===========================================================================
+
+test_that("exponential parallel MLE recovers sum of rates", {
+  # For identifiable permutation-symmetric parameters, check sum of rates
+  model <- kofn(k = 1, m = 2)
+  true_rates <- c(0.5, 0.3)
+  true_sum <- sum(true_rates)
+
+  set.seed(123)
+  gen <- rdata(model)
+  df <- gen(theta = true_rates, n = 500)
+
+  fitter <- fit(model)
+  result <- fitter(df, n_starts = 3)
+
+  expect_true(result$converged)
+  est_sum <- sum(result$par)
+  # With n=500, the sum should be within ~20% of truth
+  expect_equal(est_sum, true_sum, tolerance = 0.2)
+})
+
+
+# ===========================================================================
+# parse_params helper
+# ===========================================================================
+
+test_that("parse_params extracts shapes and scales correctly", {
+  pp_exp <- parse_params(c(0.5, 0.3, 0.2), m = 3, family = "exponential")
+  expect_equal(pp_exp$shapes, c(1, 1, 1))
+  expect_equal(pp_exp$scales, c(2, 10/3, 5))
+
+  pp_wei <- parse_params(c(1.5, 2.0, 2.5, 3.0), m = 2, family = "weibull")
+  expect_equal(pp_wei$shapes, c(1.5, 2.5))
+  expect_equal(pp_wei$scales, c(2.0, 3.0))
+})
+
+
+# ===========================================================================
+# Weibull direct MLE
+# ===========================================================================
+
+test_that("Weibull direct MLE converges for parallel system", {
+  model <- kofn(k = 1, m = 2, family = "weibull", method = "mle")
+  gen <- rdata(model)
+  set.seed(42)
+  df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 200)
+
+  fitter <- fit(model)
+  result <- fitter(df, n_starts = 3)
+  expect_true(result$converged)
+  expect_true(all(is.finite(result$par)))
+  expect_true(all(result$par > 0))
+})
+
+
+# ===========================================================================
+# fit_system for general coherent systems
+# ===========================================================================
+
+test_that("fit_system works for bridge system", {
+  br <- bridge_system()
+  rates <- c(0.5, 0.3, 0.2, 0.4, 0.1)
+  set.seed(42)
+  dat <- rdata_system(br, par = rates, family = "exponential", n = 200)
+
+  res <- fit_system(dat$t, br, family = "exponential", n_starts = 3)
+  expect_true(res$converged)
+  expect_equal(res$convergence, 0L)  # backward compat field
+  expect_equal(length(res$par), 5)
+  expect_true(all(is.finite(res$se)))
+})

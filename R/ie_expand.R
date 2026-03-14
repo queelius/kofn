@@ -81,24 +81,6 @@ w_j_exact <- function(t, par, j) {
 }
 
 
-#' Vectorized w_j over multiple time points
-#'
-#' Same as [w_j_exact()] but vectorized over `t` for a single component j.
-#'
-#' @param t Numeric vector of time points.
-#' @param par Numeric vector of rates (length m).
-#' @param j Component index (integer, 1-based).
-#' @return Numeric vector of \eqn{w_j(t)} values.
-#' @keywords internal
-w_j_exact_vec <- function(t, par, j) {
-  lam_j <- par[j]
-  lam_others <- par[-j]
-  ie <- ie_expand(lam_others)
-  # Each row = one IE term, each col = one time point
-  lam_j * colSums(ie$sign * exp(-outer(lam_j + ie$rate_sum, t)))
-}
-
-
 #' Closed-form integral of w_j(t) over an interval
 #'
 #' Computes \eqn{\int_a^b w_j(t)\, dt} in closed form using the

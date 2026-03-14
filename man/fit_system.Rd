@@ -20,14 +20,10 @@ used.}
 \item{n_starts}{Integer number of random restarts (default 5).}
 }
 \value{
-A list with elements:
-\describe{
-\item{par}{Numeric vector of estimated parameters.}
-\item{se}{Numeric vector of standard errors (NA if unavailable).}
-\item{loglik}{Maximized log-likelihood.}
-\item{convergence}{Integer convergence code (0 = success).}
-\item{fisher_info}{Observed Fisher information matrix, or \code{NULL}.}
-}
+A \code{fisher_mle} object (from likelihood.model) with
+backward-compatible fields \code{convergence} (integer, 0 = success)
+and \code{se} (standard errors). Supports \code{coef()}, \code{vcov()},
+\code{logLik()}, \code{AIC()}, \code{confint()}, \code{summary()}.
 }
 \description{
 Maximum likelihood estimation of component lifetime parameters from

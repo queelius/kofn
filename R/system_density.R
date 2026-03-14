@@ -183,14 +183,10 @@ loglik_system <- function(t_obs, system, par, family = "exponential") {
 #'   parameters). If `NULL`, method-of-moments initialization with spread is
 #'   used.
 #' @param n_starts Integer number of random restarts (default 5).
-#' @return A list with elements:
-#'   \describe{
-#'     \item{par}{Numeric vector of estimated parameters.}
-#'     \item{se}{Numeric vector of standard errors (NA if unavailable).}
-#'     \item{loglik}{Maximized log-likelihood.}
-#'     \item{convergence}{Integer convergence code (0 = success).}
-#'     \item{fisher_info}{Observed Fisher information matrix, or `NULL`.}
-#'   }
+#' @return A \code{fisher_mle} object (from likelihood.model) with
+#'   backward-compatible fields \code{convergence} (integer, 0 = success)
+#'   and \code{se} (standard errors). Supports \code{coef()}, \code{vcov()},
+#'   \code{logLik()}, \code{AIC()}, \code{confint()}, \code{summary()}.
 #' @seealso [loglik_system()] for the log-likelihood,
 #'   [rdata_system()] for data generation.
 #' @export
@@ -224,88 +220,16 @@ fit_system <- function(t_obs, system, family = "exponential",
     val
   }
 
-  # Log-scale objective for Nelder-Mead fallback
-  neg_ll_log <- function(log_par) neg_ll(exp(log_par))
+  result <- multistart_mle(neg_ll, init, n_par = n_par, n_starts = n_starts,
+                           nobs = length(t_obs))
 
-  # Single optimization from a starting point
-  fit_from_init <- function(init_par) {
-    # Try L-BFGS-B
-    result <- tryCatch(
-      stats::optim(
-        par    = init_par,
-        fn     = neg_ll,
-        method = "L-BFGS-B",
-        lower  = rep(1e-10, n_par),
-        upper  = rep(Inf,   n_par),
-        hessian = FALSE
-      ),
-      error = function(e) list(par = rep(NA_real_, n_par), value = Inf,
-                               convergence = 99L, message = conditionMessage(e))
-    )
-
-    # Nelder-Mead on log scale if L-BFGS-B failed
-    if (result$convergence != 0) {
-      result2 <- tryCatch(
-        stats::optim(par = log(pmax(init_par, 1e-10)), fn = neg_ll_log,
-                     method = "Nelder-Mead"),
-        error = function(e) list(par = rep(NA_real_, n_par), value = Inf,
-                                 convergence = 99L, message = conditionMessage(e))
-      )
-      if (result2$convergence == 0 && result2$value < result$value) {
-        result <- list(
-          par         = exp(result2$par),
-          value       = result2$value,
-          convergence = result2$convergence,
-          message     = result2$message
-        )
-      }
-    }
-    result
-  }
-
-  # Multi-start
-  best <- fit_from_init(init)
-  if (n_starts > 1L) {
-    for (s in seq_len(n_starts - 1L)) {
-      init_s <- init * exp(stats::rnorm(n_par, sd = 0.5))
-      init_s <- pmax(init_s, 1e-10)
-      res_s  <- fit_from_init(init_s)
-      if (res_s$convergence == 0 &&
-          (best$convergence != 0 || res_s$value < best$value)) {
-        best <- res_s
-      }
-    }
-  }
-
-  # Fisher information and standard errors via numDeriv
-  se <- rep(NA_real_, n_par)
-  fisher_info <- NULL
-  if (best$convergence == 0 && !any(is.na(best$par))) {
-    if (requireNamespace("numDeriv", quietly = TRUE)) {
-      H <- tryCatch(
-        numDeriv::hessian(neg_ll, best$par, method = "Richardson"),
-        error = function(e) NULL
-      )
-      if (!is.null(H) && all(is.finite(H))) {
-        fisher_info <- H
-        ev <- tryCatch(
-          eigen(fisher_info, symmetric = TRUE, only.values = TRUE)$values,
-          error = function(e) NULL
-        )
-        if (!is.null(ev) && all(is.finite(ev)) && all(ev > 0)) {
-          se <- sqrt(diag(solve(fisher_info)))
-        }
-      }
-    }
-  }
-
-  list(
-    par         = best$par,
-    se          = se,
-    loglik      = -best$value,
-    convergence = best$convergence,
-    fisher_info = fisher_info
+  # Backward-compatible fields for vignette / direct users
+  result$convergence <- if (result$converged) 0L else 1L
+  result$se <- tryCatch(
+    sqrt(diag(stats::vcov(result))),
+    error = function(e) rep(NA_real_, n_par)
   )
+  result
 }
 
 

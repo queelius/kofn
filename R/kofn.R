@@ -61,9 +61,18 @@ kofn <- function(k = 1L, m = 2L, family = "exponential",
   m <- as.integer(m)
 
   if (is.null(system)) {
+    stopifnot(k >= 1L, k <= m, m >= 1L)
     system <- kofn_system(k, m)
+  } else {
+    m <- system$m
+    # Detect k from system structure: k-out-of-n iff all paths have equal size
+    path_sizes <- vapply(system$min_paths, length, integer(1))
+    if (length(unique(path_sizes)) == 1L) {
+      k <- as.integer(path_sizes[1L])
+    } else {
+      k <- NA_integer_
+    }
   }
-  m <- system$m
 
   model <- list(
     system = system,
@@ -97,7 +106,9 @@ kofn <- function(k = 1L, m = 2L, family = "exponential",
 #' @examples
 #' print(kofn(k = 1, m = 3))
 print.kofn <- function(x, ...) {
-  sys_type <- if (x$k == 1L) {
+  sys_type <- if (is.na(x$k)) {
+    "general coherent"
+  } else if (x$k == 1L) {
     "parallel"
   } else if (x$k == x$m) {
     "series"
@@ -107,8 +118,9 @@ print.kofn <- function(x, ...) {
 
   cat("k-out-of-n System Likelihood Model\n")
   cat("-----------------------------------\n")
+  k_str <- if (is.na(x$k)) "NA" else as.character(x$k)
   cat("  System type:", sys_type,
-      sprintf("(k=%d, m=%d)\n", x$k, x$m))
+      sprintf("(k=%s, m=%d)\n", k_str, x$m))
   cat("  Component distribution:", x$family, "\n")
   cat("  Estimation method:", x$method, "\n")
   cat("  Column conventions:\n")
@@ -144,41 +156,6 @@ ncomponents <- function(model, ...) UseMethod("ncomponents")
 #' ncomponents(kofn(k = 1, m = 5))
 ncomponents.kofn <- function(model, ...) {
   model$m
-}
-
-
-#' Assumptions for kofn models
-#'
-#' Returns the assumptions made by the k-out-of-n system likelihood model.
-#'
-#' @param model A \code{kofn} model object.
-#' @param ... Additional arguments (ignored).
-#' @return Character vector of assumptions.
-#' @method assumptions kofn
-#' @export
-#' @examples
-#' assumptions(kofn(k = 1, m = 3))
-assumptions.kofn <- function(model, ...) {
-  sys_desc <- if (model$k == 1L) {
-    "parallel system (k=1): T = max(T_1, ..., T_m)"
-  } else if (model$k == model$m) {
-    "series system (k=m): T = min(T_1, ..., T_m)"
-  } else {
-    sprintf("%d-out-of-%d system: T = T_{(%d)}", model$k, model$m, model$k)
-  }
-
-  dist_desc <- if (model$family == "exponential") {
-    "exponential component lifetimes: T_j ~ Exp(lambda_j)"
-  } else {
-    "Weibull component lifetimes: T_j ~ Weibull(shape_j, scale_j)"
-  }
-
-  c(
-    "i.i.d. observations",
-    paste0("k-out-of-n ", sys_desc),
-    dist_desc,
-    "independent component lifetimes"
-  )
 }
 
 
