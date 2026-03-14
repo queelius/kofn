@@ -1,0 +1,26 @@
+# pkgdown site (rebuilt on deploy)
+docs/
+
+# Vignette build artifacts
+vignettes/*.html
+vignettes/*.R
+vignettes/*_cache/
+vignettes/*_files/
+
+# Knitr cache
+cache/
+
+# R build artifacts
+*.Rcheck/
+*.tar.gz
+src/*.o
+src/*.so
+src/*.dll
+
+# IDE
+.Rproj.user
+*.Rproj
+
+# OS
+.DS_Store
+Thumbs.db
