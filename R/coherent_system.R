@@ -155,8 +155,8 @@ print.coherent_system <- function(x, ...) {
     cat(sprintf("    {%s}\n", paste(p, collapse = ", ")))
   }
   cat(sprintf("  Minimal cut sets (%d):\n", length(x$min_cuts)))
-  for (c in x$min_cuts) {
-    cat(sprintf("    {%s}\n", paste(c, collapse = ", ")))
+  for (cs in x$min_cuts) {
+    cat(sprintf("    {%s}\n", paste(cs, collapse = ", ")))
   }
   invisible(x)
 }
@@ -224,8 +224,7 @@ parallel_system <- function(m) {
 #' @export
 kofn_system <- function(k, n) {
   stopifnot(k >= 1L, k <= n, n >= 1L)
-  cols <- utils::combn(n, k)
-  paths <- lapply(seq_len(ncol(cols)), function(i) cols[, i])
+  paths <- utils::combn(n, k, simplify = FALSE)
   coherent_system(paths, m = n)
 }
 
@@ -393,18 +392,12 @@ system_censoring <- function(system, times) {
   crit_candidates <- binding_cut[times[binding_cut] == T_sys]
   critical <- crit_candidates[1L]  # break ties by taking first (lowest index)
 
-  # Assign per-component status
+  # Assign per-component status (vectorized)
   tol <- .Machine$double.eps^0.5
-  status <- character(m)
-  for (j in seq_len(m)) {
-    if (abs(times[j] - T_sys) < tol * max(1, T_sys)) {
-      status[j] <- "exact"
-    } else if (times[j] < T_sys) {
-      status[j] <- "left"
-    } else {
-      status[j] <- "right"
-    }
-  }
+  status <- ifelse(
+    abs(times - T_sys) < tol * max(1, T_sys), "exact",
+    ifelse(times < T_sys, "left", "right")
+  )
 
   list(T_sys = T_sys, critical = critical, status = status)
 }
@@ -446,26 +439,23 @@ critical_states <- function(system, j) {
 
   for (k in seq_len(n_states) - 1L) {
     bits <- as.logical(as.integer(intToBits(k))[seq_len(n_other)])
-    x_minus_j <- logical(m)
-    x_minus_j[others] <- bits
+    x <- logical(m)
+    x[others] <- bits
 
-    # Check criticality
-    x_on  <- x_minus_j; x_on[j]  <- TRUE
-    x_off <- x_minus_j; x_off[j] <- FALSE
-
-    if (phi(system, x_on) && !phi(system, x_off)) {
-      row <- x_minus_j[others]
-      result_rows <- c(result_rows, list(row))
+    # j is critical if flipping it changes the system state
+    x[j] <- TRUE
+    sys_on <- phi(system, x)
+    x[j] <- FALSE
+    if (sys_on && !phi(system, x)) {
+      result_rows <- c(result_rows, list(bits))
     }
   }
 
   if (length(result_rows) == 0L) {
-    m_out <- matrix(logical(0), nrow = 0L, ncol = n_other)
-    colnames(m_out) <- if (length(others) > 0L) paste0("comp", others) else character(0)
-    return(m_out)
+    mat <- matrix(logical(0), nrow = 0L, ncol = n_other)
+  } else {
+    mat <- do.call(rbind, result_rows)
   }
-
-  mat <- do.call(rbind, result_rows)
   colnames(mat) <- paste0("comp", others)
   mat
 }

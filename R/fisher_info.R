@@ -13,6 +13,26 @@
 # ===========================================================================
 
 
+#' Determinant of a positive-definite Hessian, or NA
+#'
+#' Computes the numerical Hessian, checks finite-ness and positive
+#' definiteness, and returns \code{det(H)} or \code{NA}.
+#'
+#' @param neg_ll Negative log-likelihood function.
+#' @param par Parameter vector.
+#' @return Scalar determinant, or \code{NA_real_}.
+#' @keywords internal
+safe_hessian_det <- function(neg_ll, par) {
+  H <- tryCatch(
+    numDeriv::hessian(neg_ll, par, method = "Richardson"),
+    error = function(e) NULL
+  )
+  if (is.null(H) || !all(is.finite(H))) return(NA_real_)
+  ev <- eigen(H, symmetric = TRUE, only.values = TRUE)$values
+  if (all(ev > 0)) det(H) else NA_real_
+}
+
+
 #' Compare Fisher information across observation schemes
 #'
 #' For a given parameter configuration, computes the observed Fisher
@@ -137,37 +157,24 @@ compare_fisher_info <- function(shapes = NULL, scales = NULL, rates = NULL,
       -ll
     }
 
-    H_s0 <- tryCatch(
-      numDeriv::hessian(neg_ll_s0, par_true, method = "Richardson"),
-      error = function(e) NULL
-    )
-    if (!is.null(H_s0) && all(is.finite(H_s0))) {
-      ev <- eigen(H_s0, symmetric = TRUE, only.values = TRUE)$values
-      if (all(ev > 0)) {
-        det_s0[rep] <- det(H_s0)
-      } else {
-        det_s0[rep] <- NA
-      }
-    } else {
-      det_s0[rep] <- NA
-    }
+    det_s0[rep] <- safe_hessian_det(neg_ll_s0, par_true)
 
     # --- Scheme 1: Periodic inspection ---
     df_s1 <- data.frame(t = sys_times)
     for (j in seq_len(m)) {
-      df_s1[[paste0("comp_lower_", j)]] <- floor(comp_times[, j] / delta) *
-        delta
-      df_s1[[paste0("comp_upper_", j)]] <- floor(comp_times[, j] / delta) *
-        delta + delta
+      lower_j <- floor(comp_times[, j] / delta) * delta
+      df_s1[[paste0("comp_lower_", j)]] <- lower_j
+      df_s1[[paste0("comp_upper_", j)]] <- lower_j + delta
     }
+
+    lower_cols <- paste0("comp_lower_", seq_len(m))
+    upper_cols <- paste0("comp_upper_", seq_len(m))
 
     neg_ll_s1 <- function(p) {
       if (any(!is.finite(p)) || any(p <= 0)) return(.Machine$double.xmax / 2)
       pp_s1 <- parse_params(p, m, family)
       sh <- pp_s1$shapes
       sc <- pp_s1$scales
-      lower_cols <- paste0("comp_lower_", seq_len(m))
-      upper_cols <- paste0("comp_upper_", seq_len(m))
       ll <- 0
       for (i in seq_len(n)) {
         f_sys <- weibull_f_sys(df_s1$t[i], sh, sc)
@@ -187,20 +194,7 @@ compare_fisher_info <- function(shapes = NULL, scales = NULL, rates = NULL,
       -ll
     }
 
-    H_s1 <- tryCatch(
-      numDeriv::hessian(neg_ll_s1, par_true, method = "Richardson"),
-      error = function(e) NULL
-    )
-    if (!is.null(H_s1) && all(is.finite(H_s1))) {
-      ev <- eigen(H_s1, symmetric = TRUE, only.values = TRUE)$values
-      if (all(ev > 0)) {
-        det_s1[rep] <- det(H_s1)
-      } else {
-        det_s1[rep] <- NA
-      }
-    } else {
-      det_s1[rep] <- NA
-    }
+    det_s1[rep] <- safe_hessian_det(neg_ll_s1, par_true)
   }
 
   # Compute efficiency ratios (median over replicates, ignoring NAs)

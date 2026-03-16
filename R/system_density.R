@@ -207,7 +207,7 @@ fit_system <- function(t_obs, system, family = "exponential",
       H_m <- sum(1 / seq_len(m))
       lam0 <- H_m / mean_t
       init <- lam0 * seq(0.5, 1.5, length.out = m)
-    } else if (family == "weibull") {
+    } else {
       scale0 <- mean_t * seq(0.5, 1.5, length.out = m)
       init <- as.numeric(rbind(rep(1.0, m), scale0))  # interleaved
     }
@@ -264,14 +264,12 @@ rdata_system <- function(system, par, family = "exponential", n = 100L) {
   # Generate component lifetimes
   comp_times <- matrix(0, nrow = n, ncol = m)
   for (j in seq_len(m)) {
-    u <- stats::runif(n)
+    p <- dists[[j]]$params
     if (family == "exponential") {
-      rate <- dists[[j]]$params["rate"]
-      comp_times[, j] <- stats::qexp(u, rate = rate)
-    } else if (family == "weibull") {
-      shape <- dists[[j]]$params["shape"]
-      scale <- dists[[j]]$params["scale"]
-      comp_times[, j] <- stats::qweibull(u, shape = shape, scale = scale)
+      comp_times[, j] <- stats::rexp(n, rate = p["rate"])
+    } else {
+      comp_times[, j] <- stats::rweibull(n, shape = p["shape"],
+                                         scale = p["scale"])
     }
   }
 

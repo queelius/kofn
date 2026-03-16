@@ -154,6 +154,34 @@ parse_params <- function(par, m, family) {
 }
 
 
+#' Numerical Hessian and score at a candidate MLE
+#'
+#' Computes the Hessian of the negative log-likelihood and the score
+#' (gradient of the log-likelihood) at a parameter estimate using
+#' \code{numDeriv}. Shared by \code{multistart_mle} and the EM solver.
+#'
+#' @param neg_ll Function of \code{par} only: negative log-likelihood.
+#' @param par Numeric vector: parameter estimate.
+#' @param n_par Integer: number of parameters.
+#' @return A list with \code{hessian} (matrix of the negative log-likelihood)
+#'   and \code{score} (gradient of the log-likelihood).
+#' @keywords internal
+hessian_score_at_mle <- function(neg_ll, par, n_par) {
+  H <- tryCatch(
+    numDeriv::hessian(neg_ll, x = par, method = "Richardson"),
+    error = function(e) NULL
+  )
+  hessian_mat <- if (!is.null(H) && all(is.finite(H))) H else {
+    matrix(NA_real_, nrow = n_par, ncol = n_par)
+  }
+  score_val <- tryCatch(
+    -numDeriv::grad(func = neg_ll, x = par, method = "Richardson"),
+    error = function(e) rep(NA_real_, n_par)
+  )
+  list(hessian = hessian_mat, score = score_val)
+}
+
+
 #' Multi-start MLE optimizer
 #'
 #' Common optimization infrastructure used by all fitting methods.
@@ -217,24 +245,13 @@ multistart_mle <- function(neg_ll, par0, n_par, n_starts = 5L,
     best$convergence <- 99L
   }
 
-  # Hessian and score at MLE
-  H <- tryCatch(
-    numDeriv::hessian(neg_ll, x = best$par, method = "Richardson"),
-    error = function(e) NULL
-  )
-  hessian_mat <- if (!is.null(H) && all(is.finite(H))) H else {
-    matrix(NA_real_, nrow = n_par, ncol = n_par)
-  }
-  score_val <- tryCatch(
-    -numDeriv::grad(func = neg_ll, x = best$par, method = "Richardson"),
-    error = function(e) rep(NA_real_, n_par)
-  )
+  result <- hessian_score_at_mle(neg_ll, best$par, n_par)
 
   make_mle_result(
     par       = best$par,
     loglik    = -best$value,
-    hessian   = hessian_mat,
-    score     = score_val,
+    hessian   = result$hessian,
+    score     = result$score,
     nobs      = nobs,
     converged = (best$convergence == 0),
     ...

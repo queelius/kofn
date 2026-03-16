@@ -33,17 +33,11 @@
 #' @keywords internal
 weibull_w_j <- function(t, shapes, scales, j) {
   if (t <= 0) return(0)
-  m <- length(shapes)
   f_j <- stats::dweibull(t, shape = shapes[j], scale = scales[j])
   if (f_j <= 0) return(0)
-  log_F_others <- 0
-  for (i in seq_len(m)) {
-    if (i == j) next
-    F_i <- stats::pweibull(t, shape = shapes[i], scale = scales[i])
-    if (F_i <= 0) return(0)
-    log_F_others <- log_F_others + log(F_i)
-  }
-  f_j * exp(log_F_others)
+  F_others <- stats::pweibull(t, shape = shapes[-j], scale = scales[-j])
+  if (any(F_others <= 0)) return(0)
+  f_j * exp(sum(log(F_others)))
 }
 
 
@@ -58,11 +52,8 @@ weibull_w_j <- function(t, shapes, scales, j) {
 #' @keywords internal
 weibull_S_sys <- function(t, shapes, scales) {
   if (t <= 0) return(1)
-  m <- length(shapes)
-  log_F_prod <- sum(vapply(seq_len(m), function(j) {
-    stats::pweibull(t, shape = shapes[j], scale = scales[j], log.p = TRUE)
-  }, numeric(1)))
-  1 - exp(log_F_prod)
+  1 - exp(sum(stats::pweibull(t, shape = shapes, scale = scales,
+                               log.p = TRUE)))
 }
 
 
@@ -79,21 +70,6 @@ weibull_f_sys <- function(t, shapes, scales) {
   m <- length(shapes)
   sum(vapply(seq_len(m), function(j) weibull_w_j(t, shapes, scales, j),
              numeric(1)))
-}
-
-
-# ---------------------------------------------------------------------------
-# Internal: extract shapes and scales from interleaved par vector
-# ---------------------------------------------------------------------------
-
-#' @keywords internal
-wei_par_to_shapes <- function(par, m) {
-  par[seq(1L, 2L * m, by = 2L)]
-}
-
-#' @keywords internal
-wei_par_to_scales <- function(par, m) {
-  par[seq(2L, 2L * m, by = 2L)]
 }
 
 
@@ -130,8 +106,9 @@ loglik.wei_kofn <- function(model, ...) {
     # Parallel system: direct density computation
     function(df, par) {
       if (any(!is.finite(par)) || any(par <= 0)) return(-Inf)
-      shapes <- wei_par_to_shapes(par, m)
-      scales <- wei_par_to_scales(par, m)
+      pp <- parse_params(par, m, "weibull")
+      shapes <- pp$shapes
+      scales <- pp$scales
       t_obs <- df[[lt]]
 
       # Handle omega column if present; default all observations to "exact"
@@ -308,8 +285,9 @@ em_solver <- function(model, ll_fn, ...) {
       init_scales <- scale0 * seq(0.5, 1.5, length.out = m)
     } else {
       stopifnot(length(par0) == n_par)
-      init_shapes <- wei_par_to_shapes(par0, m)
-      init_scales <- wei_par_to_scales(par0, m)
+      pp0 <- parse_params(par0, m, "weibull")
+      init_shapes <- pp0$shapes
+      init_scales <- pp0$scales
     }
     stopifnot(all(init_shapes > 0), all(init_scales > 0))
 
@@ -442,35 +420,24 @@ em_solver <- function(model, ll_fn, ...) {
     # --- Standard errors via numerical Hessian ---
     par_est <- as.numeric(rbind(best$shapes, best$scales))
 
-    neg_ll_for_hess <- function(p) {
+    neg_ll <- function(p) {
       val <- -ll_fn(df, p)
       if (!is.finite(val)) return(.Machine$double.xmax / 2)
       val
     }
-    H <- tryCatch(
-      numDeriv::hessian(neg_ll_for_hess, x = par_est, method = "Richardson"),
-      error = function(e) NULL
-    )
+    hs <- hessian_score_at_mle(neg_ll, par_est, n_par)
 
-    hessian_mat <- if (!is.null(H) && all(is.finite(H))) H else {
-      matrix(NA_real_, nrow = n_par, ncol = n_par)
-    }
-    score_val <- tryCatch(
-      numDeriv::grad(func = function(p) ll_fn(df, p), x = par_est,
-                     method = "Richardson"),
-      error = function(e) rep(NA_real_, n_par)
-    )
-
+    pp_est <- parse_params(par_est, m, "weibull")
     make_mle_result(
       par        = par_est,
       loglik     = best$loglik,
-      hessian    = hessian_mat,
-      score      = score_val,
+      hessian    = hs$hessian,
+      score      = hs$score,
       nobs       = n,
       converged  = best$converged,
       iterations = best$iterations,
-      shapes     = par_est[seq(1L, n_par, by = 2L)],
-      scales     = par_est[seq(2L, n_par, by = 2L)]
+      shapes     = pp_est$shapes,
+      scales     = pp_est$scales
     )
   }
 }
@@ -508,8 +475,9 @@ mle_solver <- function(model, ll_fn, ...) {
 
     result <- multistart_mle(neg_ll, par0, n_par = n_par,
                              n_starts = n_starts, nobs = n)
-    result$shapes <- result$par[seq(1L, n_par, by = 2L)]
-    result$scales <- result$par[seq(2L, n_par, by = 2L)]
+    pp <- parse_params(result$par, m, "weibull")
+    result$shapes <- pp$shapes
+    result$scales <- pp$scales
     result
   }
 }
@@ -546,8 +514,9 @@ rdata.wei_kofn <- function(model, ...) {
 
   function(theta, n, observe = NULL) {
     stopifnot(length(theta) == 2L * m)
-    shapes <- wei_par_to_shapes(theta, m)
-    scales <- wei_par_to_scales(theta, m)
+    pp <- parse_params(theta, m, "weibull")
+    shapes <- pp$shapes
+    scales <- pp$scales
     stopifnot(all(shapes > 0), all(scales > 0))
 
     # Generate component lifetimes

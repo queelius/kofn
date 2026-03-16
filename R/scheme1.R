@@ -68,13 +68,9 @@ rdata_scheme1 <- function(model, ...) {
     # System lifetime = max (parallel)
     sys_times <- apply(comp_times, 1, max)
 
-    # Interval-censor each component to inspection grid
-    comp_lower <- matrix(0, nrow = n, ncol = m)
-    comp_upper <- matrix(0, nrow = n, ncol = m)
-    for (j in seq_len(m)) {
-      comp_lower[, j] <- floor(comp_times[, j] / delta) * delta
-      comp_upper[, j] <- comp_lower[, j] + delta
-    }
+    # Interval-censor each component to inspection grid (vectorized)
+    comp_lower <- floor(comp_times / delta) * delta
+    comp_upper <- comp_lower + delta
 
     # Build data frame
     df <- data.frame(sys_times)

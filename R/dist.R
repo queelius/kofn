@@ -108,7 +108,7 @@ make_dists <- function(par, family = "exponential") {
   if (family == "exponential") {
     m <- length(par)
     lapply(seq_len(m), function(j) exp_dist(par[j]))
-  } else if (family == "weibull") {
+  } else {
     if (length(par) %% 2 != 0) {
       stop("For Weibull family, par must have length 2m (shape_1, scale_1, ...)")
     }

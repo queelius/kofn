@@ -291,13 +291,7 @@ rdata.exp_kofn <- function(model, ...) {
 
     # 3. Default observation functor: right-censoring at tau
     if (is.null(observe)) {
-      observe <- function(t_true) {
-        if (t_true <= tau) {
-          list(t = t_true, omega = "exact", t_upper = NA_real_)
-        } else {
-          list(t = tau, omega = "right", t_upper = NA_real_)
-        }
-      }
+      observe <- observe_scheme0(tau)
     }
 
     # 4. Apply observation mechanism
