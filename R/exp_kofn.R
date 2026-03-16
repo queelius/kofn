@@ -362,10 +362,15 @@ rdata.exp_kofn <- function(model, ...) {
 #' @method assumptions exp_kofn
 #' @export
 assumptions.exp_kofn <- function(model, ...) {
+  sys_desc <- if (is.na(model$k)) {
+    "general coherent system structure"
+  } else {
+    sprintf("%d-out-of-%d system structure", model$k, model$m)
+  }
   c(
     "independent component lifetimes",
     "exponential component lifetime distributions",
-    sprintf("%d-out-of-%d system structure", model$k, model$m),
+    sys_desc,
     "i.i.d. system observations",
     "candidate sets satisfy C1 (contains true critical component)",
     "candidate sets satisfy C2 (symmetric given critical component)",

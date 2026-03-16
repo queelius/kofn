@@ -597,9 +597,14 @@ assumptions.wei_kofn <- function(model, ...) {
   k <- model$k
   method <- model$method
 
+  sys_desc <- if (is.na(k)) {
+    sprintf("General coherent system with m = %d components", m)
+  } else {
+    sprintf("System is %d-out-of-%d (k=%d components must function)", k, m, k)
+  }
+
   assumptions <- c(
-    sprintf("System is %d-out-of-%d (system fails when %d components fail)",
-            k, m, k),
+    sys_desc,
     sprintf("Component count: m = %d", m),
     "Component lifetimes are independent",
     "Each component lifetime follows a Weibull distribution",
@@ -608,7 +613,7 @@ assumptions.wei_kofn <- function(model, ...) {
     "Observation: system lifetime only (Scheme 0)"
   )
 
-  if (method == "em" && k == 1L) {
+  if (method == "em" && isTRUE(k == 1L)) {
     assumptions <- c(assumptions,
       "Estimation: EM algorithm with latent last-failing component",
       "E-step uses truncated Weibull moments",

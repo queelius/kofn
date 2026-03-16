@@ -436,3 +436,115 @@ test_that("fit_system works for bridge system", {
   expect_equal(length(res$par), 5)
   expect_true(all(is.finite(res$se)))
 })
+
+
+# ===========================================================================
+# Scheme 1 smoke tests (covers refactored parse_params + weibull_f_sys paths)
+# ===========================================================================
+
+test_that("Scheme 1 loglik is finite at true params (exponential)", {
+  model <- kofn(k = 1, m = 2)
+  s1gen <- rdata_scheme1(model)
+  set.seed(42)
+  df <- s1gen(theta = c(0.5, 0.3), n = 100, delta = 1.0)
+
+  ll <- loglik_scheme1(model)
+  val <- ll(df, c(0.5, 0.3))
+  expect_true(is.finite(val))
+  expect_true(val < 0)
+})
+
+test_that("Scheme 1 loglik is finite at true params (Weibull)", {
+  model <- kofn(k = 1, m = 2, family = "weibull")
+  s1gen <- rdata_scheme1(model)
+  set.seed(42)
+  df <- s1gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 100, delta = 0.5)
+
+  ll <- loglik_scheme1(model)
+  val <- ll(df, c(1.5, 2.0, 2.0, 3.0))
+  expect_true(is.finite(val))
+  expect_true(val < 0)
+})
+
+test_that("fit_scheme1 converges for exponential parallel", {
+  model <- kofn(k = 1, m = 2)
+  s1gen <- rdata_scheme1(model)
+  set.seed(42)
+  df <- s1gen(theta = c(0.5, 0.3), n = 200, delta = 1.0)
+
+  fitter <- fit_scheme1(model)
+  result <- fitter(df, n_starts = 3)
+  expect_true(result$converged)
+  expect_true(all(is.finite(result$par)))
+  expect_true(all(result$par > 0))
+})
+
+
+# ===========================================================================
+# Distribution objects
+# ===========================================================================
+
+test_that("make_dists creates correct distribution objects", {
+  # Exponential
+  dists_exp <- make_dists(c(0.5, 0.3), "exponential")
+  expect_equal(length(dists_exp), 2)
+  expect_equal(dists_exp[[1]]$name, "exponential")
+  expect_equal(dists_exp[[1]]$params[["rate"]], 0.5)
+  expect_true(dists_exp[[1]]$pdf(1) > 0)
+  expect_true(dists_exp[[1]]$cdf(1) > 0)
+  expect_true(dists_exp[[1]]$surv(1) > 0)
+
+  # Weibull
+  dists_wei <- make_dists(c(1.5, 2.0, 2.5, 3.0), "weibull")
+  expect_equal(length(dists_wei), 2)
+  expect_equal(dists_wei[[1]]$name, "weibull")
+  expect_equal(dists_wei[[1]]$params[["shape"]], 1.5)
+  expect_equal(dists_wei[[1]]$params[["scale"]], 2.0)
+})
+
+
+# ===========================================================================
+# Observation scheme aliases
+# ===========================================================================
+
+test_that("observe_right_censor is alias for observe_scheme0", {
+  obs <- observe_right_censor(tau = 10)
+  expect_equal(obs(5)$omega, "exact")
+  expect_equal(obs(15)$omega, "right")
+  expect_equal(obs(15)$t, 10)
+})
+
+test_that("observe_periodic is alias for observe_scheme1", {
+  obs <- observe_periodic(delta = 2.0, tau = 20)
+  expect_equal(obs(5)$omega, "interval")
+  expect_equal(obs(5)$t, 4.0)
+  expect_equal(obs(5)$t_upper, 6.0)
+  expect_equal(obs(25)$omega, "right")
+})
+
+test_that("observe_mixture selects from schemes", {
+  set.seed(42)
+  obs <- observe_mixture(
+    observe_scheme0(tau = 100),
+    observe_scheme1(delta = 1.0, tau = 100),
+    weights = c(0.5, 0.5)
+  )
+  # Just check it doesn't error and returns valid structure
+  result <- obs(5.0)
+  expect_true(result$omega %in% c("exact", "interval"))
+})
+
+
+# ===========================================================================
+# Assumptions methods handle NA k (bridge system)
+# ===========================================================================
+
+test_that("assumptions work for bridge system models", {
+  model_exp <- kofn(system = bridge_system())
+  a_exp <- assumptions(model_exp)
+  expect_true(any(grepl("general coherent", a_exp)))
+
+  model_wei <- kofn(system = bridge_system(), family = "weibull")
+  a_wei <- assumptions(model_wei)
+  expect_true(any(grepl("General coherent", a_wei)))
+})
