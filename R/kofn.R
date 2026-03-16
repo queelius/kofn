@@ -65,10 +65,16 @@ kofn <- function(k = 1L, m = 2L, family = "exponential",
     system <- kofn_system(k, m)
   } else {
     m <- system$m
-    # Detect k from system structure: k-out-of-n iff all paths have equal size
+    # Detect k from system structure: k-out-of-n iff all paths have equal
+    # size AND the number of paths equals choose(m, k)
     path_sizes <- vapply(system$min_paths, length, integer(1))
     if (length(unique(path_sizes)) == 1L) {
-      k <- as.integer(path_sizes[1L])
+      detected_k <- as.integer(path_sizes[1L])
+      if (length(system$min_paths) == choose(m, detected_k)) {
+        k <- detected_k
+      } else {
+        k <- NA_integer_
+      }
     } else {
       k <- NA_integer_
     }

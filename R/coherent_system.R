@@ -483,7 +483,6 @@ critical_states <- function(system, j) {
 #' @param m Positive integer.
 #' @return Integer matrix of dimension \eqn{m! \times m}{m! x m}.
 #' @keywords internal
-#' @export
 permutations <- function(m) {
   if (m == 1L) return(matrix(1L, nrow = 1L, ncol = 1L))
 

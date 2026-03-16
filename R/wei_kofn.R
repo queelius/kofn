@@ -108,6 +108,9 @@ wei_par_to_scales <- function(par, m) {
 #'
 #' For parallel systems (k = 1), uses the direct Weibull system density
 #' \eqn{f_{sys}(t) = \sum_j f_j(t) \prod_{i \ne j} F_i(t)}.
+#' Supports \code{"exact"} and \code{"right"} observation types.
+#' Left and interval censoring are not supported for Weibull (no IE
+#' expansion); use the exponential model or Scheme 1 for those cases.
 #'
 #' For general k, delegates to [loglik_system()] with \code{family = "weibull"}.
 #'

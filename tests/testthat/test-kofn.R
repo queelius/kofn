@@ -548,3 +548,50 @@ test_that("assumptions work for bridge system models", {
   a_wei <- assumptions(model_wei)
   expect_true(any(grepl("General coherent", a_wei)))
 })
+
+
+# ===========================================================================
+# k-detection: non-kofn system with equal-size paths
+# ===========================================================================
+
+test_that("k-detection rejects non-kofn system with equal-size paths", {
+  # System with paths {1,2} and {3,4}: all paths size 2, but NOT 2-out-of-4
+  # (2-out-of-4 would have choose(4,2)=6 paths, not 2)
+  sys <- coherent_system(list(c(1L, 2L), c(3L, 4L)), m = 4L)
+  model <- kofn(system = sys)
+  expect_true(is.na(model$k))
+  expect_equal(model$m, 4L)
+})
+
+
+# ===========================================================================
+# Fisher information comparison smoke test
+# ===========================================================================
+
+test_that("compare_fisher_info runs and returns expected structure (exp)", {
+  set.seed(42)
+  res <- compare_fisher_info(
+    rates = c(0.5, 0.3), n = 50L, delta = 1.0, n_rep = 3L,
+    family = "exponential"
+  )
+
+  expect_true(is.list(res))
+  expect_equal(length(res$scheme0_det), 3)
+  expect_equal(length(res$scheme1_det), 3)
+  expect_equal(length(res$scheme2_det), 3)
+  expect_true(all(names(res$median_det) == c("scheme0", "scheme1", "scheme2")))
+  # Scheme 2 (complete data) determinant should always be finite and positive
+  expect_true(all(is.finite(res$scheme2_det)))
+  expect_true(all(res$scheme2_det > 0))
+})
+
+test_that("compare_fisher_info runs for Weibull family", {
+  set.seed(42)
+  res <- compare_fisher_info(
+    shapes = c(1.5, 2.0), scales = c(2.0, 3.0),
+    n = 50L, delta = 1.0, n_rep = 3L, family = "weibull"
+  )
+
+  expect_true(is.list(res))
+  expect_equal(length(res$scheme0_det), 3)
+})

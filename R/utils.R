@@ -211,6 +211,12 @@ multistart_mle <- function(neg_ll, par0, n_par, n_starts = 5L,
     }
   }
 
+  # Guard: if best value is at the penalty ceiling, the optimizer
+  # "converged" to a degenerate solution — treat as non-convergence
+  if (best$value >= .Machine$double.xmax / 4) {
+    best$convergence <- 99L
+  }
+
   # Hessian and score at MLE
   H <- tryCatch(
     numDeriv::hessian(neg_ll, x = best$par, method = "Richardson"),

@@ -21,6 +21,9 @@ for a Weibull k-out-of-n system given data and parameters.
 \details{
 For parallel systems (k = 1), uses the direct Weibull system density
 \eqn{f_{sys}(t) = \sum_j f_j(t) \prod_{i \ne j} F_i(t)}.
+Supports \code{"exact"} and \code{"right"} observation types.
+Left and interval censoring are not supported for Weibull (no IE
+expansion); use the exponential model or Scheme 1 for those cases.
 
 For general k, delegates to \code{\link[=loglik_system]{loglik_system()}} with \code{family = "weibull"}.
 }
