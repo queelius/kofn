@@ -517,6 +517,10 @@ permutations <- function(m) {
 system_signature <- function(system) {
   stopifnot(inherits(system, "coherent_system"))
   m <- system$m
+  if (m > 10L) {
+    warning(sprintf("system_signature enumerates all %d! = %s permutations; this may be slow",
+                    m, format(factorial(m), big.mark = ",")))
+  }
   perms <- permutations(m)
   n_perms <- nrow(perms)
   s <- numeric(m)

@@ -225,10 +225,11 @@ fit_system <- function(t_obs, system, family = "exponential",
 
   # Backward-compatible fields for vignette / direct users
   result$convergence <- if (result$converged) 0L else 1L
-  result$se <- tryCatch(
-    sqrt(diag(stats::vcov(result))),
-    error = function(e) rep(NA_real_, n_par)
-  )
+  result$se <- tryCatch({
+    V <- stats::vcov(result)
+    if (is.null(V)) stop("NULL vcov")
+    sqrt(diag(V))
+  }, error = function(e) rep(NA_real_, n_par))
   result
 }
 

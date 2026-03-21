@@ -126,7 +126,10 @@ cat(sprintf("  Component 2 (slow): shape = %.3f (true: 2.000), scale = %.3f (tru
             mle0$par[3], mle0$par[4]))
 
 # Standard errors from the variance-covariance matrix
-se_vec <- likelihood.model::se(mle0)
+se_vec <- tryCatch({
+  V <- vcov(mle0)
+  if (is.null(V)) rep(NA_real_, length(coef(mle0))) else sqrt(diag(V))
+}, error = function(e) rep(NA_real_, length(coef(mle0))))
 if (!any(is.na(se_vec))) {
   cat(sprintf("\n  SE(shape_1) = %.3f,  SE(shape_2) = %.3f\n",
               se_vec[1], se_vec[3]))

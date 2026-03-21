@@ -350,11 +350,16 @@ dat <- rdata_system(br, par = true_rates, family = "exponential", n = n)
 res <- fit_system(dat$t, br, family = "exponential", n_starts = 5)
 
 if (res$convergence == 0) {
+  se_vals <- if (length(res$se) == 5 && !all(is.na(res$se))) {
+    sort(res$se)
+  } else {
+    rep(NA_real_, 5)
+  }
   comp_df <- data.frame(
     component = 1:5,
     true_rate = sort(true_rates),
     estimated = sort(res$par),
-    se = sort(res$se)  # approximate: SEs are for unsorted parameters
+    se = se_vals
   )
   knitr::kable(comp_df, digits = 3,
                caption = "Bridge system estimation (n = 200, sorted)")

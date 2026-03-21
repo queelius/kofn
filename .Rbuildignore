@@ -2,3 +2,6 @@
 ^\.Rproj\.user$
 ^.*\.Rproj$
 ^LICENSE\.md$
+^vignettes/.*_cache$
+^\.claude$
+^docs$
