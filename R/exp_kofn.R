@@ -35,6 +35,13 @@
 #'   columns for lifetime, observation type, and candidate set indicators,
 #'   and `par` is a numeric vector of `m` component rates.
 #'
+#' @examples
+#' model <- kofn(k = 1, m = 3, family = "exponential")
+#' ll <- loglik(model)
+#' set.seed(1)
+#' df <- rdata(model)(c(1, 2, 3), n = 30)
+#' ll(df, c(1, 2, 3))
+#'
 #' @method loglik exp_kofn
 #' @export
 loglik.exp_kofn <- function(model, ...) {
@@ -133,6 +140,13 @@ loglik.exp_kofn <- function(model, ...) {
 #' @return A function `function(df, par)` returning a numeric vector of
 #'   length `m` (the score vector).
 #'
+#' @examples
+#' model <- kofn(k = 1, m = 2, family = "exponential")
+#' sc <- score(model)
+#' set.seed(1)
+#' df <- rdata(model)(c(1, 2), n = 30)
+#' sc(df, c(1, 2))  # gradient at true parameters
+#'
 #' @method score exp_kofn
 #' @export
 score.exp_kofn <- function(model, ...) {
@@ -163,6 +177,13 @@ score.exp_kofn <- function(model, ...) {
 #' @param model An `exp_kofn` object created by [kofn()].
 #' @param ... Additional arguments (ignored).
 #' @return A function `function(df, par)` returning an `m x m` Hessian matrix.
+#'
+#' @examples
+#' model <- kofn(k = 1, m = 2, family = "exponential")
+#' H <- hess_loglik(model)
+#' set.seed(1)
+#' df <- rdata(model)(c(1, 2), n = 30)
+#' H(df, c(1, 2))  # 2x2 Hessian matrix
 #'
 #' @method hess_loglik exp_kofn
 #' @export
@@ -203,6 +224,15 @@ hess_loglik.exp_kofn <- function(model, ...) {
 #'     \item{convergence}{Integer convergence code (0 = success).}
 #'     \item{fisher_info}{Observed Fisher information matrix (or NULL).}
 #'   }
+#'
+#' @examples
+#' \donttest{
+#' model <- kofn(k = 1, m = 2, family = "exponential")
+#' set.seed(42)
+#' df <- rdata(model)(c(1, 2), n = 50)
+#' result <- fit(model)(df)
+#' coef(result)
+#' }
 #'
 #' @method fit exp_kofn
 #' @export
@@ -255,6 +285,13 @@ fit.exp_kofn <- function(object, ...) {
 #'   returning a data frame with columns for lifetime, observation type,
 #'   and candidate set indicators. Latent component lifetimes, true critical
 #'   component, and the true parameters are stored as attributes.
+#'
+#' @examples
+#' model <- kofn(k = 1, m = 3, family = "exponential")
+#' gen <- rdata(model)
+#' set.seed(1)
+#' df <- gen(theta = c(1, 2, 3), n = 20)
+#' head(df)
 #'
 #' @method rdata exp_kofn
 #' @export
@@ -352,6 +389,10 @@ rdata.exp_kofn <- function(model, ...) {
 #' @param model An `exp_kofn` object created by [kofn()].
 #' @param ... Additional arguments (ignored).
 #' @return Character vector of assumptions.
+#'
+#' @examples
+#' model <- kofn(k = 1, m = 3, family = "exponential")
+#' assumptions(model)
 #'
 #' @method assumptions exp_kofn
 #' @export

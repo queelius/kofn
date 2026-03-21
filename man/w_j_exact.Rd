@@ -26,6 +26,11 @@ For component j with rate \eqn{\lambda_j} and other rates
 Uses the inclusion-exclusion expansion to express this as a finite sum
 of exponentials.
 }
+\examples{
+# Component 1 contribution at t = 0.5, rates = c(1, 2, 3)
+w_j_exact(0.5, c(1, 2, 3), j = 1)
+
+}
 \seealso{
 \code{\link[=w_j_integral]{w_j_integral()}} for the closed-form integral of \eqn{w_j}.
 }

@@ -18,6 +18,10 @@ Scalar survival probability \eqn{P(T_{sys} > t)}.
 Computes \eqn{S_{sys}(t) = 1 - F_{sys}(t)} for a parallel system with
 exponential components.
 }
+\examples{
+S_sys_exp(1, c(1, 2))  # P(T_sys > 1) for 2-component parallel
+
+}
 \seealso{
 \code{\link[=F_sys_exp]{F_sys_exp()}} for the CDF.
 }

@@ -27,3 +27,11 @@ expansion); use the exponential model or Scheme 1 for those cases.
 
 For general k, delegates to \code{\link[=loglik_system]{loglik_system()}} with \code{family = "weibull"}.
 }
+\examples{
+model <- kofn(k = 1, m = 2, family = "weibull")
+ll <- loglik(model)
+set.seed(1)
+df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)
+ll(df, c(1.5, 2.0, 2.0, 3.0))
+
+}

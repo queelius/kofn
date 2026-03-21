@@ -23,6 +23,11 @@ Computes \eqn{\int_a^b w_j(t)\, dt} in closed form using the
 inclusion-exclusion expansion. Each term integrates as:
 \deqn{\int_a^b e^{-r t}\, dt = \frac{e^{-ra} - e^{-rb}}{r}}
 }
+\examples{
+# Integral of w_1(t) from 0 to 1, rates = c(1, 2)
+w_j_integral(0, 1, c(1, 2), j = 1)
+
+}
 \seealso{
 \code{\link[=w_j_exact]{w_j_exact()}} for the pointwise evaluation.
 }

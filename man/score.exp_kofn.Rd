@@ -23,3 +23,11 @@ the log-likelihood with respect to the rate parameters.
 Uses numerical differentiation via \code{\link[numDeriv:grad]{numDeriv::grad()}} applied to the
 log-likelihood closure.
 }
+\examples{
+model <- kofn(k = 1, m = 2, family = "exponential")
+sc <- score(model)
+set.seed(1)
+df <- rdata(model)(c(1, 2), n = 30)
+sc(df, c(1, 2))  # gradient at true parameters
+
+}

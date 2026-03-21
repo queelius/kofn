@@ -71,6 +71,10 @@ ie_expand <- function(lam) {
 #' @param par Numeric vector of rates (length m), one per component.
 #' @param j Component index (integer, 1-based).
 #' @return Scalar value of \eqn{w_j(t)}.
+#' @examples
+#' # Component 1 contribution at t = 0.5, rates = c(1, 2, 3)
+#' w_j_exact(0.5, c(1, 2, 3), j = 1)
+#'
 #' @seealso [w_j_integral()] for the closed-form integral of \eqn{w_j}.
 #' @export
 w_j_exact <- function(t, par, j) {
@@ -92,6 +96,10 @@ w_j_exact <- function(t, par, j) {
 #' @param par Numeric vector of rates (length m).
 #' @param j Component index (integer, 1-based).
 #' @return Scalar integral value.
+#' @examples
+#' # Integral of w_1(t) from 0 to 1, rates = c(1, 2)
+#' w_j_integral(0, 1, c(1, 2), j = 1)
+#'
 #' @seealso [w_j_exact()] for the pointwise evaluation.
 #' @export
 w_j_integral <- function(a, b, par, j) {
@@ -117,6 +125,9 @@ w_j_integral <- function(a, b, par, j) {
 #' @param t Scalar time point (non-negative numeric).
 #' @param par Numeric vector of rates (length m).
 #' @return Scalar CDF value \eqn{P(T_{sys} \le t)}.
+#' @examples
+#' F_sys_exp(1, c(1, 2))  # P(T_sys <= 1) for 2-component parallel
+#'
 #' @seealso [S_sys_exp()] for the survival function.
 #' @export
 F_sys_exp <- function(t, par) {
@@ -133,6 +144,9 @@ F_sys_exp <- function(t, par) {
 #' @param t Scalar time point (non-negative numeric).
 #' @param par Numeric vector of rates (length m).
 #' @return Scalar survival probability \eqn{P(T_{sys} > t)}.
+#' @examples
+#' S_sys_exp(1, c(1, 2))  # P(T_sys > 1) for 2-component parallel
+#'
 #' @seealso [F_sys_exp()] for the CDF.
 #' @export
 S_sys_exp <- function(t, par) {

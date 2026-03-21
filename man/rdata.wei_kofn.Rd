@@ -12,18 +12,35 @@
 \item{...}{Additional arguments (currently unused).}
 }
 \value{
-A function \code{function(theta, n, observe = NULL)} returning a
-data frame with column \code{t} (system lifetimes). The data frame has
-attributes:
+A function \code{function(theta, n, tau = Inf, observe = NULL)}
+returning a data frame with columns \code{t} (system lifetimes) and
+\code{omega} (observation type: \code{"exact"} or \code{"right"}).
+Attributes:
 \describe{
 \item{\code{comp_times}}{n x m matrix of component lifetimes.}
 \item{\code{par}}{The parameter vector used for generation.}
 }
-If \code{observe} is provided (a function), it is applied to the data
-frame to add observation-scheme-specific columns (e.g., censoring).
 }
 \description{
-Returns a closure \code{function(theta, n, observe = NULL)} that generates
-system lifetime data. Component lifetimes are Weibull-distributed with
+Returns a closure that generates system lifetime data with observation
+scheme support. Component lifetimes are Weibull-distributed with
 parameters specified by \code{theta} (interleaved shape/scale).
+}
+\details{
+The interface matches \code{\link{rdata.exp_kofn}}: the returned closure
+accepts \code{tau} for right-censoring and \code{observe} for custom
+observation schemes. The output data frame includes an \code{omega}
+column indicating observation type.
+}
+\examples{
+model <- kofn(k = 1, m = 2, family = "weibull")
+gen <- rdata(model)
+set.seed(42)
+df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 50)
+head(df)
+
+# With right-censoring
+df_cens <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 50, tau = 3.0)
+table(df_cens$omega)
+
 }

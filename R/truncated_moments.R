@@ -41,6 +41,11 @@ NULL
 #' approximation \eqn{E[T^k | T < t] \approx t^k / (k/\alpha + 1)} is used
 #' to avoid numerical issues.
 #'
+#' @examples
+#' # E[T^2 | T < t] for Weibull(shape=2, scale=1) at t = 0.5, 1.0, 2.0
+#' v_max <- (c(0.5, 1.0, 2.0) / 1)^2
+#' trunc_pow_moment_vec(k = 2, v_max_vec = v_max, alpha = 2, beta = 1)
+#'
 #' @export
 trunc_pow_moment_vec <- function(k, v_max_vec, alpha, beta) {
   s <- k / alpha + 1
@@ -85,6 +90,10 @@ trunc_pow_moment_vec <- function(k, v_max_vec, alpha, beta) {
 #' @param beta Numeric scalar. Weibull scale parameter.
 #' @return Numeric scalar \eqn{E[T^k | T < t]}.
 #'
+#' @examples
+#' # E[T^1 | T < 2] for Weibull(shape=1.5, scale=1)
+#' trunc_pow_moment(k = 1, t = 2, alpha = 1.5, beta = 1)
+#'
 #' @seealso [trunc_pow_moment_vec()] for the vectorized version.
 #' @export
 trunc_pow_moment <- function(k, t, alpha, beta) {
@@ -116,6 +125,11 @@ trunc_pow_moment <- function(k, t, alpha, beta) {
 #' For large \eqn{v_{\max}} where numerical issues arise, the untruncated
 #' moment \eqn{E[\log T] = \log \beta + \psi(1)/\alpha} is used as fallback,
 #' where \eqn{\psi} is the digamma function.
+#'
+#' @examples
+#' # E[log T | T < t] for Weibull(shape=2, scale=1) at t = 0.5, 1.0, 2.0
+#' v_max <- (c(0.5, 1.0, 2.0) / 1)^2
+#' trunc_log_moment_vec(v_max_vec = v_max, alpha = 2, beta = 1)
 #'
 #' @export
 trunc_log_moment_vec <- function(v_max_vec, alpha, beta) {

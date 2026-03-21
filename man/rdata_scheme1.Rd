@@ -29,3 +29,11 @@ Returns a closure that generates parallel system data under periodic
 inspection. Each observation yields the exact system failure time and
 interval-censored component failure times.
 }
+\examples{
+model <- kofn(k = 1, m = 2, family = "exponential")
+gen <- rdata_scheme1(model)
+set.seed(1)
+df <- gen(theta = c(1, 2), n = 20, delta = 1.0)
+head(df)
+
+}

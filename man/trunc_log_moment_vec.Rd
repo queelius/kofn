@@ -35,3 +35,9 @@ For large \eqn{v_{\max}} where numerical issues arise, the untruncated
 moment \eqn{E[\log T] = \log \beta + \psi(1)/\alpha} is used as fallback,
 where \eqn{\psi} is the digamma function.
 }
+\examples{
+# E[log T | T < t] for Weibull(shape=2, scale=1) at t = 0.5, 1.0, 2.0
+v_max <- (c(0.5, 1.0, 2.0) / 1)^2
+trunc_log_moment_vec(v_max_vec = v_max, alpha = 2, beta = 1)
+
+}

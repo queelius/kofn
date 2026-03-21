@@ -31,6 +31,14 @@ status (\code{"exact"}, \code{"left"}, or \code{"right"}).}
 Simulates component lifetimes from the specified distributions, computes
 system lifetimes, and records per-component censoring status.
 }
+\examples{
+sys <- parallel_system(3)
+set.seed(1)
+df <- rdata_system(sys, par = c(1, 2, 3), n = 20)
+head(df)
+attr(df, "critical")  # which component was critical
+
+}
 \seealso{
 \code{\link[=fit_system]{fit_system()}} for estimation, \code{\link[=loglik_system]{loglik_system()}} for the
 log-likelihood.

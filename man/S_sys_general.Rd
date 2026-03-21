@@ -26,6 +26,12 @@ Computes \eqn{P(T_{sys} > t)} by summing over all \eqn{2^m} state vectors:
 This is exact for any coherent system and any component distributions.
 Computational cost is \eqn{O(2^m)} per time point.
 }
+\examples{
+sys <- parallel_system(2)
+dists <- list(exp_dist(1), exp_dist(2))
+S_sys_general(c(0.5, 1.0, 2.0), sys, dists)
+
+}
 \seealso{
 \code{\link[=f_sys_general]{f_sys_general()}} for the density.
 }

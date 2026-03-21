@@ -19,3 +19,11 @@ A function \code{function(df, par)} returning a numeric vector
 Returns a closure that computes the score (gradient of log-likelihood)
 via numerical differentiation using \code{numDeriv::grad}.
 }
+\examples{
+model <- kofn(k = 1, m = 2, family = "weibull")
+sc <- score(model)
+set.seed(1)
+df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)
+sc(df, c(1.5, 2.0, 2.0, 3.0))
+
+}

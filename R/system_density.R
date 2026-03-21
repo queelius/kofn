@@ -30,6 +30,11 @@
 #' @param dists List of m distribution objects (one per component), each as
 #'   returned by [exp_dist()] or [weibull_dist()].
 #' @return Numeric vector of survival probabilities at each `t`.
+#' @examples
+#' sys <- parallel_system(2)
+#' dists <- list(exp_dist(1), exp_dist(2))
+#' S_sys_general(c(0.5, 1.0, 2.0), sys, dists)
+#'
 #' @seealso [f_sys_general()] for the density.
 #' @export
 S_sys_general <- function(t, system, dists) {
@@ -82,6 +87,11 @@ S_sys_general <- function(t, system, dists) {
 #' @param system A [coherent_system] object.
 #' @param dists List of m distribution objects (one per component).
 #' @return Numeric vector of density values at each `t`.
+#' @examples
+#' sys <- parallel_system(2)
+#' dists <- list(exp_dist(1), exp_dist(2))
+#' f_sys_general(c(0.5, 1.0, 2.0), sys, dists)
+#'
 #' @seealso [S_sys_general()] for the survival function.
 #' @export
 f_sys_general <- function(t, system, dists) {
@@ -152,6 +162,12 @@ f_sys_general <- function(t, system, dists) {
 #'   interleaved shape/scale for `"weibull"`).
 #' @param family Character: `"exponential"` or `"weibull"`.
 #' @return Scalar log-likelihood value, or `-Inf` if parameters are invalid.
+#' @examples
+#' sys <- parallel_system(2)
+#' set.seed(1)
+#' df <- rdata_system(sys, par = c(1, 2), n = 30)
+#' loglik_system(df$t, sys, par = c(1, 2))
+#'
 #' @seealso [fit_system()] for MLE, [rdata_system()] for data generation.
 #' @export
 loglik_system <- function(t_obs, system, par, family = "exponential") {
@@ -187,6 +203,15 @@ loglik_system <- function(t_obs, system, par, family = "exponential") {
 #'   backward-compatible fields \code{convergence} (integer, 0 = success)
 #'   and \code{se} (standard errors). Supports \code{coef()}, \code{vcov()},
 #'   \code{logLik()}, \code{AIC()}, \code{confint()}, \code{summary()}.
+#' @examples
+#' \donttest{
+#' sys <- parallel_system(2)
+#' set.seed(42)
+#' df <- rdata_system(sys, par = c(1, 2), n = 50)
+#' result <- fit_system(df$t, sys)
+#' coef(result)
+#' }
+#'
 #' @seealso [loglik_system()] for the log-likelihood,
 #'   [rdata_system()] for data generation.
 #' @export
@@ -253,6 +278,13 @@ fit_system <- function(t_obs, system, family = "exponential",
 #'       status (`"exact"`, `"left"`, or `"right"`).}
 #'     \item{par}{The parameter vector used for generation.}
 #'   }
+#' @examples
+#' sys <- parallel_system(3)
+#' set.seed(1)
+#' df <- rdata_system(sys, par = c(1, 2, 3), n = 20)
+#' head(df)
+#' attr(df, "critical")  # which component was critical
+#'
 #' @seealso [fit_system()] for estimation, [loglik_system()] for the
 #'   log-likelihood.
 #' @export

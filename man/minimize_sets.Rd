@@ -17,3 +17,8 @@ Given a list of integer vectors, removes any set that is a proper superset
 of another set in the list. Used internally for minimizing path and cut
 set collections.
 }
+\examples{
+minimize_sets(list(c(1,2), c(1,2,3), c(2,3)))
+# Returns list(c(1,2), c(2,3)) -- the superset c(1,2,3) is removed
+
+}

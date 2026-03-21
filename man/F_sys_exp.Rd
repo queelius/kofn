@@ -18,6 +18,10 @@ Scalar CDF value \eqn{P(T_{sys} \le t)}.
 Computes \eqn{F_{sys}(t) = \prod_j (1 - e^{-\lambda_j t})} using the
 inclusion-exclusion expansion.
 }
+\examples{
+F_sys_exp(1, c(1, 2))  # P(T_sys <= 1) for 2-component parallel
+
+}
 \seealso{
 \code{\link[=S_sys_exp]{S_sys_exp()}} for the survival function.
 }

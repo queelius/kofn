@@ -145,6 +145,9 @@ print.kofn <- function(x, ...) {
 #' @param model A model object.
 #' @param ... Additional arguments (currently ignored).
 #' @return Integer number of components.
+#' @examples
+#' ncomponents(kofn(k = 1, m = 4))  # 4
+#'
 #' @export
 ncomponents <- function(model, ...) UseMethod("ncomponents")
 

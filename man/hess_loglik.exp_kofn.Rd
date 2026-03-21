@@ -22,3 +22,11 @@ of the log-likelihood with respect to the rate parameters.
 Uses numerical differentiation via \code{\link[numDeriv:hessian]{numDeriv::hessian()}} applied to the
 log-likelihood closure.
 }
+\examples{
+model <- kofn(k = 1, m = 2, family = "exponential")
+H <- hess_loglik(model)
+set.seed(1)
+df <- rdata(model)(c(1, 2), n = 30)
+H(df, c(1, 2))  # 2x2 Hessian matrix
+
+}

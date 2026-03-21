@@ -36,3 +36,9 @@ For very small \eqn{v_{\max}} (below \code{1e-12}), the asymptotic
 approximation \eqn{E[T^k | T < t] \approx t^k / (k/\alpha + 1)} is used
 to avoid numerical issues.
 }
+\examples{
+# E[T^2 | T < t] for Weibull(shape=2, scale=1) at t = 0.5, 1.0, 2.0
+v_max <- (c(0.5, 1.0, 2.0) / 1)^2
+trunc_pow_moment_vec(k = 2, v_max_vec = v_max, alpha = 2, beta = 1)
+
+}

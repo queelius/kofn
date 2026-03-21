@@ -22,6 +22,11 @@ Numeric scalar \eqn{E[T^k | T < t]}.
 Convenience wrapper around \code{\link[=trunc_pow_moment_vec]{trunc_pow_moment_vec()}} for a single truncation
 point. Computes \eqn{E[T^k | T < t]} for \eqn{T \sim \text{Weibull}(\alpha, \beta)}.
 }
+\examples{
+# E[T^1 | T < 2] for Weibull(shape=1.5, scale=1)
+trunc_pow_moment(k = 1, t = 2, alpha = 1.5, beta = 1)
+
+}
 \seealso{
 \code{\link[=trunc_pow_moment_vec]{trunc_pow_moment_vec()}} for the vectorized version.
 }

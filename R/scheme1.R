@@ -44,6 +44,13 @@
 #'   The data frame has attributes \code{comp_times} (true component times),
 #'   \code{delta} (inspection interval), and \code{par} (true parameters).
 #'
+#' @examples
+#' model <- kofn(k = 1, m = 2, family = "exponential")
+#' gen <- rdata_scheme1(model)
+#' set.seed(1)
+#' df <- gen(theta = c(1, 2), n = 20, delta = 1.0)
+#' head(df)
+#'
 #' @export
 rdata_scheme1 <- function(model, ...) {
   m <- model$m
@@ -113,6 +120,13 @@ rdata_scheme1 <- function(model, ...) {
 #' \eqn{[a_{ij}^-, a_{ij}^+)} is the inspection interval containing
 #' component j's failure time.
 #'
+#' @examples
+#' model <- kofn(k = 1, m = 2, family = "exponential")
+#' ll <- loglik_scheme1(model)
+#' set.seed(1)
+#' df <- rdata_scheme1(model)(c(1, 2), n = 30, delta = 1.0)
+#' ll(df, c(1, 2))
+#'
 #' @export
 loglik_scheme1 <- function(model, ...) {
   m <- model$m
@@ -178,6 +192,15 @@ loglik_scheme1 <- function(model, ...) {
 #' scale if L-BFGS-B fails to converge.
 #'
 #' Standard errors are computed from the numerical Hessian at the MLE.
+#'
+#' @examples
+#' \donttest{
+#' model <- kofn(k = 1, m = 2, family = "exponential")
+#' set.seed(42)
+#' df <- rdata_scheme1(model)(c(1, 2), n = 50, delta = 1.0)
+#' result <- fit_scheme1(model)(df)
+#' coef(result)
+#' }
 #'
 #' @export
 fit_scheme1 <- function(model, ...) {

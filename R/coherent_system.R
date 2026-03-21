@@ -25,6 +25,10 @@
 #'
 #' @param sets List of integer vectors.
 #' @return List of integer vectors containing only minimal elements.
+#' @examples
+#' minimize_sets(list(c(1,2), c(1,2,3), c(2,3)))
+#' # Returns list(c(1,2), c(2,3)) -- the superset c(1,2,3) is removed
+#'
 #' @export
 minimize_sets <- function(sets) {
   n <- length(sets)
@@ -62,6 +66,13 @@ minimize_sets <- function(sets) {
 #' @param m Number of components (optional; not used but accepted for
 #'   compatibility).
 #' @return List of integer vectors representing minimal cut sets.
+#' @examples
+#' # Parallel system: paths = {{1},{2},{3}}, cuts = {{1,2,3}}
+#' min_cuts_from_paths(list(1L, 2L, 3L))
+#'
+#' # Series system: paths = {{1,2,3}}, cuts = {{1},{2},{3}}
+#' min_cuts_from_paths(list(c(1L, 2L, 3L)))
+#'
 #' @export
 min_cuts_from_paths <- function(min_paths, m = NULL) {
   if (length(min_paths) == 0L) return(list())
@@ -147,6 +158,9 @@ coherent_system <- function(min_paths, m = NULL) {
 #' @param x A `coherent_system` object.
 #' @param ... Additional arguments (ignored).
 #' @return Invisibly returns `x`.
+#' @examples
+#' print(bridge_system())
+#'
 #' @export
 print.coherent_system <- function(x, ...) {
   cat(sprintf("Coherent system: m=%d components\n", x$m))
@@ -284,6 +298,10 @@ bridge_system <- function() {
 #'
 #' @param system A `coherent_system` object.
 #' @return List of integer vectors representing minimal cut sets.
+#' @examples
+#' sys <- kofn_system(2, 3)
+#' min_cuts(sys)  # each cut set is a pair
+#'
 #' @export
 min_cuts <- function(system) {
   stopifnot(inherits(system, "coherent_system"))
@@ -421,6 +439,11 @@ system_censoring <- function(system, times) {
 #' @return A logical matrix with \eqn{m-1} columns (one per component other
 #'   than j). Each row is a state vector making j critical. Column names are
 #'   `"comp1"`, `"comp2"`, etc. (excluding j).
+#' @examples
+#' sys <- parallel_system(3)
+#' critical_states(sys, 1)
+#' # Component 1 is critical when both others have failed
+#'
 #' @export
 critical_states <- function(system, j) {
   stopifnot(inherits(system, "coherent_system"))

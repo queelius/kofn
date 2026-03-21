@@ -31,3 +31,13 @@ Uses multi-start optimization with L-BFGS-B as primary solver and
 Nelder-Mead on the log-scale as fallback. Standard errors are computed
 from the observed Fisher information (negative Hessian) at the MLE.
 }
+\examples{
+\donttest{
+model <- kofn(k = 1, m = 2, family = "exponential")
+set.seed(42)
+df <- rdata(model)(c(1, 2), n = 50)
+result <- fit(model)(df)
+coef(result)
+}
+
+}

@@ -433,20 +433,29 @@ test_that("rdata.wei_kofn works for general k", {
   expect_true(all(df$t > 0))
 })
 
-test_that("rdata.wei_kofn with observe function", {
+test_that("rdata.wei_kofn with custom observe functor", {
   model <- kofn(k = 1, m = 2, family = "weibull")
   gen <- rdata(model)
   set.seed(42)
 
-  # Custom observe function that adds an omega column
-  add_omega <- function(df) {
-    df$omega <- "exact"
-    df
-  }
-
-  df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 30, observe = add_omega)
+  # Use interval observation scheme (per-observation functor)
+  df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 30,
+            observe = observe_scheme1(delta = 1.0))
   expect_true("omega" %in% names(df))
-  expect_true(all(df$omega == "exact"))
+  expect_true(all(df$omega %in% c("interval", "right")))
+})
+
+test_that("rdata.wei_kofn with tau produces right-censored data", {
+  model <- kofn(k = 1, m = 2, family = "weibull")
+  gen <- rdata(model)
+  set.seed(42)
+  df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 100, tau = 2.0)
+
+  expect_true("omega" %in% names(df))
+  expect_true(any(df$omega == "right"))
+  expect_true(any(df$omega == "exact"))
+  # All right-censored obs should have t = tau
+  expect_true(all(df$t[df$omega == "right"] == 2.0))
 })
 
 test_that("rdata.wei_kofn validates parameter length", {

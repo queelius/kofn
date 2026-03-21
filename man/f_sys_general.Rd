@@ -25,6 +25,12 @@ Computes the system failure density:
 Uses \code{\link[=critical_states]{critical_states()}} to identify pivotal states for each component.
 Computational cost is \eqn{O(m \cdot 2^{m-1})} per time point.
 }
+\examples{
+sys <- parallel_system(2)
+dists <- list(exp_dist(1), exp_dist(2))
+f_sys_general(c(0.5, 1.0, 2.0), sys, dists)
+
+}
 \seealso{
 \code{\link[=S_sys_general]{S_sys_general()}} for the survival function.
 }

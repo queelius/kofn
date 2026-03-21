@@ -31,6 +31,16 @@ system-level failure time observations (Scheme 0). Uses L-BFGS-B as the
 primary optimizer with a Nelder-Mead (log-scale) fallback. Standard errors
 are computed from the observed Fisher information via \code{numDeriv::hessian}.
 }
+\examples{
+\donttest{
+sys <- parallel_system(2)
+set.seed(42)
+df <- rdata_system(sys, par = c(1, 2), n = 50)
+result <- fit_system(df$t, sys)
+coef(result)
+}
+
+}
 \seealso{
 \code{\link[=loglik_system]{loglik_system()}} for the log-likelihood,
 \code{\link[=rdata_system]{rdata_system()}} for data generation.

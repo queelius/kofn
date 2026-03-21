@@ -88,6 +88,14 @@ safe_hessian_det <- function(neg_ll, par) {
 #' via \code{numDeriv::hessian} of the negative log-likelihood evaluated
 #' at the true parameter values.
 #'
+#' @examples
+#' \donttest{
+#' set.seed(1)
+#' result <- compare_fisher_info(rates = c(1, 2), n = 50, delta = 1.0, n_rep = 5)
+#' result$median_det
+#' result$efficiency_01  # Scheme 0 vs Scheme 1
+#' }
+#'
 #' @importFrom numDeriv hessian
 #' @export
 compare_fisher_info <- function(shapes = NULL, scales = NULL, rates = NULL,

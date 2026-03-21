@@ -94,6 +94,13 @@ weibull_f_sys <- function(t, shapes, scales) {
 #' @param ... Additional arguments (currently unused).
 #' @return A function \code{function(df, par)} returning a scalar log-likelihood.
 #'
+#' @examples
+#' model <- kofn(k = 1, m = 2, family = "weibull")
+#' ll <- loglik(model)
+#' set.seed(1)
+#' df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)
+#' ll(df, c(1.5, 2.0, 2.0, 3.0))
+#'
 #' @export
 loglik.wei_kofn <- function(model, ...) {
   m <- model$m
@@ -161,6 +168,13 @@ loglik.wei_kofn <- function(model, ...) {
 #' @return A function \code{function(df, par)} returning a numeric vector
 #'   (the gradient of the log-likelihood).
 #'
+#' @examples
+#' model <- kofn(k = 1, m = 2, family = "weibull")
+#' sc <- score(model)
+#' set.seed(1)
+#' df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)
+#' sc(df, c(1.5, 2.0, 2.0, 3.0))
+#'
 #' @importFrom numDeriv grad
 #' @export
 score.wei_kofn <- function(model, ...) {
@@ -185,6 +199,13 @@ score.wei_kofn <- function(model, ...) {
 #' @param ... Additional arguments (currently unused).
 #' @return A function \code{function(df, par)} returning a square matrix
 #'   (the Hessian of the log-likelihood).
+#'
+#' @examples
+#' model <- kofn(k = 1, m = 2, family = "weibull")
+#' H <- hess_loglik(model)
+#' set.seed(1)
+#' df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)
+#' H(df, c(1.5, 2.0, 2.0, 3.0))  # 4x4 Hessian matrix
 #'
 #' @importFrom numDeriv hessian
 #' @export
@@ -230,6 +251,15 @@ hess_loglik.wei_kofn <- function(model, ...) {
 #'   \item{\code{shape_bounds}}{Bounds for shape optimization in EM (default:
 #'     \code{c(0.05, 15)}).}
 #'   \item{\code{verbose}}{Print iteration progress (default: FALSE).}
+#' }
+#'
+#' @examples
+#' \donttest{
+#' model <- kofn(k = 1, m = 2, family = "weibull")
+#' set.seed(42)
+#' df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 50)
+#' result <- fit(model)(df)
+#' coef(result)
 #' }
 #'
 #' @export
@@ -489,21 +519,36 @@ mle_solver <- function(model, ll_fn, ...) {
 
 #' Generate random data from a Weibull k-out-of-n system
 #'
-#' Returns a closure \code{function(theta, n, observe = NULL)} that generates
-#' system lifetime data. Component lifetimes are Weibull-distributed with
+#' Returns a closure that generates system lifetime data with observation
+#' scheme support. Component lifetimes are Weibull-distributed with
 #' parameters specified by \code{theta} (interleaved shape/scale).
+#'
+#' The interface matches \code{\link{rdata.exp_kofn}}: the returned closure
+#' accepts \code{tau} for right-censoring and \code{observe} for custom
+#' observation schemes. The output data frame includes an \code{omega}
+#' column indicating observation type.
 #'
 #' @param model A \code{wei_kofn} object.
 #' @param ... Additional arguments (currently unused).
-#' @return A function \code{function(theta, n, observe = NULL)} returning a
-#'   data frame with column \code{t} (system lifetimes). The data frame has
-#'   attributes:
+#' @return A function \code{function(theta, n, tau = Inf, observe = NULL)}
+#'   returning a data frame with columns \code{t} (system lifetimes) and
+#'   \code{omega} (observation type: \code{"exact"} or \code{"right"}).
+#'   Attributes:
 #'   \describe{
 #'     \item{\code{comp_times}}{n x m matrix of component lifetimes.}
 #'     \item{\code{par}}{The parameter vector used for generation.}
 #'   }
-#'   If \code{observe} is provided (a function), it is applied to the data
-#'   frame to add observation-scheme-specific columns (e.g., censoring).
+#'
+#' @examples
+#' model <- kofn(k = 1, m = 2, family = "weibull")
+#' gen <- rdata(model)
+#' set.seed(42)
+#' df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 50)
+#' head(df)
+#'
+#' # With right-censoring
+#' df_cens <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 50, tau = 3.0)
+#' table(df_cens$omega)
 #'
 #' @export
 rdata.wei_kofn <- function(model, ...) {
@@ -511,8 +556,9 @@ rdata.wei_kofn <- function(model, ...) {
   k <- model$k
   system <- model$system
   lt <- model$lifetime
+  om <- model$omega
 
-  function(theta, n, observe = NULL) {
+  function(theta, n, tau = Inf, observe = NULL) {
     stopifnot(length(theta) == 2L * m)
     pp <- parse_params(theta, m, "weibull")
     shapes <- pp$shapes
@@ -528,23 +574,30 @@ rdata.wei_kofn <- function(model, ...) {
 
     # Compute system lifetimes
     if (isTRUE(k == 1L)) {
-      # Parallel: T = max
       sys_times <- apply(comp_times, 1, max)
     } else {
-      # General k-out-of-n: use system_lifetime via cut sets
       sys_times <- vapply(seq_len(n), function(i) {
         system_lifetime(system, comp_times[i, ])
       }, numeric(1))
     }
 
-    df <- data.frame(sys_times)
-    names(df) <- lt
+    # Apply observation functor (default: right-censoring at tau)
+    if (is.null(observe)) {
+      observe <- observe_scheme0(tau)
+    }
+
+    obs_t      <- numeric(n)
+    omega_vals <- character(n)
+    for (i in seq_len(n)) {
+      obs <- observe(sys_times[i])
+      obs_t[i]      <- obs$t
+      omega_vals[i] <- obs$omega
+    }
+
+    df <- data.frame(obs_t, omega_vals, stringsAsFactors = FALSE)
+    names(df) <- c(lt, om)
     attr(df, "comp_times") <- comp_times
     attr(df, "par") <- theta
-
-    if (!is.null(observe)) {
-      df <- observe(df)
-    }
 
     df
   }
@@ -562,6 +615,10 @@ rdata.wei_kofn <- function(model, ...) {
 #' @param model A \code{wei_kofn} object.
 #' @param ... Additional arguments (currently unused).
 #' @return A character vector of assumptions.
+#'
+#' @examples
+#' model <- kofn(k = 1, m = 2, family = "weibull")
+#' assumptions(model)
 #'
 #' @export
 assumptions.wei_kofn <- function(model, ...) {

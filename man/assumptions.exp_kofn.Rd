@@ -18,3 +18,8 @@ Character vector of assumptions.
 Returns a character vector listing the assumptions made by the
 exponential k-out-of-n likelihood model.
 }
+\examples{
+model <- kofn(k = 1, m = 3, family = "exponential")
+assumptions(model)
+
+}

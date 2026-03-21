@@ -17,3 +17,7 @@ Invisibly returns \code{x}.
 \description{
 Print method for coherent_system objects
 }
+\examples{
+print(bridge_system())
+
+}

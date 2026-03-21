@@ -40,3 +40,13 @@ shape/scale). If \code{NULL}, method-of-moments initialization is used.}
 \item{\code{verbose}}{Print iteration progress (default: FALSE).}
 }
 }
+\examples{
+\donttest{
+model <- kofn(k = 1, m = 2, family = "weibull")
+set.seed(42)
+df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 50)
+result <- fit(model)(df)
+coef(result)
+}
+
+}

@@ -15,3 +15,8 @@ List of integer vectors representing minimal cut sets.
 \description{
 Get minimal cut sets from a coherent system
 }
+\examples{
+sys <- kofn_system(2, 3)
+min_cuts(sys)  # each cut set is a pair
+
+}

@@ -24,6 +24,13 @@ Computes the log-likelihood \eqn{\ell(\theta) = \sum_i \log f_{sys}(t_i;
 \theta)} for observed system lifetimes under Scheme 0, where only the
 system failure time is observed.
 }
+\examples{
+sys <- parallel_system(2)
+set.seed(1)
+df <- rdata_system(sys, par = c(1, 2), n = 30)
+loglik_system(df$t, sys, par = c(1, 2))
+
+}
 \seealso{
 \code{\link[=fit_system]{fit_system()}} for MLE, \code{\link[=rdata_system]{rdata_system()}} for data generation.
 }

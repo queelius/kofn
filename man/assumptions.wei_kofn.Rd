@@ -17,3 +17,8 @@ A character vector of assumptions.
 \description{
 Returns a list of assumptions made by the model.
 }
+\examples{
+model <- kofn(k = 1, m = 2, family = "weibull")
+assumptions(model)
+
+}

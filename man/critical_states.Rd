@@ -25,3 +25,9 @@ other than j) such that component j is critical:
 That is, j is the pivotal component -- flipping its state changes the
 system state.
 }
+\examples{
+sys <- parallel_system(3)
+critical_states(sys, 1)
+# Component 1 is critical when both others have failed
+
+}

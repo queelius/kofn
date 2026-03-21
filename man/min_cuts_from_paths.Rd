@@ -24,3 +24,11 @@ Algorithm: iterative construction -- start with the empty set and for each
 path set P, replace each partial transversal T with
 \eqn{\{T \cup \{p\} : p \in P\}}{T union {p} : p in P}, then minimize.
 }
+\examples{
+# Parallel system: paths = {{1},{2},{3}}, cuts = {{1,2,3}}
+min_cuts_from_paths(list(1L, 2L, 3L))
+
+# Series system: paths = {{1,2,3}}, cuts = {{1},{2},{3}}
+min_cuts_from_paths(list(c(1L, 2L, 3L)))
+
+}

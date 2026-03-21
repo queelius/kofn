@@ -19,3 +19,11 @@ A function \code{function(df, par)} returning a square matrix
 Returns a closure that computes the Hessian matrix of the log-likelihood
 via numerical differentiation using \code{numDeriv::hessian}.
 }
+\examples{
+model <- kofn(k = 1, m = 2, family = "weibull")
+H <- hess_loglik(model)
+set.seed(1)
+df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)
+H(df, c(1.5, 2.0, 2.0, 3.0))  # 4x4 Hessian matrix
+
+}
