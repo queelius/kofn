@@ -199,7 +199,7 @@ test_that("exponential MLE converges with heavy right-censoring", {
   gen <- rdata(model)
   set.seed(42)
   # tau=1.0 with rates 0.5, 0.3 means most systems survive past tau
-  df <- gen(theta = c(0.5, 0.3), n = 200, tau = 1.0)
+  df <- gen(theta = c(0.5, 0.3), n = 200, observe = observe_right_censor(tau = 1.0))
 
   pct_censored <- mean(df$omega == "right")
   expect_true(pct_censored > 0.3)  # should have substantial censoring
@@ -429,8 +429,8 @@ test_that("multistart_mle detects degenerate convergence", {
 test_that("mixed observation scheme data generates valid observations", {
   set.seed(42)
   obs <- observe_mixture(
-    observe_scheme0(tau = 5),
-    observe_scheme1(delta = 1.0, tau = 5),
+    observe_right_censor(tau = 5),
+    observe_periodic(delta = 1.0, tau = 5),
     weights = c(0.5, 0.5)
   )
 

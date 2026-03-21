@@ -4,32 +4,28 @@
 \alias{observe_right_censor}
 \title{Right-censoring observation scheme}
 \usage{
-observe_right_censor(tau)
+observe_right_censor(tau = Inf)
 }
 \arguments{
-\item{tau}{Censoring time (positive numeric).}
+\item{tau}{Censoring time (positive numeric, or \code{Inf} for no
+censoring).}
 }
 \value{
-Observation functor: a function with signature
-\code{function(t_true)} returning a list with components:
-\describe{
-\item{t}{observed time}
-\item{omega}{\code{"exact"} or \code{"right"}}
-\item{t_upper}{\code{NA} (not used)}
-}
+Observation functor: \code{function(t_true)} returning a list
+with \code{t}, \code{omega} (\code{"exact"} or \code{"right"}), and
+\code{t_upper} (\code{NA}).
 }
 \description{
 Creates an observation functor that applies right-censoring at time
 \code{tau}. Systems that fail before \code{tau} are observed exactly;
 systems surviving past \code{tau} are right-censored.
 }
-\details{
-This is a convenience alias: functionally identical to
-\code{\link{observe_scheme0}}, but uses the traditional censoring
-terminology rather than the scheme hierarchy.
-}
 \examples{
 obs <- observe_right_censor(tau = 100)
-obs(50)   # exact: list(t = 50, omega = "exact", t_upper = NA)
-obs(150)  # right: list(t = 100, omega = "right", t_upper = NA)
+obs(50)   # exact:  list(t = 50, omega = "exact", t_upper = NA)
+obs(150)  # right:  list(t = 100, omega = "right", t_upper = NA)
+
+# No censoring
+obs_all <- observe_right_censor(tau = Inf)
+obs_all(999)  # exact: list(t = 999, omega = "exact", t_upper = NA)
 }

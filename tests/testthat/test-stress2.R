@@ -440,7 +440,7 @@ test_that("rdata.wei_kofn with custom observe functor", {
 
   # Use interval observation scheme (per-observation functor)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 30,
-            observe = observe_scheme1(delta = 1.0))
+            observe = observe_periodic(delta = 1.0))
   expect_true("omega" %in% names(df))
   expect_true(all(df$omega %in% c("interval", "right")))
 })
@@ -449,7 +449,7 @@ test_that("rdata.wei_kofn with tau produces right-censored data", {
   model <- kofn(k = 1, m = 2, family = "weibull")
   gen <- rdata(model)
   set.seed(42)
-  df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 100, tau = 2.0)
+  df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 100, observe = observe_right_censor(tau = 2.0))
 
   expect_true("omega" %in% names(df))
   expect_true(any(df$omega == "right"))

@@ -12,7 +12,7 @@
 \item{...}{Additional arguments (ignored).}
 }
 \value{
-A function \verb{function(theta, n, tau = Inf, p = 0, observe = NULL)}
+A function \verb{function(theta, n, p = 0, observe = NULL)}
 returning a data frame with columns for lifetime, observation type,
 and candidate set indicators. Latent component lifetimes, true critical
 component, and the true parameters are stored as attributes.
@@ -27,7 +27,7 @@ Workflow:
 \item Generate i.i.d. exponential component lifetimes.
 \item Compute system lifetime via the coherent system structure function.
 \item Identify the critical component (argmax within the binding cut set).
-\item Apply the observation functor (right-censoring by default).
+\item Apply the observation functor (exact observation by default).
 \item Generate candidate sets satisfying conditions C1/C2/C3.
 }
 }
@@ -37,5 +37,9 @@ gen <- rdata(model)
 set.seed(1)
 df <- gen(theta = c(1, 2, 3), n = 20)
 head(df)
+
+# With right-censoring
+df2 <- gen(c(1, 2, 3), n = 20, observe = observe_right_censor(tau = 2))
+table(df2$omega)
 
 }

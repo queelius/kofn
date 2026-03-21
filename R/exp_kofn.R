@@ -276,12 +276,12 @@ fit.exp_kofn <- function(object, ...) {
 #' 1. Generate i.i.d. exponential component lifetimes.
 #' 2. Compute system lifetime via the coherent system structure function.
 #' 3. Identify the critical component (argmax within the binding cut set).
-#' 4. Apply the observation functor (right-censoring by default).
+#' 4. Apply the observation functor (exact observation by default).
 #' 5. Generate candidate sets satisfying conditions C1/C2/C3.
 #'
 #' @param model An `exp_kofn` object created by [kofn()].
 #' @param ... Additional arguments (ignored).
-#' @return A function `function(theta, n, tau = Inf, p = 0, observe = NULL)`
+#' @return A function `function(theta, n, p = 0, observe = NULL)`
 #'   returning a data frame with columns for lifetime, observation type,
 #'   and candidate set indicators. Latent component lifetimes, true critical
 #'   component, and the true parameters are stored as attributes.
@@ -293,6 +293,10 @@ fit.exp_kofn <- function(object, ...) {
 #' df <- gen(theta = c(1, 2, 3), n = 20)
 #' head(df)
 #'
+#' # With right-censoring
+#' df2 <- gen(c(1, 2, 3), n = 20, observe = observe_right_censor(tau = 2))
+#' table(df2$omega)
+#'
 #' @method rdata exp_kofn
 #' @export
 rdata.exp_kofn <- function(model, ...) {
@@ -303,7 +307,7 @@ rdata.exp_kofn <- function(model, ...) {
   cs    <- model$candset
   lt_up <- model$lifetime_upper
 
-  function(theta, n, tau = Inf, p = 0, observe = NULL) {
+  function(theta, n, p = 0, observe = NULL) {
     if (length(theta) != m) {
       stop(sprintf("theta has length %d but model has %d components",
                    length(theta), m))
@@ -326,9 +330,9 @@ rdata.exp_kofn <- function(model, ...) {
       critical_comp[i]    <- cinfo$critical
     }
 
-    # 3. Default observation functor: right-censoring at tau
+    # 3. Apply observation functor (default: exact, no censoring)
     if (is.null(observe)) {
-      observe <- observe_scheme0(tau)
+      observe <- observe_exact()
     }
 
     # 4. Apply observation mechanism

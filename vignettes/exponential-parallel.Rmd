@@ -437,14 +437,14 @@ recorded.  Each functor maps a true system lifetime to an observed record
 
 ## Scheme 0: System lifetime with right-censoring
 
-`observe_scheme0(tau)` is the default: systems failing before $\tau$ are
+`observe_right_censor(tau)` is the default: systems failing before $\tau$ are
 observed exactly, and those surviving past $\tau$ are right-censored.
 
 ```{r observe-scheme0}
 # Different censoring times
-obs_light <- observe_scheme0(tau = 20)   # Light censoring
-obs_heavy <- observe_scheme0(tau = 5)    # Heavy censoring
-obs_none  <- observe_scheme0()           # No censoring (tau = Inf)
+obs_light <- observe_right_censor(tau = 20)   # Light censoring
+obs_heavy <- observe_right_censor(tau = 5)    # Heavy censoring
+obs_none  <- observe_right_censor()           # No censoring (tau = Inf)
 
 # Example: system fails at t = 8
 obs_light(8)   # exact
@@ -468,7 +468,7 @@ cat(sprintf("%-8s  %6s  %10s  %10s  %10s\n",
 cat(strrep("-", 56), "\n")
 
 for (tau in tau_values) {
-  obs_fn <- if (is.finite(tau)) observe_scheme0(tau) else NULL
+  obs_fn <- if (is.finite(tau)) observe_right_censor(tau) else NULL
   df_tau <- gen(theta = theta_true, n = 100,
                 p = 1, observe = obs_fn)
   n_right <- sum(df_tau$omega == "right")
@@ -489,12 +489,12 @@ for (tau in tau_values) {
 
 ## Scheme 1: Periodic inspection
 
-Under `observe_scheme1(delta, tau)`, the system is inspected at times
+Under `observe_periodic(delta, tau)`, the system is inspected at times
 $\delta, 2\delta, 3\delta, \ldots$  The failure time is known only to lie
 within the inspection interval containing it (interval-censored).
 
 ```{r observe-scheme1}
-obs_periodic <- observe_scheme1(delta = 2, tau = 30)
+obs_periodic <- observe_periodic(delta = 2, tau = 30)
 
 # System fails at t = 7.3 -> interval-censored to (6, 8]
 obs_periodic(7.3)
@@ -506,7 +506,7 @@ obs_periodic(35)
 ```{r scheme1-demo}
 set.seed(42)
 df_s1 <- gen(theta = theta_true, n = 100,
-             p = 1, observe = observe_scheme1(delta = 2, tau = 50))
+             p = 1, observe = observe_periodic(delta = 2, tau = 50))
 table(df_s1$omega)
 
 # Fit under interval censoring

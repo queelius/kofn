@@ -45,9 +45,9 @@ to most informative (**Scheme 2 > Scheme 1 > Scheme 0**):
 
 | Scheme | What is observed | Constructor |
 |--------|------------------|-------------|
-| Scheme 0 | System lifetime only (black box) | `observe_scheme0()` |
-| Scheme 1 | System lifetime + periodic component inspections | `observe_scheme1(delta)` |
-| Scheme 2 | All component lifetimes exactly (complete data) | `observe_scheme2()` |
+| Scheme 0 | System lifetime only (black box) | `observe_right_censor()` |
+| Scheme 1 | System lifetime + periodic component inspections | `observe_periodic(delta)` |
+| Scheme 2 | All component lifetimes exactly (complete data) | `observe_exact()` |
 
 Scheme 1 occupies the practical middle ground. At each inspection time
 $\ell\delta$, we record which components have already failed. This
@@ -55,17 +55,17 @@ requires only periodic access to the system.
 
 ```{r observation-functors}
 # Scheme 0: system lifetime only (optionally right-censored at tau)
-obs0 <- observe_scheme0(tau = 100)
+obs0 <- observe_right_censor(tau = 100)
 obs0(42.7)    # exact observation
 obs0(150.0)   # right-censored at tau = 100
 
 # Scheme 1: periodic inspection with interval width delta = 5
-obs1 <- observe_scheme1(delta = 5, tau = 100)
+obs1 <- observe_periodic(delta = 5, tau = 100)
 obs1(42.7)    # failure in interval [40, 45)
 obs1(150.0)   # right-censored
 
 # Scheme 2: complete data (trivial)
-obs2 <- observe_scheme2()
+obs2 <- observe_exact()
 obs2(42.7)    # exact observation, always
 ```
 

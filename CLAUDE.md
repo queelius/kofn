@@ -1,4 +1,4 @@
-# CLAUDE.md — kofn R package
+# CLAUDE.md: kofn R package
 
 ## Overview
 
@@ -10,17 +10,17 @@ component lifetimes.
 
 **Key framing**: This is NOT masked cause-of-failure (that's the series
 case, handled by `maskedcauses`). For parallel systems, all components
-have failed by system failure time — the incomplete-data problem is
+have failed by system failure time. The incomplete-data problem is
 *when* each component failed, not *which* one.
 
 ## Ecosystem
 
-- `maskedcauses` — series systems (k=n), masked cause of failure
-- `maskedhaz` — general DFR framework for series systems
-- `kofn` — parallel (k=1) and general k-out-of-n systems
-- `likelihood.model` — generics (loglik, score, hess_loglik, fit, rdata)
-- `generics` — fit generic
-- `serieshaz` / `flexhaz` — distribution infrastructure
+- `maskedcauses`: series systems (k=n), masked cause of failure
+- `maskedhaz`: general DFR framework for series systems
+- `kofn`: parallel (k=1) and general k-out-of-n systems
+- `likelihood.model`: generics (loglik, score, hess_loglik, fit, rdata)
+- `generics`: fit generic
+- `serieshaz` / `flexhaz`: distribution infrastructure
 
 ## Commands
 
@@ -39,14 +39,14 @@ Coherent systems via minimal path sets. Precomputes minimal cut sets via
 Berge transversal algorithm. Standard constructors: `parallel_system()`,
 `series_system()`, `kofn_system()`, `bridge_system()`.
 
-Key function: `system_censoring(system, times)` — given component
-lifetimes, returns system lifetime + per-component censoring status
+Key function: `system_censoring(system, times)`. Given component
+lifetimes, returns system lifetime plus per-component censoring status
 (exact/left/right).
 
 ### Inclusion-exclusion: `R/ie_expand.R`
 For exponential parallel systems, `prod(1 - exp(-lam_i * t))` expands
 into a signed sum of exponentials. This makes all integrals closed-form.
-O(2^m) terms — practical for m <= ~15.
+O(2^m) terms, practical for m <= ~15.
 
 ### Model API: `R/kofn.R`
 Single constructor `kofn(k, m, family, method)` returns an S3 object.
@@ -54,16 +54,16 @@ Classes: `exp_kofn` (exponential) or `wei_kofn` (Weibull), inheriting
 from `kofn` and `likelihood_model`.
 
 Generic methods (from likelihood.model) return closures:
-- `loglik(model)` → `function(df, par)`
-- `score(model)` → `function(df, par)`
-- `fit(model)` → `function(df, par0, ...)`
-- `rdata(model)` → `function(theta, n, ...)`
+- `loglik(model)` -> `function(df, par)`
+- `score(model)` -> `function(df, par)`
+- `fit(model)` -> `function(df, par0, ...)`
+- `rdata(model)` -> `function(theta, n, ...)`
 
 ### Observation schemes: `R/observe.R`
 Ordered from least to most informative:
-- Scheme 0: `observe_scheme0()` — system lifetime only (black box)
-- Scheme 1: `observe_scheme1(delta)` — periodic inspection
-- Scheme 2: `observe_scheme2()` — complete monitoring (trivial)
+- Scheme 0: `observe_right_censor()`, system lifetime only (black box)
+- Scheme 1: `observe_periodic(delta)`, periodic inspection
+- Scheme 2: `observe_exact()`, complete monitoring (trivial)
 
 ### Estimation methods
 - **Exponential** (`R/exp_kofn.R`): IE expansion for parallel, general
@@ -83,8 +83,8 @@ Ordered from least to most informative:
 - `comp_lower_j, comp_upper_j`: component inspection intervals (Scheme 1)
 
 ### Parameter conventions
-- Exponential: `par = c(rate_1, ..., rate_m)` — m rates
-- Weibull: `par = c(shape_1, scale_1, ..., shape_m, scale_m)` — 2m params interleaved
+- Exponential: `par = c(rate_1, ..., rate_m)`, m rates
+- Weibull: `par = c(shape_1, scale_1, ..., shape_m, scale_m)`, 2m params interleaved
 - All parameters must be positive
 - Ascending parameter ordering for identifiability under permutation symmetry
 
@@ -99,7 +99,7 @@ For a k-out-of-n system with lifetime T = T_{(k)} (k-th order statistic):
 ### Exponential parallel (k=1)
 - f_sys(t) = sum_j lambda_j * exp(-lambda_j * t) * prod_{i!=j} (1 - exp(-lambda_i * t))
 - IE expansion makes prod(1-exp) a finite sum of exponentials
-- All integrals closed-form → analytical likelihood
+- All integrals closed-form -> analytical likelihood
 
 ### Weibull parallel (k=1)
 - f_sys(t) = sum_j f_j(t) * prod_{i!=j} F_i(t)

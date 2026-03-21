@@ -9,18 +9,23 @@ observe_periodic(delta, tau = Inf)
 \arguments{
 \item{delta}{Inspection interval width (positive numeric).}
 
-\item{tau}{Study end time (positive numeric or \code{Inf}).}
+\item{tau}{Study end time / right-censoring time (positive numeric or
+\code{Inf} for no right-censoring).}
 }
 \value{
-Observation functor (see \code{\link{observe_scheme1}} for
-details).
+Observation functor: \code{function(t_true)} returning a list
+with \code{t} (interval lower bound or \code{tau}),
+\code{omega} (\code{"interval"} or \code{"right"}), and
+\code{t_upper} (interval upper bound or \code{NA}).
 }
 \description{
-Creates an observation functor for periodic inspections. This is a
-convenience alias for \code{\link{observe_scheme1}}, using the
-traditional censoring terminology.
+Creates an observation functor for periodic inspections at intervals
+of width \code{delta}. The failure time is known only to lie within
+the inspection interval containing it (interval-censored). Systems
+surviving past \code{tau} are right-censored.
 }
 \examples{
 obs <- observe_periodic(delta = 10, tau = 100)
-obs(25)  # interval: list(t = 20, omega = "interval", t_upper = 30)
+obs(25)   # interval: list(t = 20, omega = "interval", t_upper = 30)
+obs(150)  # right:    list(t = 100, omega = "right", t_upper = NA)
 }

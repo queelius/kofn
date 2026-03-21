@@ -13,9 +13,8 @@ observe_mixture(..., weights = NULL)
 uniform weights are used. Weights are normalized to sum to 1.}
 }
 \value{
-Observation functor: a function with signature
-\code{function(t_true)} that randomly selects a constituent scheme
-and returns its output.
+Observation functor: \code{function(t_true)} that randomly
+selects a constituent scheme and returns its output.
 }
 \description{
 Creates an observation functor that randomly selects from a set of
@@ -25,8 +24,8 @@ different protocols.
 }
 \examples{
 obs <- observe_mixture(
-  observe_scheme0(tau = 100),
-  observe_scheme1(delta = 10, tau = 100),
+  observe_right_censor(tau = 100),
+  observe_periodic(delta = 10, tau = 100),
   weights = c(0.7, 0.3)
 )
 set.seed(42)

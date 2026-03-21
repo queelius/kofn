@@ -84,11 +84,11 @@ test_that("Weibull EM converges for parallel system", {
 })
 
 test_that("observation functors produce correct types", {
-  obs0 <- observe_scheme0(tau = 5)
+  obs0 <- observe_right_censor(tau = 5)
   expect_equal(obs0(3)$omega, "exact")
   expect_equal(obs0(7)$omega, "right")
 
-  obs1 <- observe_scheme1(delta = 1.0)
+  obs1 <- observe_periodic(delta = 1.0)
   expect_equal(obs1(2.7)$omega, "interval")
   expect_equal(obs1(2.7)$t, 2.0)
   expect_equal(obs1(2.7)$t_upper, 3.0)
@@ -267,7 +267,7 @@ test_that("exponential loglik handles right-censored observations", {
   gen <- rdata(model)
   set.seed(42)
   # Generate right-censored data via tau
-  df <- gen(theta = c(0.5, 0.3), n = 100, tau = 3.0)
+  df <- gen(theta = c(0.5, 0.3), n = 100, observe = observe_right_censor(tau = 3.0))
 
   expect_true(any(df$omega == "right"))
   expect_true(any(df$omega == "exact"))
@@ -525,8 +525,8 @@ test_that("observe_periodic is alias for observe_scheme1", {
 test_that("observe_mixture selects from schemes", {
   set.seed(42)
   obs <- observe_mixture(
-    observe_scheme0(tau = 100),
-    observe_scheme1(delta = 1.0, tau = 100),
+    observe_right_censor(tau = 100),
+    observe_periodic(delta = 1.0, tau = 100),
     weights = c(0.5, 0.5)
   )
   # Just check it doesn't error and returns valid structure
