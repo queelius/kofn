@@ -80,6 +80,67 @@ observe_periodic <- function(delta, tau = Inf) {
 }
 
 
+#' Left-censoring observation scheme
+#'
+#' Creates an observation functor that applies left-censoring at time
+#' \code{tau}. Systems that fail after \code{tau} are observed exactly;
+#' systems that fail before \code{tau} are left-censored (we only know
+#' T < tau).
+#'
+#' @param tau Censoring time (positive numeric).
+#' @return Observation functor: \code{function(t_true)} returning a list
+#'   with \code{t}, \code{omega} (\code{"left"} or \code{"exact"}), and
+#'   \code{t_upper} (\code{NA}).
+#' @export
+#' @examples
+#' obs <- observe_left_censor(tau = 10)
+#' obs(5)   # left:  list(t = 10, omega = "left", t_upper = NA)
+#' obs(15)  # exact: list(t = 15, omega = "exact", t_upper = NA)
+observe_left_censor <- function(tau) {
+  force(tau)
+  function(t_true) {
+    if (t_true < tau) {
+      list(t = tau, omega = "left", t_upper = NA_real_)
+    } else {
+      list(t = t_true, omega = "exact", t_upper = NA_real_)
+    }
+  }
+}
+
+
+#' Interval-censoring observation scheme
+#'
+#' Creates an observation functor that places all failure times into a
+#' fixed window \code{[a, b)}. Systems failing within the window are
+#' interval-censored; systems failing outside are observed exactly.
+#'
+#' For regular grids, use \code{\link{observe_periodic}} instead.
+#'
+#' @param a Lower bound of censoring window (non-negative numeric).
+#' @param b Upper bound of censoring window (positive numeric, \code{b > a}).
+#' @return Observation functor: \code{function(t_true)} returning a list
+#'   with \code{t}, \code{omega} (\code{"interval"} or \code{"exact"}),
+#'   and \code{t_upper}.
+#' @export
+#' @examples
+#' obs <- observe_interval_censor(a = 5, b = 10)
+#' obs(7)   # interval: list(t = 5, omega = "interval", t_upper = 10)
+#' obs(3)   # exact:    list(t = 3, omega = "exact", t_upper = NA)
+#' obs(12)  # exact:    list(t = 12, omega = "exact", t_upper = NA)
+observe_interval_censor <- function(a, b) {
+  force(a)
+  force(b)
+  stopifnot(b > a, a >= 0)
+  function(t_true) {
+    if (t_true >= a && t_true < b) {
+      list(t = a, omega = "interval", t_upper = b)
+    } else {
+      list(t = t_true, omega = "exact", t_upper = NA_real_)
+    }
+  }
+}
+
+
 #' Exact observation scheme (no censoring)
 #'
 #' Creates an observation functor that records the exact failure time

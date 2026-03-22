@@ -507,14 +507,43 @@ test_that("make_dists creates correct distribution objects", {
 # Observation scheme aliases
 # ===========================================================================
 
-test_that("observe_right_censor is alias for observe_scheme0", {
+test_that("observe_right_censor works", {
   obs <- observe_right_censor(tau = 10)
   expect_equal(obs(5)$omega, "exact")
+  expect_equal(obs(5)$t, 5)
   expect_equal(obs(15)$omega, "right")
   expect_equal(obs(15)$t, 10)
 })
 
-test_that("observe_periodic is alias for observe_scheme1", {
+test_that("observe_left_censor works", {
+  obs <- observe_left_censor(tau = 10)
+  expect_equal(obs(5)$omega, "left")
+  expect_equal(obs(5)$t, 10)
+  expect_equal(obs(15)$omega, "exact")
+  expect_equal(obs(15)$t, 15)
+  # Boundary: exactly at tau
+  expect_equal(obs(10)$omega, "exact")
+})
+
+test_that("observe_interval_censor works", {
+  obs <- observe_interval_censor(a = 5, b = 10)
+  # Inside window
+  expect_equal(obs(7)$omega, "interval")
+  expect_equal(obs(7)$t, 5)
+  expect_equal(obs(7)$t_upper, 10)
+  # Outside window (before)
+  expect_equal(obs(3)$omega, "exact")
+  expect_equal(obs(3)$t, 3)
+  # Outside window (after)
+  expect_equal(obs(12)$omega, "exact")
+  expect_equal(obs(12)$t, 12)
+  # Boundary: at lower bound
+  expect_equal(obs(5)$omega, "interval")
+  # Boundary: at upper bound (half-open [a, b))
+  expect_equal(obs(10)$omega, "exact")
+})
+
+test_that("observe_periodic works", {
   obs <- observe_periodic(delta = 2.0, tau = 20)
   expect_equal(obs(5)$omega, "interval")
   expect_equal(obs(5)$t, 4.0)
