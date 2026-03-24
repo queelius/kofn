@@ -15,7 +15,7 @@
 # ===========================================================================
 
 test_that("exponential loglik handles left-censored observations", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   rates <- c(0.5, 0.3)
 
   # Manually construct a data frame with left-censored observations.
@@ -44,7 +44,7 @@ test_that("left-censored loglik uses corrected formula (no normalizer)", {
   # Regression test for bug #3: the old code divided by F_sys(t),
   # turning the joint probability into a conditional. The fix removes
   # the normalizer.
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   rates <- c(0.5, 0.3)
 
   # Single left-censored observation at t=2, candidate set = {1,2}
@@ -66,7 +66,7 @@ test_that("left-censored loglik uses corrected formula (no normalizer)", {
 # ===========================================================================
 
 test_that("exponential loglik handles interval-censored observations", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   rates <- c(0.5, 0.3)
 
   df <- data.frame(
@@ -85,7 +85,7 @@ test_that("exponential loglik handles interval-censored observations", {
 
 test_that("interval-censored loglik uses corrected formula", {
   # Single interval-censored obs [1, 3], candidate set = {1, 2}
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   rates <- c(0.5, 0.3)
 
   df <- data.frame(
@@ -102,7 +102,7 @@ test_that("interval-censored loglik uses corrected formula", {
 })
 
 test_that("mixed observation types work together in exponential loglik", {
-  model <- kofn(k = 1, m = 3)
+  model <- kofn(k = 3, m = 3)
   rates <- c(0.5, 0.3, 0.2)
 
   df <- data.frame(
@@ -130,7 +130,7 @@ test_that("mixed observation types work together in exponential loglik", {
 # ===========================================================================
 
 test_that("exponential loglik errors on parameter count mismatch", {
-  model <- kofn(k = 1, m = 3)
+  model <- kofn(k = 3, m = 3)
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(0.5, 0.3, 0.2), n = 20)
@@ -187,7 +187,7 @@ test_that("Weibull loglik delegates to system density for k > 1", {
 })
 
 test_that("Weibull score and hessian work for parallel system", {
-  model <- kofn(k = 1, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, family = "weibull")
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 50)
@@ -281,12 +281,12 @@ test_that("trunc_log_moment_vec handles normal and large v_max", {
 # ===========================================================================
 
 test_that("print.kofn works for all system types", {
-  # Parallel
-  out <- capture.output(print(kofn(k = 1, m = 3)))
+  # Parallel (k = m)
+  out <- capture.output(print(kofn(k = 3, m = 3)))
   expect_true(any(grepl("parallel", out)))
 
-  # Series
-  out <- capture.output(print(kofn(k = 3, m = 3)))
+  # Series (k = 1)
+  out <- capture.output(print(kofn(k = 1, m = 3)))
   expect_true(any(grepl("series", out)))
 
   # General k-out-of-n
@@ -298,8 +298,8 @@ test_that("print.kofn works for all system types", {
   expect_true(any(grepl("general coherent", out)))
   expect_true(any(grepl("k=NA", out)))
 
-  # Weibull EM
-  out <- capture.output(print(kofn(k = 1, m = 2, family = "weibull",
+  # Weibull EM (parallel: k = m)
+  out <- capture.output(print(kofn(k = 2, m = 2, family = "weibull",
                                     method = "em")))
   expect_true(any(grepl("weibull", out)))
 })
@@ -371,7 +371,7 @@ test_that("critical_states for single-component system", {
 # ===========================================================================
 
 test_that("EM handles very few observations", {
-  model <- kofn(k = 1, m = 2, family = "weibull", method = "em")
+  model <- kofn(k = 2, m = 2, family = "weibull", method = "em")
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 10)
@@ -434,7 +434,7 @@ test_that("rdata.wei_kofn works for general k", {
 })
 
 test_that("rdata.wei_kofn with custom observe functor", {
-  model <- kofn(k = 1, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, family = "weibull")
   gen <- rdata(model)
   set.seed(42)
 
@@ -446,7 +446,7 @@ test_that("rdata.wei_kofn with custom observe functor", {
 })
 
 test_that("rdata.wei_kofn with tau produces right-censored data", {
-  model <- kofn(k = 1, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, family = "weibull")
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 100, observe = observe_right_censor(tau = 2.0))
@@ -459,7 +459,7 @@ test_that("rdata.wei_kofn with tau produces right-censored data", {
 })
 
 test_that("rdata.wei_kofn validates parameter length", {
-  model <- kofn(k = 1, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, family = "weibull")
   gen <- rdata(model)
   expect_error(gen(theta = c(1, 2, 3), n = 10))
 })
@@ -509,7 +509,7 @@ test_that("fit_system works for Weibull 2-out-of-3", {
 # ===========================================================================
 
 test_that("fit_scheme1 converges for Weibull parallel", {
-  model <- kofn(k = 1, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, family = "weibull")
   s1gen <- rdata_scheme1(model)
   set.seed(42)
   df <- s1gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 300, delta = 0.5)
@@ -594,7 +594,7 @@ test_that("IE expansion is feasible for m=10 (1024 terms)", {
 })
 
 test_that("exponential parallel loglik works for m=6", {
-  model <- kofn(k = 1, m = 6)
+  model <- kofn(k = 6, m = 6)
   rates <- c(0.5, 0.4, 0.3, 0.2, 0.1, 0.6)
   gen <- rdata(model)
   set.seed(42)

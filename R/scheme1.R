@@ -4,7 +4,8 @@
 #
 # Under Scheme 1 (periodic inspection at interval delta), each component's
 # failure time is localized to an inspection interval [a_j-, a_j+).
-# The system failure time T = max(T_1, ..., T_m) is observed exactly.
+# For parallel systems (k = m), the system failure time T = max(T_1, ..., T_m)
+# is observed exactly.
 #
 # The likelihood for observation i is:
 #   L_i(theta) = f_sys(t_i; theta) * prod_j [F_j(a_ij+) - F_j(a_ij-)]
@@ -45,7 +46,7 @@
 #'   \code{delta} (inspection interval), and \code{par} (true parameters).
 #'
 #' @examples
-#' model <- kofn(k = 1, m = 2, family = "exponential")
+#' model <- kofn(k = 2, m = 2, family = "exponential")
 #' gen <- rdata_scheme1(model)
 #' set.seed(1)
 #' df <- gen(theta = c(1, 2), n = 20, delta = 1.0)
@@ -121,7 +122,7 @@ rdata_scheme1 <- function(model, ...) {
 #' component j's failure time.
 #'
 #' @examples
-#' model <- kofn(k = 1, m = 2, family = "exponential")
+#' model <- kofn(k = 2, m = 2, family = "exponential")
 #' ll <- loglik_scheme1(model)
 #' set.seed(1)
 #' df <- rdata_scheme1(model)(c(1, 2), n = 30, delta = 1.0)
@@ -195,7 +196,7 @@ loglik_scheme1 <- function(model, ...) {
 #'
 #' @examples
 #' \donttest{
-#' model <- kofn(k = 1, m = 2, family = "exponential")
+#' model <- kofn(k = 2, m = 2, family = "exponential")
 #' set.seed(42)
 #' df <- rdata_scheme1(model)(c(1, 2), n = 50, delta = 1.0)
 #' result <- fit_scheme1(model)(df)

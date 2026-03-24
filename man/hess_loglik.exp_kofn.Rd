@@ -23,7 +23,7 @@ Uses numerical differentiation via \code{\link[numDeriv:hessian]{numDeriv::hessi
 log-likelihood closure.
 }
 \examples{
-model <- kofn(k = 1, m = 2, family = "exponential")
+model <- kofn(k = 2, m = 2, family = "exponential")
 H <- hess_loglik(model)
 set.seed(1)
 df <- rdata(model)(c(1, 2), n = 30)

@@ -20,7 +20,7 @@ Returns a closure that fits the model to data. Two methods are available:
 }
 \details{
 \describe{
-\item{\code{"em"}}{EM algorithm for parallel systems (k = 1 only).
+\item{\code{"em"}}{EM algorithm for parallel systems (k = m only).
 Treats the identity of the last-failing component as latent data.
 Uses truncated Weibull moments for the E-step and profile
 optimization over shape with closed-form scale for the M-step.}
@@ -42,7 +42,7 @@ shape/scale). If \code{NULL}, method-of-moments initialization is used.}
 }
 \examples{
 \donttest{
-model <- kofn(k = 1, m = 2, family = "weibull")
+model <- kofn(k = 2, m = 2, family = "weibull")
 set.seed(42)
 df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 50)
 result <- fit(model)(df)

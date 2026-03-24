@@ -29,7 +29,7 @@ where \eqn{f_{sys}} is the parallel system density and
 component j's failure time.
 }
 \examples{
-model <- kofn(k = 1, m = 2, family = "exponential")
+model <- kofn(k = 2, m = 2, family = "exponential")
 ll <- loglik_scheme1(model)
 set.seed(1)
 df <- rdata_scheme1(model)(c(1, 2), n = 30, delta = 1.0)

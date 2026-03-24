@@ -62,9 +62,9 @@ bridge_system()
 ```
 
 A **k-out-of-n system** unifies series and parallel as endpoints of a spectrum.
-Setting k = 1 gives parallel (the system needs at least one functioning
-component), while k = n gives series (all must function). Every intermediate k
-value defines a distinct censoring structure on the component lifetimes.
+Setting k = 1 gives series (one failure kills the system), while k = n gives
+parallel (all must fail). Every intermediate k value defines a distinct
+censoring structure on the component lifetimes.
 
 
 ## 2. Path sets and cut sets
@@ -131,10 +131,10 @@ lifetimes using the min-of-max cut-set formula:
 ```{r system-lifetime}
 times <- c(1.5, 2.3, 0.8)
 
-# Parallel (k=1): T = max(T_j) = 2.3
+# Parallel (k=3): T = max(T_j) = 2.3
 system_lifetime(parallel_system(3), times)
 
-# Series (k=3): T = min(T_j) = 0.8
+# Series (k=1): T = min(T_j) = 0.8
 system_lifetime(series_system(3), times)
 
 # 2-of-3: T = T_(2) = 1.5 (second order statistic)
@@ -177,11 +177,11 @@ component parameters than signatures spread across the middle.
 # Compare signatures for k-out-of-5 systems
 sig_table <- data.frame(
   order_stat = paste0("T_(", 1:5, ")"),
-  k1_parallel = system_signature(kofn_system(1, 5)),
+  k1_series  = system_signature(kofn_system(1, 5)),
   k2         = system_signature(kofn_system(2, 5)),
   k3         = system_signature(kofn_system(3, 5)),
   k4         = system_signature(kofn_system(4, 5)),
-  k5_series  = system_signature(kofn_system(5, 5))
+  k5_parallel = system_signature(kofn_system(5, 5))
 )
 knitr::kable(sig_table, digits = 3,
              caption = "System signatures for k-out-of-5 systems")
@@ -197,7 +197,7 @@ lifetime is observed exactly, left-censored (failed before the system), or
 right-censored (still alive at system failure):
 
 ```{r censoring-basic}
-# Parallel system (k=1): system fails when ALL components fail
+# Parallel system (k=m): system fails when ALL components fail
 sys_par <- parallel_system(3)
 times <- c(1.5, 2.3, 0.8)
 cens <- system_censoring(sys_par, times)
@@ -209,8 +209,8 @@ cat("Censoring status:", paste(cens$status, collapse = ", "), "\n")
 For a k-out-of-n system with lifetime $T = T_{(k)}$:
 
 - **1 component** observed exactly (the critical component, $T_j = T$)
-- **n - k components** left-censored at $T$ (failed before the system)
-- **k - 1 components** right-censored at $T$ (still alive at system failure)
+- **k - 1 components** left-censored at $T$ (failed before the system)
+- **n - k components** right-censored at $T$ (still alive at system failure)
 
 Let us verify this pattern across the k-out-of-5 spectrum:
 
@@ -221,7 +221,7 @@ times <- c(1.0, 2.0, 3.0, 4.0, 5.0)
 
 cens_table <- data.frame(
   k = 1:5,
-  system_type = c("parallel", "2-of-5", "3-of-5", "4-of-5", "series"),
+  system_type = c("series", "2-of-5", "3-of-5", "4-of-5", "parallel"),
   T_sys = NA_real_,
   exact = NA_integer_,
   left = NA_integer_,
@@ -241,8 +241,8 @@ knitr::kable(cens_table,
              caption = "Censoring pattern for k-out-of-5 systems")
 ```
 
-The table confirms the general rule: k = 1 (parallel) gives 1 exact + 4 left,
-k = 5 (series) gives 1 exact + 4 right, and intermediate values interpolate
+The table confirms the general rule: k = 1 (series) gives 1 exact + 0 left + 4 right,
+k = 5 (parallel) gives 1 exact + 4 left + 0 right, and intermediate values interpolate
 between these extremes. This is the **censoring equivalence** that unifies
 parallel and series systems as endpoints of a spectrum.
 
@@ -257,7 +257,7 @@ value and compare estimation quality.
 m <- 5
 true_rates <- c(0.5, 0.8, 1.0, 1.3, 1.8)
 n <- 200
-results <- data.frame(k = 1:5, system_type = paste0(1:5, "-of-5"),
+results <- data.frame(k = 1:5, system_type = c("series", "2-of-5", "3-of-5", "4-of-5", "parallel"),
                       rmse = NA_real_, stringsAsFactors = FALSE)
 
 for (k in 1:5) {
@@ -304,15 +304,15 @@ for (k in 1:3) {
 
 boxplot(rmse ~ k, data = mc_results,
         main = "Estimation RMSE by System Structure (k-out-of-3)",
-        xlab = "k (1 = parallel, 3 = series)",
+        xlab = "k (1 = series, 3 = parallel)",
         ylab = "RMSE of sorted rate estimates",
         col = "lightblue", border = "steelblue")
 ```
 
-The censoring pattern explains the differences. Under k = 1 (parallel), most
-component lifetimes are left-censored: we know they failed before the system
-but not exactly when. Under k = 3 (series), most are right-censored: we know
-they survived past the system failure but not how long. Intermediate values
+The censoring pattern explains the differences. Under k = 1 (series), most
+component lifetimes are right-censored: we know they survived past the system
+failure but not how long. Under k = 3 (parallel for m=3), most are left-censored:
+we know they failed before the system but not exactly when. Intermediate values
 of k balance left and right censoring, potentially yielding the most
 information about individual component lifetimes.
 
@@ -453,8 +453,8 @@ The coherent system engine in `kofn` provides a unified framework for:
 4. **Estimating** component lifetime parameters from system-level data,
    regardless of system structure, using the general system density engine.
 
-The k-out-of-n family provides a natural one-parameter spectrum from parallel
-(k = 1) to series (k = n), with each value of k defining a distinct balance of
+The k-out-of-n family provides a natural one-parameter spectrum from series
+(k = 1) to parallel (k = n), with each value of k defining a distinct balance of
 left and right censoring on the component lifetimes. General coherent systems
 (bridge, consecutive-k, custom) are handled by the same machinery, enabling
 estimation under any system architecture.

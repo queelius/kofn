@@ -30,7 +30,7 @@ observation schemes.
 
 ## Why This Matters
 
-**Parallel systems** (k = 1) are the hardest case: all components have
+**Parallel systems** (k = n) are the hardest case: all components have
 failed by the time the system fails, but we only observe the system
 failure time — not the individual failure times. The last-to-fail
 component is observed exactly; all others are deeply left-censored.
@@ -53,8 +53,8 @@ remotes::install_github("queelius/kofn")
 ```r
 library(kofn)
 
-# Create a parallel system model (k=1) with 3 exponential components
-model <- kofn(k = 1, m = 3, family = "exponential")
+# Create a parallel system model (k=m) with 3 exponential components
+model <- kofn(k = 3, m = 3, family = "exponential")
 
 # Generate data: true rates = (0.5, 0.3, 0.2)
 gen <- rdata(model)
@@ -81,7 +81,7 @@ computes truncated Weibull moments via incomplete gamma functions.
 
 ```r
 # Weibull parallel system with EM estimation
-model_wei <- kofn(k = 1, m = 2, family = "weibull", method = "em")
+model_wei <- kofn(k = 2, m = 2, family = "weibull", method = "em")
 gen <- rdata(model_wei)
 set.seed(42)
 df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 300)

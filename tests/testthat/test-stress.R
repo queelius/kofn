@@ -11,7 +11,7 @@
 # ===========================================================================
 
 test_that("exponential loglik handles very small rates", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   gen <- rdata(model)
   set.seed(1)
   df <- gen(theta = c(0.001, 0.002), n = 50)
@@ -26,7 +26,7 @@ test_that("exponential loglik handles very small rates", {
 })
 
 test_that("exponential loglik handles very large rates", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   gen <- rdata(model)
   set.seed(1)
   df <- gen(theta = c(50, 100), n = 50)
@@ -37,7 +37,7 @@ test_that("exponential loglik handles very large rates", {
 })
 
 test_that("Weibull loglik handles extreme shape parameters", {
-  model <- kofn(k = 1, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, family = "weibull")
   gen <- rdata(model)
 
   # Very small shape (heavy-tailed, near-exponential)
@@ -55,7 +55,7 @@ test_that("Weibull loglik handles extreme shape parameters", {
 })
 
 test_that("loglik returns -Inf for zero or negative parameters", {
-  model_exp <- kofn(k = 1, m = 2)
+  model_exp <- kofn(k = 2, m = 2)
   gen <- rdata(model_exp)
   set.seed(1)
   df <- gen(theta = c(0.5, 0.3), n = 20)
@@ -65,7 +65,7 @@ test_that("loglik returns -Inf for zero or negative parameters", {
   expect_equal(ll(df, c(-1, 0.3)), -Inf)
   expect_equal(ll(df, c(0.5, -0.1)), -Inf)
 
-  model_wei <- kofn(k = 1, m = 2, family = "weibull")
+  model_wei <- kofn(k = 2, m = 2, family = "weibull")
   ll_w <- loglik(model_wei)
   df_w <- data.frame(t = c(1, 2, 3))
   expect_equal(ll_w(df_w, c(0, 2, 1, 3)), -Inf)
@@ -98,7 +98,7 @@ test_that("IE expansion works for m=8 (256 terms)", {
 })
 
 test_that("exponential parallel MLE works for m=5", {
-  model <- kofn(k = 1, m = 5)
+  model <- kofn(k = 5, m = 5)
   true_rates <- c(0.5, 0.3, 0.2, 0.4, 0.1)
   gen <- rdata(model)
   set.seed(42)
@@ -142,7 +142,7 @@ test_that("IE loglik matches general system density loglik for parallel", {
   rates <- c(0.5, 0.3, 0.2)
   sys <- parallel_system(3)
 
-  model <- kofn(k = 1, m = 3)
+  model <- kofn(k = 3, m = 3)
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = rates, n = 50, p = 1)  # all components in candidate set
@@ -165,8 +165,8 @@ test_that("IE loglik matches general system density loglik for parallel", {
 test_that("Weibull EM and direct MLE give similar estimates", {
   true_par <- c(1.5, 2.0, 2.0, 3.0)
 
-  model_em <- kofn(k = 1, m = 2, family = "weibull", method = "em")
-  model_mle <- kofn(k = 1, m = 2, family = "weibull", method = "mle")
+  model_em <- kofn(k = 2, m = 2, family = "weibull", method = "em")
+  model_mle <- kofn(k = 2, m = 2, family = "weibull", method = "mle")
   gen <- rdata(model_em)
 
   set.seed(42)
@@ -195,7 +195,7 @@ test_that("Weibull EM and direct MLE give similar estimates", {
 # ===========================================================================
 
 test_that("exponential MLE converges with heavy right-censoring", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   gen <- rdata(model)
   set.seed(42)
   # tau=1.0 with rates 0.5, 0.3 means most systems survive past tau
@@ -211,7 +211,7 @@ test_that("exponential MLE converges with heavy right-censoring", {
 })
 
 test_that("Weibull loglik handles heavy right-censoring", {
-  model <- kofn(k = 1, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, family = "weibull")
   true_par <- c(1.5, 2.0, 2.0, 3.0)
 
   # Manually create data with ~50% right-censoring
@@ -236,7 +236,7 @@ test_that("Weibull loglik handles heavy right-censoring", {
 # ===========================================================================
 
 test_that("exponential parallel MLE is approximately unbiased (sum of rates)", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   true_rates <- c(0.5, 0.3)
   true_sum <- sum(true_rates)
   gen <- rdata(model)
@@ -270,7 +270,7 @@ test_that("exponential parallel MLE is approximately unbiased (sum of rates)", {
 # ===========================================================================
 
 test_that("Scheme 1 fit recovers parameters (exponential)", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   true_rates <- c(0.5, 0.3)
   s1gen <- rdata_scheme1(model)
 
@@ -286,7 +286,7 @@ test_that("Scheme 1 fit recovers parameters (exponential)", {
 })
 
 test_that("Scheme 1 loglik is higher at true params than wrong params", {
-  model <- kofn(k = 1, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, family = "weibull")
   true_par <- c(1.5, 2.0, 2.0, 3.0)
   s1gen <- rdata_scheme1(model)
 
@@ -364,7 +364,7 @@ test_that("consecutive-k-out-of-n signature sums to 1", {
 # ===========================================================================
 
 test_that("fisher_mle result supports base R stats generics", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(0.5, 0.3), n = 200)

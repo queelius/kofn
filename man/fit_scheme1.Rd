@@ -28,7 +28,7 @@ Standard errors are computed from the numerical Hessian at the MLE.
 }
 \examples{
 \donttest{
-model <- kofn(k = 1, m = 2, family = "exponential")
+model <- kofn(k = 2, m = 2, family = "exponential")
 set.seed(42)
 df <- rdata_scheme1(model)(c(1, 2), n = 50, delta = 1.0)
 result <- fit_scheme1(model)(df)

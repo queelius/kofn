@@ -18,7 +18,7 @@ kofn(
 }
 \arguments{
 \item{k}{System parameter: system fails when k components have failed.
-\code{k=1} is parallel, \code{k=m} is series.}
+\code{k=1} is series, \code{k=m} is parallel.}
 
 \item{m}{Number of components.}
 
@@ -48,7 +48,8 @@ An S3 object of class \code{c("exp_kofn"/"wei_kofn", "kofn",
 \description{
 Constructs a likelihood model for component lifetime estimation from
 k-out-of-n system data. The system fails when \code{k} components have
-failed: \code{k=1} is a parallel system, \code{k=m} is a series system.
+failed: \code{k=1} is a series system (one failure kills it),
+\code{k=m} is a parallel system (all must fail).
 }
 \details{
 This model satisfies the \code{likelihood_model} concept from the
@@ -65,13 +66,13 @@ The class hierarchy is:
 }
 }
 \examples{
-# Parallel system with 3 exponential components
-model <- kofn(k = 1, m = 3, family = "exponential")
+# Parallel system with 3 exponential components (k = m)
+model <- kofn(k = 3, m = 3, family = "exponential")
 print(model)
 
-# Series system (k = m)
-model_series <- kofn(k = 4, m = 4, family = "exponential")
+# Series system (k = 1)
+model_series <- kofn(k = 1, m = 4, family = "exponential")
 
 # Weibull parallel system with EM estimation
-model_wei <- kofn(k = 1, m = 2, family = "weibull", method = "em")
+model_wei <- kofn(k = 2, m = 2, family = "weibull", method = "em")
 }

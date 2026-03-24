@@ -43,11 +43,11 @@ from the event "component $j$ is the last to fail."
 
 ```{r model-setup}
 # Create an exponential parallel system model with 3 components
-model <- kofn(k = 1, m = 3, family = "exponential")
+model <- kofn(k = 3, m = 3, family = "exponential")
 print(model)
 ```
 
-The `kofn()` constructor with `k = 1` creates a parallel system.  The model
+The `kofn()` constructor with `k = m` creates a parallel system.  The model
 object carries the system structure, column name conventions, and dispatches
 to methods for `loglik()`, `score()`, `hess_loglik()`, `fit()`, and `rdata()`.
 

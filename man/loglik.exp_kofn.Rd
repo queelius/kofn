@@ -21,13 +21,13 @@ Returns a closure \verb{function(df, par)} that computes the log-likelihood of
 exponential component rates given system-level data.
 }
 \details{
-For parallel systems (\code{k = 1}), the closed-form IE expansion is used,
+For parallel systems (\code{k = m}), the closed-form IE expansion is used,
 supporting all four observation types: exact, right, left, and interval
 censored. For general k-out-of-n systems, the computation delegates to
 \code{\link[=loglik_system]{loglik_system()}} from the system density engine.
 }
 \examples{
-model <- kofn(k = 1, m = 3, family = "exponential")
+model <- kofn(k = 3, m = 3, family = "exponential")
 ll <- loglik(model)
 set.seed(1)
 df <- rdata(model)(c(1, 2, 3), n = 30)

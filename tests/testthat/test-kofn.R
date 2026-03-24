@@ -14,13 +14,13 @@ test_that("coherent system constructors work", {
 })
 
 test_that("kofn model constructor works", {
-  model <- kofn(k = 1, m = 3, family = "exponential")
+  model <- kofn(k = 3, m = 3, family = "exponential")
   expect_s3_class(model, "exp_kofn")
   expect_s3_class(model, "kofn")
   expect_equal(ncomponents(model), 3L)
   expect_true(is_kofn(model))
 
-  model_wei <- kofn(k = 1, m = 2, family = "weibull", method = "em")
+  model_wei <- kofn(k = 2, m = 2, family = "weibull", method = "em")
   expect_s3_class(model_wei, "wei_kofn")
 })
 
@@ -33,7 +33,7 @@ test_that("IE expansion produces correct number of terms", {
 })
 
 test_that("exponential parallel data generation works", {
-  model <- kofn(k = 1, m = 3)
+  model <- kofn(k = 3, m = 3)
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(0.5, 0.3, 0.2), n = 50)
@@ -46,7 +46,7 @@ test_that("exponential parallel data generation works", {
 })
 
 test_that("exponential parallel loglik is finite at true params", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(0.5, 0.3), n = 100)
@@ -58,7 +58,7 @@ test_that("exponential parallel loglik is finite at true params", {
 })
 
 test_that("exponential parallel MLE converges", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(0.5, 0.3), n = 200)
@@ -71,7 +71,7 @@ test_that("exponential parallel MLE converges", {
 })
 
 test_that("Weibull EM converges for parallel system", {
-  model <- kofn(k = 1, m = 2, family = "weibull", method = "em")
+  model <- kofn(k = 2, m = 2, family = "weibull", method = "em")
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 200)
@@ -95,7 +95,7 @@ test_that("observation functors produce correct types", {
 })
 
 test_that("Scheme 1 data generation works", {
-  model <- kofn(k = 1, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, family = "weibull")
   s1gen <- rdata_scheme1(model)
   set.seed(42)
   df <- s1gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 50, delta = 0.5)
@@ -141,14 +141,14 @@ test_that("kofn constructor rejects invalid k/m", {
 # ===========================================================================
 
 test_that("kofn with custom system detects k correctly", {
-  # Parallel system: k should be detected as 1
+  # Parallel system: k should be detected as m (all must fail)
   model_par <- kofn(system = parallel_system(3))
-  expect_equal(model_par$k, 1L)
+  expect_equal(model_par$k, 3L)
   expect_equal(model_par$m, 3L)
 
-  # Series system: k should be detected as m
+  # Series system: k should be detected as 1 (one failure kills it)
   model_ser <- kofn(system = series_system(3))
-  expect_equal(model_ser$k, 3L)
+  expect_equal(model_ser$k, 1L)
 
   # 2-out-of-4: k should be detected as 2
   model_2of4 <- kofn(system = kofn_system(2, 4))
@@ -243,7 +243,7 @@ test_that("system_censoring is correct for series system", {
 # ===========================================================================
 
 test_that("exponential score matches numerical gradient of loglik", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(0.5, 0.3), n = 100)
@@ -263,7 +263,7 @@ test_that("exponential score matches numerical gradient of loglik", {
 # ===========================================================================
 
 test_that("exponential loglik handles right-censored observations", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   gen <- rdata(model)
   set.seed(42)
   # Generate right-censored data via tau
@@ -287,7 +287,7 @@ test_that("exponential loglik handles right-censored observations", {
 # ===========================================================================
 
 test_that("Weibull parallel loglik handles right-censored data", {
-  model <- kofn(k = 1, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, family = "weibull")
 
   # Manually create data with omega column
   df <- data.frame(
@@ -351,8 +351,8 @@ test_that("single-component system works", {
   expect_equal(length(result$par), 1)
 })
 
-test_that("series system (k = m) works for exponential", {
-  model <- kofn(k = 3, m = 3)
+test_that("series system (k = 1) works for exponential", {
+  model <- kofn(k = 1, m = 3)
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(0.5, 0.3, 0.2), n = 100)
@@ -369,7 +369,7 @@ test_that("series system (k = m) works for exponential", {
 
 test_that("exponential parallel MLE recovers sum of rates", {
   # For identifiable permutation-symmetric parameters, check sum of rates
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   true_rates <- c(0.5, 0.3)
   true_sum <- sum(true_rates)
 
@@ -407,7 +407,7 @@ test_that("parse_params extracts shapes and scales correctly", {
 # ===========================================================================
 
 test_that("Weibull direct MLE converges for parallel system", {
-  model <- kofn(k = 1, m = 2, family = "weibull", method = "mle")
+  model <- kofn(k = 2, m = 2, family = "weibull", method = "mle")
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 200)
@@ -443,7 +443,7 @@ test_that("fit_system works for bridge system", {
 # ===========================================================================
 
 test_that("Scheme 1 loglik is finite at true params (exponential)", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   s1gen <- rdata_scheme1(model)
   set.seed(42)
   df <- s1gen(theta = c(0.5, 0.3), n = 100, delta = 1.0)
@@ -455,7 +455,7 @@ test_that("Scheme 1 loglik is finite at true params (exponential)", {
 })
 
 test_that("Scheme 1 loglik is finite at true params (Weibull)", {
-  model <- kofn(k = 1, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, family = "weibull")
   s1gen <- rdata_scheme1(model)
   set.seed(42)
   df <- s1gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 100, delta = 0.5)
@@ -467,7 +467,7 @@ test_that("Scheme 1 loglik is finite at true params (Weibull)", {
 })
 
 test_that("fit_scheme1 converges for exponential parallel", {
-  model <- kofn(k = 1, m = 2)
+  model <- kofn(k = 2, m = 2)
   s1gen <- rdata_scheme1(model)
   set.seed(42)
   df <- s1gen(theta = c(0.5, 0.3), n = 200, delta = 1.0)

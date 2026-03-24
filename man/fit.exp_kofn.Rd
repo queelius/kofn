@@ -33,7 +33,7 @@ from the observed Fisher information (negative Hessian) at the MLE.
 }
 \examples{
 \donttest{
-model <- kofn(k = 1, m = 2, family = "exponential")
+model <- kofn(k = 2, m = 2, family = "exponential")
 set.seed(42)
 df <- rdata(model)(c(1, 2), n = 50)
 result <- fit(model)(df)

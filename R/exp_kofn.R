@@ -8,7 +8,7 @@
 # Each generic returns a closure, following the likelihood.model / maskedcauses
 # convention.
 #
-# For parallel systems (k=1), the inclusion-exclusion (IE) expansion yields
+# For parallel systems (k=m), the inclusion-exclusion (IE) expansion yields
 # closed-form expressions for all integrals. For general k-out-of-n systems,
 # the loglik falls back to the general system density engine
 # (loglik_system from R/system_density.R).
@@ -24,7 +24,7 @@
 #' Returns a closure `function(df, par)` that computes the log-likelihood of
 #' exponential component rates given system-level data.
 #'
-#' For parallel systems (`k = 1`), the closed-form IE expansion is used,
+#' For parallel systems (`k = m`), the closed-form IE expansion is used,
 #' supporting all four observation types: exact, right, left, and interval
 #' censored. For general k-out-of-n systems, the computation delegates to
 #' [loglik_system()] from the system density engine.
@@ -36,7 +36,7 @@
 #'   and `par` is a numeric vector of `m` component rates.
 #'
 #' @examples
-#' model <- kofn(k = 1, m = 3, family = "exponential")
+#' model <- kofn(k = 3, m = 3, family = "exponential")
 #' ll <- loglik(model)
 #' set.seed(1)
 #' df <- rdata(model)(c(1, 2, 3), n = 30)
@@ -53,7 +53,7 @@ loglik.exp_kofn <- function(model, ...) {
   cs    <- model$candset
   lt_up <- model$lifetime_upper
 
-  if (isTRUE(k == 1L)) {
+  if (isTRUE(k == m)) {
     # Parallel fast path: IE-based closed-form likelihood
     function(df, par) {
       if (any(par <= 0)) return(-Inf)
@@ -141,7 +141,7 @@ loglik.exp_kofn <- function(model, ...) {
 #'   length `m` (the score vector).
 #'
 #' @examples
-#' model <- kofn(k = 1, m = 2, family = "exponential")
+#' model <- kofn(k = 2, m = 2, family = "exponential")
 #' sc <- score(model)
 #' set.seed(1)
 #' df <- rdata(model)(c(1, 2), n = 30)
@@ -179,7 +179,7 @@ score.exp_kofn <- function(model, ...) {
 #' @return A function `function(df, par)` returning an `m x m` Hessian matrix.
 #'
 #' @examples
-#' model <- kofn(k = 1, m = 2, family = "exponential")
+#' model <- kofn(k = 2, m = 2, family = "exponential")
 #' H <- hess_loglik(model)
 #' set.seed(1)
 #' df <- rdata(model)(c(1, 2), n = 30)
@@ -227,7 +227,7 @@ hess_loglik.exp_kofn <- function(model, ...) {
 #'
 #' @examples
 #' \donttest{
-#' model <- kofn(k = 1, m = 2, family = "exponential")
+#' model <- kofn(k = 2, m = 2, family = "exponential")
 #' set.seed(42)
 #' df <- rdata(model)(c(1, 2), n = 50)
 #' result <- fit(model)(df)
@@ -287,7 +287,7 @@ fit.exp_kofn <- function(object, ...) {
 #'   component, and the true parameters are stored as attributes.
 #'
 #' @examples
-#' model <- kofn(k = 1, m = 3, family = "exponential")
+#' model <- kofn(k = 3, m = 3, family = "exponential")
 #' gen <- rdata(model)
 #' set.seed(1)
 #' df <- gen(theta = c(1, 2, 3), n = 20)
@@ -395,7 +395,7 @@ rdata.exp_kofn <- function(model, ...) {
 #' @return Character vector of assumptions.
 #'
 #' @examples
-#' model <- kofn(k = 1, m = 3, family = "exponential")
+#' model <- kofn(k = 3, m = 3, family = "exponential")
 #' assumptions(model)
 #'
 #' @method assumptions exp_kofn

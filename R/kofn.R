@@ -2,7 +2,8 @@
 #'
 #' Constructs a likelihood model for component lifetime estimation from
 #' k-out-of-n system data. The system fails when \code{k} components have
-#' failed: \code{k=1} is a parallel system, \code{k=m} is a series system.
+#' failed: \code{k=1} is a series system (one failure kills it),
+#' \code{k=m} is a parallel system (all must fail).
 #'
 #' This model satisfies the \code{likelihood_model} concept from the
 #' \code{likelihood.model} package by providing methods for
@@ -18,7 +19,7 @@
 #' }
 #'
 #' @param k System parameter: system fails when k components have failed.
-#'   \code{k=1} is parallel, \code{k=m} is series.
+#'   \code{k=1} is series, \code{k=m} is parallel.
 #' @param m Number of components.
 #' @param family Component lifetime distribution: \code{"exponential"} or
 #'   \code{"weibull"}.
@@ -36,15 +37,15 @@
 #'   "likelihood_model")}.
 #' @export
 #' @examples
-#' # Parallel system with 3 exponential components
-#' model <- kofn(k = 1, m = 3, family = "exponential")
+#' # Parallel system with 3 exponential components (k = m)
+#' model <- kofn(k = 3, m = 3, family = "exponential")
 #' print(model)
 #'
-#' # Series system (k = m)
-#' model_series <- kofn(k = 4, m = 4, family = "exponential")
+#' # Series system (k = 1)
+#' model_series <- kofn(k = 1, m = 4, family = "exponential")
 #'
 #' # Weibull parallel system with EM estimation
-#' model_wei <- kofn(k = 1, m = 2, family = "weibull", method = "em")
+#' model_wei <- kofn(k = 2, m = 2, family = "weibull", method = "em")
 kofn <- function(k = 1L, m = 2L, family = "exponential",
                  method = "mle", system = NULL,
                  lifetime = "t", omega = "omega",
@@ -69,8 +70,8 @@ kofn <- function(k = 1L, m = 2L, family = "exponential",
     # size AND the number of paths equals choose(m, k)
     path_sizes <- vapply(system$min_paths, length, integer(1))
     if (length(unique(path_sizes)) == 1L) {
-      detected_k <- as.integer(path_sizes[1L])
-      if (length(system$min_paths) == choose(m, detected_k)) {
+      detected_k <- as.integer(m - path_sizes[1L] + 1L)
+      if (length(system$min_paths) == choose(m, path_sizes[1L])) {
         k <- detected_k
       } else {
         k <- NA_integer_
@@ -110,14 +111,14 @@ kofn <- function(k = 1L, m = 2L, family = "exponential",
 #' @method print kofn
 #' @export
 #' @examples
-#' print(kofn(k = 1, m = 3))
+#' print(kofn(k = 3, m = 3))
 print.kofn <- function(x, ...) {
   sys_type <- if (is.na(x$k)) {
     "general coherent"
   } else if (x$k == 1L) {
-    "parallel"
-  } else if (x$k == x$m) {
     "series"
+  } else if (x$k == x$m) {
+    "parallel"
   } else {
     paste0(x$k, "-out-of-", x$m)
   }
@@ -146,7 +147,7 @@ print.kofn <- function(x, ...) {
 #' @param ... Additional arguments (currently ignored).
 #' @return Integer number of components.
 #' @examples
-#' ncomponents(kofn(k = 1, m = 4))  # 4
+#' ncomponents(kofn(k = 4, m = 4))  # 4
 #'
 #' @export
 ncomponents <- function(model, ...) UseMethod("ncomponents")
@@ -162,7 +163,7 @@ ncomponents <- function(model, ...) UseMethod("ncomponents")
 #' @method ncomponents kofn
 #' @export
 #' @examples
-#' ncomponents(kofn(k = 1, m = 5))
+#' ncomponents(kofn(k = 5, m = 5))
 ncomponents.kofn <- function(model, ...) {
   model$m
 }
@@ -174,7 +175,7 @@ ncomponents.kofn <- function(model, ...) {
 #' @return Logical indicating whether \code{x} inherits from \code{"kofn"}.
 #' @export
 #' @examples
-#' is_kofn(kofn(k = 1, m = 3))
+#' is_kofn(kofn(k = 3, m = 3))
 #' is_kofn(42)
 is_kofn <- function(x) {
   inherits(x, "kofn")

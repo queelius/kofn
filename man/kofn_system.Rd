@@ -7,8 +7,8 @@
 kofn_system(k, n)
 }
 \arguments{
-\item{k}{Minimum number of functioning components (positive integer,
-\eqn{1 \le k \le n}{1 <= k <= n}).}
+\item{k}{Number of component failures for system failure (positive
+integer, \eqn{1 \le k \le n}{1 <= k <= n}).}
 
 \item{n}{Total number of components (positive integer).}
 }
@@ -16,15 +16,18 @@ kofn_system(k, n)
 A \code{coherent_system} object.
 }
 \description{
-A k-out-of-n system functions when at least k of its n components
-function. Minimal path sets are all subsets of size k.
+A k-out-of-n system fails when \code{k} components have failed.
+Equivalently, the system functions when at least \code{n - k + 1}
+components function, so minimal path sets are all subsets of size
+\code{n - k + 1}.
 }
 \details{
-Special cases: k=1 gives a parallel system, k=n gives a series system.
+Special cases: \code{k = 1} gives a series system (one failure kills
+it), \code{k = n} gives a parallel system (all must fail).
 }
 \examples{
-sys <- kofn_system(2, 3)  # 2-out-of-3
-phi(sys, c(TRUE, TRUE, FALSE))   # TRUE
-phi(sys, c(TRUE, FALSE, FALSE))  # FALSE
+sys <- kofn_system(2, 3)  # fails when 2 of 3 fail
+phi(sys, c(TRUE, TRUE, FALSE))   # TRUE  (1 failed, need 2)
+phi(sys, c(TRUE, FALSE, FALSE))  # FALSE (2 failed)
 
 }

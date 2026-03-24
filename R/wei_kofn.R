@@ -9,7 +9,7 @@
 # Parameter convention: par is a vector of length 2*m with interleaved
 # (shape_1, scale_1, shape_2, scale_2, ..., shape_m, scale_m).
 #
-# For parallel systems (k=1), an EM algorithm is available as an alternative
+# For parallel systems (k=m), an EM algorithm is available as an alternative
 # to direct MLE. The EM treats the identity of the last-failing component
 # as latent data, using truncated Weibull moments for the E-step and
 # profile optimization over shape with closed-form scale for the M-step.
@@ -82,7 +82,7 @@ weibull_f_sys <- function(t, shapes, scales) {
 #' Returns a closure \code{function(df, par)} that computes the log-likelihood
 #' for a Weibull k-out-of-n system given data and parameters.
 #'
-#' For parallel systems (k = 1), uses the direct Weibull system density
+#' For parallel systems (k = m), uses the direct Weibull system density
 #' \eqn{f_{sys}(t) = \sum_j f_j(t) \prod_{i \ne j} F_i(t)}.
 #' Supports \code{"exact"} and \code{"right"} observation types.
 #' Left and interval censoring are not supported for Weibull (no IE
@@ -95,7 +95,7 @@ weibull_f_sys <- function(t, shapes, scales) {
 #' @return A function \code{function(df, par)} returning a scalar log-likelihood.
 #'
 #' @examples
-#' model <- kofn(k = 1, m = 2, family = "weibull")
+#' model <- kofn(k = 2, m = 2, family = "weibull")
 #' ll <- loglik(model)
 #' set.seed(1)
 #' df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)
@@ -109,7 +109,7 @@ loglik.wei_kofn <- function(model, ...) {
   lt <- model$lifetime
   om <- model$omega
 
-  if (isTRUE(k == 1L)) {
+  if (isTRUE(k == m)) {
     # Parallel system: direct density computation
     function(df, par) {
       if (any(!is.finite(par)) || any(par <= 0)) return(-Inf)
@@ -169,7 +169,7 @@ loglik.wei_kofn <- function(model, ...) {
 #'   (the gradient of the log-likelihood).
 #'
 #' @examples
-#' model <- kofn(k = 1, m = 2, family = "weibull")
+#' model <- kofn(k = 2, m = 2, family = "weibull")
 #' sc <- score(model)
 #' set.seed(1)
 #' df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)
@@ -201,7 +201,7 @@ score.wei_kofn <- function(model, ...) {
 #'   (the Hessian of the log-likelihood).
 #'
 #' @examples
-#' model <- kofn(k = 1, m = 2, family = "weibull")
+#' model <- kofn(k = 2, m = 2, family = "weibull")
 #' H <- hess_loglik(model)
 #' set.seed(1)
 #' df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)
@@ -227,7 +227,7 @@ hess_loglik.wei_kofn <- function(model, ...) {
 #' Returns a closure that fits the model to data. Two methods are available:
 #'
 #' \describe{
-#'   \item{\code{"em"}}{EM algorithm for parallel systems (k = 1 only).
+#'   \item{\code{"em"}}{EM algorithm for parallel systems (k = m only).
 #'     Treats the identity of the last-failing component as latent data.
 #'     Uses truncated Weibull moments for the E-step and profile
 #'     optimization over shape with closed-form scale for the M-step.}
@@ -255,7 +255,7 @@ hess_loglik.wei_kofn <- function(model, ...) {
 #'
 #' @examples
 #' \donttest{
-#' model <- kofn(k = 1, m = 2, family = "weibull")
+#' model <- kofn(k = 2, m = 2, family = "weibull")
 #' set.seed(42)
 #' df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 50)
 #' result <- fit(model)(df)
@@ -274,8 +274,8 @@ fit.wei_kofn <- function(object, ...) {
 
   if (method == "em") {
     # EM algorithm (parallel systems only)
-    if (!isTRUE(k == 1L)) {
-      stop("EM algorithm is only available for parallel systems (k = 1)")
+    if (!isTRUE(k == m)) {
+      stop("EM algorithm is only available for parallel systems (k = m)")
     }
     em_solver(object, ll_fn, ...)
   } else {
@@ -538,7 +538,7 @@ mle_solver <- function(model, ll_fn, ...) {
 #'   }
 #'
 #' @examples
-#' model <- kofn(k = 1, m = 2, family = "weibull")
+#' model <- kofn(k = 2, m = 2, family = "weibull")
 #' gen <- rdata(model)
 #' set.seed(42)
 #' df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 50)
@@ -572,7 +572,7 @@ rdata.wei_kofn <- function(model, ...) {
     }
 
     # Compute system lifetimes
-    if (isTRUE(k == 1L)) {
+    if (isTRUE(k == m)) {
       sys_times <- apply(comp_times, 1, max)
     } else {
       sys_times <- vapply(seq_len(n), function(i) {
@@ -616,7 +616,7 @@ rdata.wei_kofn <- function(model, ...) {
 #' @return A character vector of assumptions.
 #'
 #' @examples
-#' model <- kofn(k = 1, m = 2, family = "weibull")
+#' model <- kofn(k = 2, m = 2, family = "weibull")
 #' assumptions(model)
 #'
 #' @export
@@ -628,7 +628,7 @@ assumptions.wei_kofn <- function(model, ...) {
   sys_desc <- if (is.na(k)) {
     sprintf("General coherent system with m = %d components", m)
   } else {
-    sprintf("System is %d-out-of-%d (k=%d components must function)", k, m, k)
+    sprintf("System is %d-out-of-%d (k=%d component failures for system failure)", k, m, k)
   }
 
   assumptions <- c(
@@ -641,7 +641,7 @@ assumptions.wei_kofn <- function(model, ...) {
     "Observation: system lifetime only (Scheme 0)"
   )
 
-  if (method == "em" && isTRUE(k == 1L)) {
+  if (method == "em" && isTRUE(k == m)) {
     assumptions <- c(assumptions,
       "Estimation: EM algorithm with latent last-failing component",
       "E-step uses truncated Weibull moments",

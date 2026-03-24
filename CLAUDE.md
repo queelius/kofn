@@ -15,9 +15,9 @@ have failed by system failure time. The incomplete-data problem is
 
 ## Ecosystem
 
-- `maskedcauses`: series systems (k=n), masked cause of failure
+- `maskedcauses`: series systems (k=1), masked cause of failure
 - `maskedhaz`: general DFR framework for series systems
-- `kofn`: parallel (k=1) and general k-out-of-n systems
+- `kofn`: parallel (k=m) and general k-out-of-n systems
 - `likelihood.model`: generics (loglik, score, hess_loglik, fit, rdata)
 - `generics`: fit generic
 - `serieshaz` / `flexhaz`: distribution infrastructure
@@ -93,15 +93,15 @@ Ordered from least to most informative:
 ### k-out-of-n as censoring
 For a k-out-of-n system with lifetime T = T_{(k)} (k-th order statistic):
 - 1 component observed exactly (the critical component)
-- k-1 components right-censored at T (still functioning)
-- n-k components left-censored at T (already failed)
+- k-1 components left-censored at T (already failed)
+- n-k components right-censored at T (still functioning)
 
-### Exponential parallel (k=1)
+### Exponential parallel (k=m)
 - f_sys(t) = sum_j lambda_j * exp(-lambda_j * t) * prod_{i!=j} (1 - exp(-lambda_i * t))
 - IE expansion makes prod(1-exp) a finite sum of exponentials
 - All integrals closed-form -> analytical likelihood
 
-### Weibull parallel (k=1)
+### Weibull parallel (k=m)
 - f_sys(t) = sum_j f_j(t) * prod_{i!=j} F_i(t)
 - No closed-form IE expansion
 - EM: J = argmax_j T_j is latent
@@ -110,6 +110,6 @@ For a k-out-of-n system with lifetime T = T_{(k)} (k-th order statistic):
 
 ## Testing
 - Test exponential IE expansion against general system density engine
-- Cross-validate with maskedcauses for the series case (k=n)
+- Cross-validate with maskedcauses for the series case (k=1)
 - Monte Carlo parameter recovery tests
 - Convergence tests for EM algorithm

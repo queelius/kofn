@@ -30,7 +30,7 @@ Returns the number of components \code{m} in the k-out-of-n system.
 
 }}
 \examples{
-ncomponents(kofn(k = 1, m = 4))  # 4
+ncomponents(kofn(k = 4, m = 4))  # 4
 
-ncomponents(kofn(k = 1, m = 5))
+ncomponents(kofn(k = 5, m = 5))
 }

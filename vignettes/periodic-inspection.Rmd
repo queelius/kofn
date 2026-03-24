@@ -91,7 +91,7 @@ set.seed(42)
 theta_true <- c(1.5, 2.0, 2.0, 3.0)
 
 # Create the Weibull parallel system model (EM for Scheme 0)
-model_em <- kofn(k = 1, m = 2, family = "weibull", method = "em")
+model_em <- kofn(k = 2, m = 2, family = "weibull", method = "em")
 
 # Generate Scheme 0 data (system lifetimes only)
 gen <- rdata(model_em)
@@ -168,7 +168,7 @@ cannot. The `kofn` package provides dedicated functions for Scheme 1:
 
 ```{r scheme1-demo}
 # Generate data under Scheme 1 with delta = 0.5
-model_wei <- kofn(k = 1, m = 2, family = "weibull")
+model_wei <- kofn(k = 2, m = 2, family = "weibull")
 gen_s1 <- rdata_scheme1(model_wei)
 df1 <- gen_s1(theta_true, n = 300, delta = 0.5)
 
@@ -219,7 +219,7 @@ sys_times <- apply(comp_times, 1, max)
 
 # --- Scheme 0: system lifetime only ---
 df_s0 <- data.frame(t = sys_times)
-model_em <- kofn(k = 1, m = 2, family = "weibull", method = "em")
+model_em <- kofn(k = 2, m = 2, family = "weibull", method = "em")
 solver_em <- fit(model_em)
 mle_s0 <- solver_em(df_s0, n_starts = 3L)
 
@@ -229,7 +229,7 @@ for (j in seq_len(m)) {
   df_s1[[paste0("comp_lower_", j)]] <- floor(comp_times[, j] / delta) * delta
   df_s1[[paste0("comp_upper_", j)]] <- floor(comp_times[, j] / delta) * delta + delta
 }
-model_mle <- kofn(k = 1, m = 2, family = "weibull", method = "mle")
+model_mle <- kofn(k = 2, m = 2, family = "weibull", method = "mle")
 solver_s1 <- fit_scheme1(model_mle)
 mle_s1 <- solver_s1(df_s1, n_starts = 3L)
 

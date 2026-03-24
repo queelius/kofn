@@ -112,7 +112,7 @@ works, but the likelihood surface has problematic features:
 ```{r direct-mle-demo}
 # Generate data from a Weibull parallel system
 set.seed(42)
-model_mle <- kofn(k = 1, m = 2, family = "weibull", method = "mle")
+model_mle <- kofn(k = 2, m = 2, family = "weibull", method = "mle")
 gen <- rdata(model_mle)
 
 true_par <- c(1.5, 2.0,   # component 1: shape=1.5, scale=2.0
@@ -136,7 +136,7 @@ cat(sprintf("  Converged: %s\n", result_mle$converged))
 
 The EM algorithm sidesteps the difficult joint optimization by
 introducing a latent variable: **which component failed last**. In a
-parallel system ($k = 1$), the system lifetime is $T = \max_j T_j$, so
+parallel system ($k = m$), the system lifetime is $T = \max_j T_j$, so
 exactly one component has $T_j = T$ (the critical component) and all
 others have $T_j < T$ (left-censored). The identity
 $J = \arg\max_j T_j$ is unobserved under Scheme 0.
@@ -219,8 +219,8 @@ Let us compare the two estimation methods on a concrete example.
 set.seed(123)
 
 # Create models
-model_em  <- kofn(k = 1, m = 2, family = "weibull", method = "em")
-model_mle <- kofn(k = 1, m = 2, family = "weibull", method = "mle")
+model_em  <- kofn(k = 2, m = 2, family = "weibull", method = "em")
+model_mle <- kofn(k = 2, m = 2, family = "weibull", method = "mle")
 
 # True parameters: shapes (1.5, 2.0), scales (2.0, 3.0)
 true_par <- c(1.5, 2.0, 2.0, 3.0)
@@ -272,8 +272,8 @@ R <- 200; n <- 300
 
 for (a in alphas) {
   true_par <- c(a, 2.0, a, 3.0)
-  mdl_em  <- kofn(k = 1, m = 2, family = "weibull", method = "em")
-  mdl_mle <- kofn(k = 1, m = 2, family = "weibull", method = "mle")
+  mdl_em  <- kofn(k = 2, m = 2, family = "weibull", method = "em")
+  mdl_mle <- kofn(k = 2, m = 2, family = "weibull", method = "mle")
   gen <- rdata(mdl_em)
   f_em <- fit(mdl_em); f_mle <- fit(mdl_mle)
 
@@ -332,8 +332,8 @@ handles this shape diversity better than direct MLE.
 set.seed(456)
 
 # Mixed DFR + IFR: shape (0.8, 1.5), scale (2.0, 3.0)
-model_em <- kofn(k = 1, m = 2, family = "weibull", method = "em")
-model_mle <- kofn(k = 1, m = 2, family = "weibull", method = "mle")
+model_em <- kofn(k = 2, m = 2, family = "weibull", method = "em")
+model_mle <- kofn(k = 2, m = 2, family = "weibull", method = "mle")
 
 true_par <- c(0.8, 2.0, 1.5, 3.0)
 gen <- rdata(model_em)
@@ -370,7 +370,7 @@ scenarios <- list(
 R <- 200; n <- 300
 for (sc in scenarios) {
   m <- length(sc$par) / 2
-  mdl <- kofn(k = 1, m = m, family = "weibull", method = "em")
+  mdl <- kofn(k = m, m = m, family = "weibull", method = "em")
   gen <- rdata(mdl); f <- fit(mdl)
   true_sh <- sc$par[seq(1, length(sc$par), by = 2)]
   errs <- numeric(0)
@@ -410,7 +410,7 @@ out of the box.
 
 ```{r stats-integration}
 set.seed(789)
-model_em <- kofn(k = 1, m = 2, family = "weibull", method = "em")
+model_em <- kofn(k = 2, m = 2, family = "weibull", method = "em")
 gen <- rdata(model_em)
 true_par <- c(1.5, 2.0, 2.0, 3.0)
 df <- gen(true_par, n = 300)

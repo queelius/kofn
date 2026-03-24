@@ -19,7 +19,7 @@ Returns a closure \code{function(df, par)} that computes the log-likelihood
 for a Weibull k-out-of-n system given data and parameters.
 }
 \details{
-For parallel systems (k = 1), uses the direct Weibull system density
+For parallel systems (k = m), uses the direct Weibull system density
 \eqn{f_{sys}(t) = \sum_j f_j(t) \prod_{i \ne j} F_i(t)}.
 Supports \code{"exact"} and \code{"right"} observation types.
 Left and interval censoring are not supported for Weibull (no IE
@@ -28,7 +28,7 @@ expansion); use the exponential model or Scheme 1 for those cases.
 For general k, delegates to \code{\link[=loglik_system]{loglik_system()}} with \code{family = "weibull"}.
 }
 \examples{
-model <- kofn(k = 1, m = 2, family = "weibull")
+model <- kofn(k = 2, m = 2, family = "weibull")
 ll <- loglik(model)
 set.seed(1)
 df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)

@@ -12,7 +12,7 @@ Description: Maximum likelihood estimation of component lifetime parameters
     and Scheme 2 (complete monitoring). Provides an EM algorithm for Weibull
     parallel systems, Fisher information comparison across schemes, and
     coherent system infrastructure via minimal path/cut sets. The k-out-of-n
-    framework unifies series (k=n, via maskedcauses) and parallel (k=1)
+    framework unifies series (k=1) and parallel (k=n)
     systems as a censoring problem on component lifetimes.
 License: MIT + file LICENSE
 URL: https://github.com/queelius/kofn

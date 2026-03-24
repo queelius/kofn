@@ -32,7 +32,7 @@ Workflow:
 }
 }
 \examples{
-model <- kofn(k = 1, m = 3, family = "exponential")
+model <- kofn(k = 3, m = 3, family = "exponential")
 gen <- rdata(model)
 set.seed(1)
 df <- gen(theta = c(1, 2, 3), n = 20)
