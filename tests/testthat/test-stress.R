@@ -135,23 +135,18 @@ test_that("general system density works for 3-out-of-5", {
 # ===========================================================================
 
 test_that("IE loglik matches general system density loglik for parallel", {
-  # The IE-based loglik computes the joint likelihood of (T, C) where C
-  # is the candidate set. The general system density computes the marginal
-  # likelihood of T only. They agree when p=1 (all components in every
-  # candidate set), making sum over C_i = sum over all j = f_sys(t).
+  # Both compute the marginal system density — they should agree exactly
   rates <- c(0.5, 0.3, 0.2)
   sys <- parallel_system(3)
 
   model <- kofn(k = 3, m = 3)
   gen <- rdata(model)
   set.seed(42)
-  df <- gen(theta = rates, n = 50, p = 1)  # all components in candidate set
+  df <- gen(theta = rates, n = 50)
 
-  # IE-based loglik (joint of T and C, but C = {1,...,m} for all obs)
   ll_ie <- loglik(model)
   val_ie <- ll_ie(df, rates)
 
-  # General system density loglik (marginal of T only)
   val_gen <- loglik_system(df$t, sys, rates, family = "exponential")
 
   expect_equal(val_ie, val_gen, tolerance = 1e-8)

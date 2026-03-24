@@ -50,62 +50,50 @@ loglik.exp_kofn <- function(model, ...) {
   k     <- model$k
   lt    <- model$lifetime
   om    <- model$omega
-  cs    <- model$candset
   lt_up <- model$lifetime_upper
 
   if (isTRUE(k == m)) {
     # Parallel fast path: IE-based closed-form likelihood
     function(df, par) {
       if (any(par <= 0)) return(-Inf)
-
-      d <- extract_data(df, lt, om, cs, lt_up)
-      if (length(par) != d$m) {
-        stop(sprintf("Expected %d parameters but got %d", d$m, length(par)))
+      if (length(par) != m) {
+        stop(sprintf("Expected %d parameters but got %d", m, length(par)))
       }
 
+      t_obs <- df[[lt]]
+      omega_vals <- as.character(df[[om]])
+      comps <- seq_len(m)
       ll <- 0
 
-      # --- Exact observations ---
-      for (i in which(d$omega == "exact")) {
-        cand <- which(d$C[i, ])
-        val <- sum(vapply(
-          cand,
-          function(j) w_j_exact(d$t[i], par, j),
-          numeric(1)
-        ))
+      # --- Exact: log f_sys(t) ---
+      for (i in which(omega_vals == "exact")) {
+        val <- sum(vapply(comps,
+          function(j) w_j_exact(t_obs[i], par, j), numeric(1)))
         if (val <= 0) return(-Inf)
         ll <- ll + log(val)
       }
 
-      # --- Right-censored observations ---
-      for (i in which(d$omega == "right")) {
-        s <- S_sys_exp(d$t[i], par)
+      # --- Right-censored: log S_sys(t) ---
+      for (i in which(omega_vals == "right")) {
+        s <- S_sys_exp(t_obs[i], par)
         if (s <= 0) return(-Inf)
         ll <- ll + log(s)
       }
 
-      # --- Left-censored observations ---
-      for (i in which(d$omega == "left")) {
-        cand <- which(d$C[i, ])
-        val <- sum(vapply(
-          cand,
-          function(j) w_j_integral(0, d$t[i], par, j),
-          numeric(1)
-        ))
+      # --- Left-censored: log F_sys(t) ---
+      for (i in which(omega_vals == "left")) {
+        val <- sum(vapply(comps,
+          function(j) w_j_integral(0, t_obs[i], par, j), numeric(1)))
         if (val <= 0) return(-Inf)
         ll <- ll + log(val)
       }
 
-      # --- Interval-censored observations ---
-      for (i in which(d$omega == "interval")) {
-        cand <- which(d$C[i, ])
-        a <- d$t[i]
-        b <- d$t_upper[i]
-        val <- sum(vapply(
-          cand,
-          function(j) w_j_integral(a, b, par, j),
-          numeric(1)
-        ))
+      # --- Interval-censored: log(F_sys(b) - F_sys(a)) ---
+      for (i in which(omega_vals == "interval")) {
+        a <- t_obs[i]
+        b <- df[[lt_up]][i]
+        val <- sum(vapply(comps,
+          function(j) w_j_integral(a, b, par, j), numeric(1)))
         if (val <= 0) return(-Inf)
         ll <- ll + log(val)
       }
@@ -275,16 +263,14 @@ fit.exp_kofn <- function(object, ...) {
 #' Workflow:
 #' 1. Generate i.i.d. exponential component lifetimes.
 #' 2. Compute system lifetime via the coherent system structure function.
-#' 3. Identify the critical component (argmax within the binding cut set).
-#' 4. Apply the observation functor (exact observation by default).
-#' 5. Generate candidate sets satisfying conditions C1/C2/C3.
+#' 3. Apply the observation functor (exact observation by default).
 #'
 #' @param model An `exp_kofn` object created by [kofn()].
 #' @param ... Additional arguments (ignored).
-#' @return A function `function(theta, n, p = 0, observe = NULL)`
-#'   returning a data frame with columns for lifetime, observation type,
-#'   and candidate set indicators. Latent component lifetimes, true critical
-#'   component, and the true parameters are stored as attributes.
+#' @return A function `function(theta, n, observe = NULL)`
+#'   returning a data frame with columns \code{t} (system lifetime) and
+#'   \code{omega} (observation type). Latent component lifetimes, true
+#'   critical component, and the true parameters are stored as attributes.
 #'
 #' @examples
 #' model <- kofn(k = 3, m = 3, family = "exponential")
@@ -300,20 +286,18 @@ fit.exp_kofn <- function(object, ...) {
 #' @method rdata exp_kofn
 #' @export
 rdata.exp_kofn <- function(model, ...) {
-  sys   <- model$system
-  m     <- model$m
-  lt    <- model$lifetime
-  om    <- model$omega
-  cs    <- model$candset
+  sys <- model$system
+  m   <- model$m
+  lt  <- model$lifetime
+  om  <- model$omega
   lt_up <- model$lifetime_upper
 
-  function(theta, n, p = 0, observe = NULL) {
+  function(theta, n, observe = NULL) {
     if (length(theta) != m) {
       stop(sprintf("theta has length %d but model has %d components",
                    length(theta), m))
     }
     if (any(theta <= 0)) stop("All rates must be positive")
-    if (p < 0 || p > 1) stop("p must be in [0, 1]")
 
     # 1. Generate component lifetimes
     comp_lifetimes <- matrix(nrow = n, ncol = m)
@@ -321,7 +305,7 @@ rdata.exp_kofn <- function(model, ...) {
       comp_lifetimes[, j] <- stats::rexp(n, rate = theta[j])
     }
 
-    # 2. Compute system lifetime via coherent system structure
+    # 2. Compute system lifetime + critical component
     sys_lifetime_vec <- numeric(n)
     critical_comp    <- integer(n)
     for (i in seq_len(n)) {
@@ -334,8 +318,6 @@ rdata.exp_kofn <- function(model, ...) {
     if (is.null(observe)) {
       observe <- observe_exact()
     }
-
-    # 4. Apply observation mechanism
     obs_t       <- numeric(n)
     omega_vals  <- character(n)
     t_upper_vals <- rep(NA_real_, n)
@@ -346,36 +328,16 @@ rdata.exp_kofn <- function(model, ...) {
       t_upper_vals[i] <- obs$t_upper
     }
 
-    # 5. Generate candidate sets under C1/C2/C3
-    #    Critical component always in candidate set (C1).
-    #    Each non-critical component included independently with prob p.
-    cand_matrix <- matrix(FALSE, nrow = n, ncol = m)
-    has_failure <- omega_vals != "right"
-    for (i in which(has_failure)) {
-      cand_matrix[i, critical_comp[i]] <- TRUE  # C1
-      if (p > 0 && m > 1L) {
-        others <- seq_len(m)[-critical_comp[i]]
-        cand_matrix[i, others] <- stats::runif(length(others)) < p
-      }
-    }
-
     # Build data frame
     df <- data.frame(obs_t, omega_vals, stringsAsFactors = FALSE)
     names(df) <- c(lt, om)
-
     if (any(omega_vals == "interval")) {
       df[[lt_up]] <- t_upper_vals
     }
 
-    for (j in seq_len(m)) {
-      df[[paste0(cs, j)]] <- cand_matrix[, j]
-    }
-
-    # Store latent info as attributes (for validation / debugging)
     attr(df, "comp_lifetimes") <- comp_lifetimes
     attr(df, "critical_comp")  <- critical_comp
     attr(df, "theta")          <- theta
-
     df
   }
 }
@@ -410,10 +372,7 @@ assumptions.exp_kofn <- function(model, ...) {
     "independent component lifetimes",
     "exponential component lifetime distributions",
     sys_desc,
-    "i.i.d. system observations",
-    "candidate sets satisfy C1 (contains true critical component)",
-    "candidate sets satisfy C2 (symmetric given critical component)",
-    "candidate sets satisfy C3 (masking independent of parameters)"
+    "i.i.d. system observations"
   )
 }
 

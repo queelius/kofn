@@ -30,7 +30,6 @@
 #'   ignored and this system is used directly.
 #' @param lifetime Column name for system lifetime (default \code{"t"}).
 #' @param omega Column name for observation type (default \code{"omega"}).
-#' @param candset Prefix for candidate set columns (default \code{"x"}).
 #' @param lifetime_upper Column name for interval upper bound (default
 #'   \code{"t_upper"}).
 #' @return An S3 object of class \code{c("exp_kofn"/"wei_kofn", "kofn",
@@ -49,7 +48,7 @@
 kofn <- function(k = 1L, m = 2L, family = "exponential",
                  method = "mle", system = NULL,
                  lifetime = "t", omega = "omega",
-                 candset = "x", lifetime_upper = "t_upper") {
+                 lifetime_upper = "t_upper") {
   family <- match.arg(family, c("exponential", "weibull"))
   method <- match.arg(method, c("mle", "em"))
 
@@ -89,7 +88,6 @@ kofn <- function(k = 1L, m = 2L, family = "exponential",
     method = method,
     lifetime = lifetime,
     omega = omega,
-    candset = candset,
     lifetime_upper = lifetime_upper
   )
 
@@ -133,7 +131,6 @@ print.kofn <- function(x, ...) {
   cat("  Column conventions:\n")
   cat("    lifetime:", x$lifetime, "\n")
   cat("    omega:", x$omega, "\n")
-  cat("    candidate set:", paste0(x$candset, "1..", x$candset, x$m), "\n")
   cat("    interval upper:", x$lifetime_upper, "\n")
   invisible(x)
 }

@@ -23,8 +23,6 @@ test_that("exponential loglik handles left-censored observations", {
   df <- data.frame(
     t = c(1.0, 2.0, 3.0, 1.5),
     omega = c("exact", "left", "exact", "left"),
-    x1 = c(TRUE, TRUE, TRUE, TRUE),
-    x2 = c(TRUE, TRUE, FALSE, TRUE),
     stringsAsFactors = FALSE
   )
 
@@ -47,9 +45,9 @@ test_that("left-censored loglik uses corrected formula (no normalizer)", {
   model <- kofn(k = 2, m = 2)
   rates <- c(0.5, 0.3)
 
-  # Single left-censored observation at t=2, candidate set = {1,2}
+  # Single left-censored observation at t=2
   df <- data.frame(
-    t = 2.0, omega = "left", x1 = TRUE, x2 = TRUE,
+    t = 2.0, omega = "left",
     stringsAsFactors = FALSE
   )
   ll <- loglik(model)
@@ -73,8 +71,6 @@ test_that("exponential loglik handles interval-censored observations", {
     t = c(1.0, 2.0, 3.0),
     t_upper = c(NA, 3.0, 4.0),
     omega = c("exact", "interval", "interval"),
-    x1 = c(TRUE, TRUE, TRUE),
-    x2 = c(TRUE, TRUE, FALSE),
     stringsAsFactors = FALSE
   )
 
@@ -84,13 +80,12 @@ test_that("exponential loglik handles interval-censored observations", {
 })
 
 test_that("interval-censored loglik uses corrected formula", {
-  # Single interval-censored obs [1, 3], candidate set = {1, 2}
+  # Single interval-censored obs [1, 3]
   model <- kofn(k = 2, m = 2)
   rates <- c(0.5, 0.3)
 
   df <- data.frame(
     t = 1.0, t_upper = 3.0, omega = "interval",
-    x1 = TRUE, x2 = TRUE,
     stringsAsFactors = FALSE
   )
   ll <- loglik(model)
@@ -109,9 +104,6 @@ test_that("mixed observation types work together in exponential loglik", {
     t = c(1.0, 2.0, 3.0, 1.5, 2.0),
     t_upper = c(NA, NA, NA, NA, 3.0),
     omega = c("exact", "right", "left", "exact", "interval"),
-    x1 = c(TRUE, FALSE, TRUE, TRUE, TRUE),
-    x2 = c(TRUE, FALSE, TRUE, FALSE, TRUE),
-    x3 = c(FALSE, FALSE, TRUE, TRUE, TRUE),
     stringsAsFactors = FALSE
   )
 
@@ -469,24 +461,6 @@ test_that("rdata.wei_kofn validates parameter length", {
 # extract_data validation
 # ===========================================================================
 
-test_that("extract_data catches missing columns", {
-  df <- data.frame(t = 1:3, omega = "exact", x1 = TRUE)
-
-  expect_error(extract_data(df, "missing", "omega", "x"), "not found")
-  expect_error(extract_data(df, "t", "missing", "x"), "not found")
-})
-
-test_that("extract_data catches invalid omega values", {
-  df <- data.frame(t = 1, omega = "bogus", x1 = TRUE)
-  expect_error(extract_data(df, "t", "omega", "x"), "Invalid omega")
-})
-
-test_that("extract_data catches empty data frame", {
-  df <- data.frame(t = numeric(0), omega = character(0), x1 = logical(0))
-  expect_error(extract_data(df, "t", "omega", "x"), "empty")
-})
-
-
 # ===========================================================================
 # fit_system for Weibull family
 # ===========================================================================
@@ -534,23 +508,6 @@ test_that("hessian_score_at_mle handles non-differentiable function", {
   result <- hessian_score_at_mle(bad_fn, c(1, 2), 2L)
   expect_true(is.matrix(result$hessian))
   expect_equal(length(result$score), 2)
-})
-
-
-# ===========================================================================
-# md_decode_matrix edge cases
-# ===========================================================================
-
-test_that("md_decode_matrix returns NULL for no matching columns", {
-  df <- data.frame(a = 1, b = 2)
-  expect_null(md_decode_matrix(df, "x"))
-})
-
-test_that("md_decode_matrix handles dotted column names", {
-  df <- data.frame(x.1 = c(1, 2), x.2 = c(3, 4))
-  mat <- md_decode_matrix(df, "x")
-  expect_equal(ncol(mat), 2)
-  expect_equal(nrow(mat), 2)
 })
 
 

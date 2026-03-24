@@ -12,10 +12,10 @@
 \item{...}{Additional arguments (ignored).}
 }
 \value{
-A function \verb{function(theta, n, p = 0, observe = NULL)}
-returning a data frame with columns for lifetime, observation type,
-and candidate set indicators. Latent component lifetimes, true critical
-component, and the true parameters are stored as attributes.
+A function \verb{function(theta, n, observe = NULL)}
+returning a data frame with columns \code{t} (system lifetime) and
+\code{omega} (observation type). Latent component lifetimes, true
+critical component, and the true parameters are stored as attributes.
 }
 \description{
 Returns a closure that generates random system-level data from the
@@ -26,9 +26,7 @@ Workflow:
 \enumerate{
 \item Generate i.i.d. exponential component lifetimes.
 \item Compute system lifetime via the coherent system structure function.
-\item Identify the critical component (argmax within the binding cut set).
 \item Apply the observation functor (exact observation by default).
-\item Generate candidate sets satisfying conditions C1/C2/C3.
 }
 }
 \examples{

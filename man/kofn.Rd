@@ -12,7 +12,6 @@ kofn(
   system = NULL,
   lifetime = "t",
   omega = "omega",
-  candset = "x",
   lifetime_upper = "t_upper"
 )
 }
@@ -35,8 +34,6 @@ ignored and this system is used directly.}
 \item{lifetime}{Column name for system lifetime (default \code{"t"}).}
 
 \item{omega}{Column name for observation type (default \code{"omega"}).}
-
-\item{candset}{Prefix for candidate set columns (default \code{"x"}).}
 
 \item{lifetime_upper}{Column name for interval upper bound (default
 \code{"t_upper"}).}
