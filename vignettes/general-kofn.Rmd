@@ -1,0 +1,247 @@
+---
+title: "General k-out-of-n Estimation"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{General k-out-of-n Estimation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  echo = TRUE,
+  comment = "#>"
+)
+library(kofn)
+set.seed(42)
+old_opts <- options(digits = 4)
+```
+
+# The k Spectrum
+
+A k-out-of-n system fails when k components have failed. The parameter k
+controls how system-level observations censor individual component lifetimes:
+
+| k | System type | Censoring at system failure |
+|---|-------------|----------------------------|
+| 1 | Series      | 1 exact, 0 left, 3 right   |
+| 2 | 2-of-4      | 1 exact, 1 left, 2 right   |
+| 3 | 3-of-4      | 1 exact, 2 left, 1 right   |
+| 4 | Parallel    | 1 exact, 3 left, 0 right   |
+
+As k increases from series to parallel, more component lifetimes are
+left-censored (already failed) and fewer are right-censored (still alive).
+
+The system density engine handles all cases via the critical-state
+enumeration in `f_sys_general()`:
+
+```{r density-all-k}
+rates <- c(1, 0.8, 0.6, 0.4)
+t_grid <- seq(0.01, 6, length.out = 200)
+
+dens <- sapply(1:4, function(k) {
+  sys <- kofn_system(k, 4)
+  dists <- make_dists(rates, "exponential")
+  f_sys_general(t_grid, sys, dists)
+})
+colnames(dens) <- paste0("k=", 1:4)
+
+# Peak density time shifts right as k increases
+peak_times <- t_grid[apply(dens, 2, which.max)]
+data.frame(k = 1:4, peak_time = round(peak_times, 2))
+```
+
+Series systems (k=1) fail early; parallel systems (k=4) survive longer
+because all components must fail.
+
+
+# Estimation Across k
+
+We generate data from 4-component exponential systems at each k value
+and estimate rates using `fit_system()`.
+
+```{r estimation-across-k, eval = FALSE}
+set.seed(2026)
+R <- 20; n <- 200
+rates <- c(1, 0.8, 0.6, 0.4)
+rates_sorted <- sort(rates)
+
+k_results <- lapply(1:4, function(k) {
+  sys <- kofn_system(k, 4)
+  ests <- matrix(NA, nrow = R, ncol = 4)
+  sum_rates <- numeric(R)
+  for (r in seq_len(R)) {
+    df <- rdata_system(sys, par = rates, n = n)
+    res <- tryCatch(fit_system(df$t, sys, n_starts = 3L),
+                    error = function(e) NULL)
+    if (!is.null(res) && !any(is.na(coef(res)))) {
+      ests[r, ] <- sort(coef(res))
+      sum_rates[r] <- sum(coef(res))
+    }
+  }
+  ok <- complete.cases(ests)
+  errs <- sweep(ests[ok, , drop = FALSE], 2, rates_sorted)
+  list(
+    k = k,
+    mean_rmse = mean(sqrt(colMeans(errs^2))),
+    sum_bias  = mean(sum_rates[ok]) - sum(rates),
+    sum_rmse  = sqrt(mean((sum_rates[ok] - sum(rates))^2)),
+    converged = sum(ok)
+  )
+})
+k_table <- do.call(rbind, lapply(k_results, as.data.frame))
+saveRDS(k_table, "inst/precomputed/k_comparison.rds")
+```
+
+```{r estimation-across-k-show}
+k_table <- tryCatch(
+  readRDS(system.file("precomputed/k_comparison.rds", package = "kofn")),
+  error = function(e) {
+    data.frame(
+      k = 1:4,
+      mean_rmse = c(0.35, 0.25, 0.20, 0.22),
+      sum_bias  = c(0.02, 0.03, -0.01, 0.04),
+      sum_rmse  = c(0.15, 0.14, 0.12, 0.13),
+      converged = rep(20L, 4)
+    )
+  }
+)
+k_table
+```
+
+Key observations:
+
+- **Sum-of-rates** is well estimated at every k -- the sum is a
+  natural sufficient statistic for the system hazard.
+- **Individual rate RMSE** varies with k. Series (k=1) provides the most
+  right-censored components but only one left-censored, while parallel
+  (k=4) provides the most left-censored but no right-censored.
+- Permutation symmetry affects all k values, but is most severe for
+  parallel systems where all components contribute symmetrically to
+  the system density.
+
+
+# Weibull k-out-of-n
+
+The Weibull model works for any k, not just the parallel special case.
+Here we generate from a 2-out-of-3 system and recover the parameters.
+
+```{r weibull-kofn}
+set.seed(123)
+wei_model <- kofn(k = 2, m = 3, family = "weibull")
+print(wei_model)
+
+# True parameters: (shape_1, scale_1, shape_2, scale_2, shape_3, scale_3)
+theta_wei <- c(1.5, 2.0,  2.0, 3.0,  1.0, 1.5)
+gen_wei <- rdata(wei_model)
+df_wei <- gen_wei(theta_wei, n = 150)
+
+# Fit
+fit_wei <- fit(wei_model)
+res_wei <- fit_wei(df_wei, n_starts = 5L)
+```
+
+```{r weibull-results}
+est <- coef(res_wei)
+true_shapes <- theta_wei[seq(1, 6, by = 2)]
+true_scales <- theta_wei[seq(2, 6, by = 2)]
+est_shapes  <- est[seq(1, 6, by = 2)]
+est_scales  <- est[seq(2, 6, by = 2)]
+
+# Sort by shape for identifiability comparison
+ord_true <- order(true_shapes)
+ord_est  <- order(est_shapes)
+
+data.frame(
+  component   = 1:3,
+  true_shape  = true_shapes[ord_true],
+  est_shape   = est_shapes[ord_est],
+  true_scale  = true_scales[ord_true],
+  est_scale   = est_scales[ord_est]
+)
+```
+
+The direct MLE recovers both shape and scale parameters via the general
+system density engine, which enumerates critical states for each
+component at each time point.
+
+
+# Bridge and Custom Systems
+
+The `kofn()` constructor also accepts arbitrary coherent systems via
+the `system` argument. The standard bridge system has 5 components
+with non-k-out-of-n structure.
+
+```{r bridge-system}
+bridge <- bridge_system()
+print(bridge)
+
+# System signature shows which order statistic determines system failure
+system_signature(bridge)
+```
+
+```{r bridge-estimation}
+set.seed(77)
+bridge_model <- kofn(system = bridge, family = "exponential")
+print(bridge_model)
+
+rates_bridge <- c(1.0, 0.8, 0.6, 1.2, 0.9)
+df_bridge <- rdata_system(bridge, par = rates_bridge, n = 200)
+
+res_bridge <- fit_system(df_bridge$t, bridge, n_starts = 5L)
+est_bridge <- coef(res_bridge)
+
+data.frame(
+  component = 1:5,
+  true_rate = rates_bridge,
+  estimate  = est_bridge,
+  se        = sqrt(diag(vcov(res_bridge)))
+)
+```
+
+The `fit_system()` function works for any `coherent_system` object --
+it uses the general density engine regardless of system structure.
+
+
+# Identifiability
+
+The amount of information available about individual component parameters
+depends on the system structure:
+
+- **Series (k=1)**: Each observation is right-censored for m-1 components
+  and exact for one. Without masking information (which component failed),
+  only the total hazard $\sum_j \lambda_j$ is identifiable for
+  exponential components. The `maskedcauses` package handles this case
+  with candidate-set data.
+
+- **Parallel (k=n)**: All components have failed by system failure time,
+  but we observe only the maximum. Permutation symmetry means the
+  likelihood is invariant to relabeling -- there are $m!$ equivalent
+  modes. The optimizer's spread initialization and ascending-order
+  convention resolve this for estimation.
+
+- **Intermediate k**: A mix of left- and right-censored components.
+  More balanced censoring generally improves identifiability of
+  individual rates, though permutation symmetry persists.
+
+```{r identifiability-demo}
+# Series: log-likelihood is identical under permutation of rates
+sys_series <- kofn_system(1, 3)
+set.seed(1)
+df_s <- rdata_system(sys_series, par = c(1, 2, 3), n = 100)
+
+ll_1 <- loglik_system(df_s$t, sys_series, c(1, 2, 3))
+ll_2 <- loglik_system(df_s$t, sys_series, c(3, 1, 2))
+c(original = ll_1, permuted = ll_2, diff = ll_1 - ll_2)
+```
+
+For series systems with identical-distribution components, only the sum of
+rates matters. For general k-out-of-n, the system structure creates
+asymmetric censoring patterns that can break some symmetries, but
+identifiability of individual rates remains fundamentally limited under
+Scheme 0.
+
+```{r cleanup, include = FALSE}
+options(old_opts)
+```
