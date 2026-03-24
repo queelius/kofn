@@ -59,67 +59,51 @@ because all components must fail.
 # Estimation Across k
 
 We generate data from 4-component exponential systems at each k value
-and estimate rates using `fit_system()`.
+and estimate rates using `fit_system()`.  We use a single dataset per k
+(n = 300) to keep the vignette fast.
 
-```{r estimation-across-k, eval = FALSE}
-set.seed(2026)
-R <- 20; n <- 200
+```{r estimation-across-k}
+set.seed(42)
 rates <- c(1, 0.8, 0.6, 0.4)
 rates_sorted <- sort(rates)
 
-k_results <- lapply(1:4, function(k) {
-  sys <- kofn_system(k, 4)
-  ests <- matrix(NA, nrow = R, ncol = 4)
-  sum_rates <- numeric(R)
-  for (r in seq_len(R)) {
-    df <- rdata_system(sys, par = rates, n = n)
-    res <- tryCatch(fit_system(df$t, sys, n_starts = 3L),
-                    error = function(e) NULL)
-    if (!is.null(res) && !any(is.na(coef(res)))) {
-      ests[r, ] <- sort(coef(res))
-      sum_rates[r] <- sum(coef(res))
-    }
-  }
-  ok <- complete.cases(ests)
-  errs <- sweep(ests[ok, , drop = FALSE], 2, rates_sorted)
-  list(
-    k = k,
-    mean_rmse = mean(sqrt(colMeans(errs^2))),
-    sum_bias  = mean(sum_rates[ok]) - sum(rates),
-    sum_rmse  = sqrt(mean((sum_rates[ok] - sum(rates))^2)),
-    converged = sum(ok)
-  )
-})
-k_table <- do.call(rbind, lapply(k_results, as.data.frame))
-saveRDS(k_table, "inst/precomputed/k_comparison.rds")
-```
-
-```{r estimation-across-k-show}
-k_table <- tryCatch(
-  readRDS(system.file("precomputed/k_comparison.rds", package = "kofn")),
-  error = function(e) {
-    data.frame(
-      k = 1:4,
-      mean_rmse = c(0.35, 0.25, 0.20, 0.22),
-      sum_bias  = c(0.02, 0.03, -0.01, 0.04),
-      sum_rmse  = c(0.15, 0.14, 0.12, 0.13),
-      converged = rep(20L, 4)
-    )
-  }
+k_table <- data.frame(
+  k = 1:4,
+  type = c("series", "2-of-4", "3-of-4", "parallel"),
+  sum_est = NA_real_,
+  sum_true = sum(rates),
+  mean_rate_err = NA_real_,
+  converged = NA
 )
+
+for (k in 1:4) {
+  sys <- kofn_system(k, 4)
+  df <- rdata_system(sys, par = rates, n = 300)
+  res <- tryCatch(fit_system(df$t, sys, n_starts = 5L),
+                  error = function(e) NULL)
+  if (!is.null(res) && res$converged) {
+    k_table$sum_est[k] <- round(sum(coef(res)), 2)
+    k_table$mean_rate_err[k] <- round(mean(abs(sort(coef(res)) - rates_sorted)), 3)
+    k_table$converged[k] <- TRUE
+  } else {
+    k_table$converged[k] <- FALSE
+  }
+}
 k_table
 ```
 
 Key observations:
 
-- **Sum-of-rates** is well estimated at every k -- the sum is a
-  natural sufficient statistic for the system hazard.
-- **Individual rate RMSE** varies with k. Series (k=1) provides the most
-  right-censored components but only one left-censored, while parallel
-  (k=4) provides the most left-censored but no right-censored.
-- Permutation symmetry affects all k values, but is most severe for
-  parallel systems where all components contribute symmetrically to
-  the system density.
+- **Series (k=1)** typically gives the best individual rate estimation.
+  For exponential series, the system hazard equals $\sum_j \lambda_j$,
+  so the sum of rates is directly identifiable from the system failure rate.
+- **Parallel (k=4)** is the hardest case. The system density is a
+  symmetric function of the rates (invariant under permutation), creating
+  $m!$ equivalent modes on the likelihood surface.  The optimizer may
+  converge to a spurious symmetric solution where all rates are equal.
+- **Intermediate k** values balance left and right censoring, but
+  permutation symmetry still limits identifiability of individual rates
+  from system-level data alone.
 
 
 # Weibull k-out-of-n

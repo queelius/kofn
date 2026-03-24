@@ -82,11 +82,13 @@ transparently -- the log-likelihood dispatches on the `omega` column.
 # Effect on Estimation
 
 We compare MLE quality across observation schemes for a 2-component
-exponential parallel system with rates $\lambda = (1.0, 0.5)$.
+exponential parallel system with rates $\lambda = (1.0, 0.5)$.  We run
+R = 10 replicates of n = 200 observations under each scheme and report
+the RMSE of the sorted rate estimates.
 
-```{r scheme-comparison, eval = FALSE}
+```{r scheme-comparison}
 set.seed(2026)
-R <- 20; n <- 200
+R <- 10; n <- 200
 theta <- c(1.0, 0.5)
 theta_sorted <- sort(theta)
 model <- kofn(k = 2, m = 2, family = "exponential")
@@ -97,8 +99,7 @@ schemes <- list(
   exact       = NULL,
   right_tau3  = observe_right_censor(tau = 3),
   right_tau1  = observe_right_censor(tau = 1),
-  periodic_d2 = observe_periodic(delta = 2, tau = 20),
-  periodic_d05 = observe_periodic(delta = 0.5, tau = 20),
+  periodic_d1 = observe_periodic(delta = 1, tau = 20),
   left_tau1   = observe_left_censor(tau = 1)
 )
 
@@ -113,42 +114,31 @@ results <- lapply(names(schemes), function(nm) {
   ok <- complete.cases(ests)
   errs <- sweep(ests[ok, , drop = FALSE], 2, theta_sorted)
   data.frame(
-    scheme   = nm,
-    rmse_1   = sqrt(mean(errs[, 1]^2)),
-    rmse_2   = sqrt(mean(errs[, 2]^2)),
+    scheme    = nm,
+    rmse_1    = round(sqrt(mean(errs[, 1]^2)), 3),
+    rmse_2    = round(sqrt(mean(errs[, 2]^2)), 3),
     converged = sum(ok),
     stringsAsFactors = FALSE
   )
 })
 scheme_rmse <- do.call(rbind, results)
-saveRDS(scheme_rmse, "inst/precomputed/scheme_rmse.rds")
-```
-
-```{r scheme-comparison-show}
-scheme_rmse <- tryCatch(
-  readRDS(system.file("precomputed/scheme_rmse.rds", package = "kofn")),
-  error = function(e) {
-    data.frame(
-      scheme    = c("exact", "right_tau3", "right_tau1",
-                    "periodic_d2", "periodic_d05", "left_tau1"),
-      rmse_1    = c(0.14, 0.17, 0.31, 0.22, 0.15, 0.27),
-      rmse_2    = c(0.10, 0.13, 0.25, 0.16, 0.11, 0.21),
-      converged = rep(20L, 6)
-    )
-  }
-)
 scheme_rmse
 ```
 
 Key patterns:
 
-- **Exact** observation gives the lowest RMSE (full Fisher information).
-- **Right-censoring** degrades smoothly as `tau` decreases -- more
-  lifetimes are lost to censoring.
+- **Right-censoring** degrades as `tau` decreases -- more observations
+  are lost to censoring, reducing the effective sample size.
 - **Periodic inspection** trades exact times for interval bounds.
-  Finer grids (`delta = 0.5`) approach exact performance.
-- **Left-censoring** discards early failures, hurting estimation of
-  the larger rate (the less reliable component).
+  The interval-censored likelihood surface is flatter, which can cause
+  occasional optimizer outliers that inflate the RMSE.
+- **Left-censoring** at `tau = 1` has little effect here because most
+  parallel system lifetimes exceed 1 (mean $\approx 2.3$).  Left-censoring
+  would hurt more if `tau` were closer to the median system lifetime.
+
+Note that the parallel system's permutation symmetry dominates these
+differences -- the optimizer's ability to separate two rates depends
+more on the likelihood geometry than on the observation scheme.
 
 
 # Mixed Observation Environments
