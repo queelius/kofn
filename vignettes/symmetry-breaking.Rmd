@@ -1,0 +1,329 @@
+---
+title: "Breaking Permutation Symmetry in k-out-of-n Estimation"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Breaking Permutation Symmetry in k-out-of-n Estimation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 5)
+library(kofn)
+options(digits = 3)
+```
+
+# The symmetry problem
+
+The system density $f_{\text{sys}}(t; \boldsymbol{\lambda})$ for a
+k-out-of-n system is invariant under permutation of the component
+parameters.  This creates $m!$ equivalent modes on the likelihood
+surface.  For $m = 4$, that is 24 modes --- the optimizer typically
+converges to the symmetric point where all rates are equal.
+
+We compare **six mechanisms** for breaking this symmetry, all on the
+same baseline: $m = 4$ exponential components with rates
+$\boldsymbol{\lambda} = (0.4, 0.6, 0.8, 1.0)$, $n = 300$
+observations from a 2-out-of-4 system ($k = 2$).
+
+```{r baseline}
+m <- 4
+k <- 2
+rates <- c(0.4, 0.6, 0.8, 1.0)
+rates_sorted <- sort(rates)
+n <- 300
+model <- kofn(k = k, m = m, family = "exponential")
+set.seed(2026)
+```
+
+
+# 1. Scheme 0 (baseline --- no symmetry breaking)
+
+```{r scheme0}
+dat0 <- rdata_system(model$system, par = rates, n = n)
+res0 <- fit_system(dat0$t, model$system, n_starts = 5)
+est0 <- sort(coef(res0))
+err0 <- mean(abs(est0 - rates_sorted))
+cat("Estimates:", round(est0, 3), "\n")
+cat("Mean error:", round(err0, 3), "\n")
+```
+
+
+# 2. Ordering constraints
+
+**Idea:** If we know the component ordering (e.g., by age or
+design), we can constrain $\lambda_1 \le \lambda_2 \le \cdots \le
+\lambda_m$.  This reduces the $m!$ modes to a single one.
+
+**Plausibility:** High.  Component age, material grade, or
+manufacturer often provides a known reliability ordering.
+
+**Implementation:** Reparameterize as cumulative increments:
+$\lambda_j = \delta_1 + \cdots + \delta_j$ where $\delta_j > 0$.
+Optimize over unconstrained $\delta$.
+
+```{r ordering}
+ll_sys <- function(par) loglik_system(dat0$t, model$system, par)
+neg_ll_ordered <- function(delta) {
+  if (any(delta <= 0)) return(.Machine$double.xmax / 2)
+  lam <- cumsum(delta)
+  val <- -ll_sys(lam)
+  if (!is.finite(val)) return(.Machine$double.xmax / 2)
+  val
+}
+
+# Initialize: equal increments
+delta0 <- diff(c(0, rep(mean(rates), m)))
+res_ord <- stats::optim(delta0, neg_ll_ordered, method = "L-BFGS-B",
+                        lower = rep(1e-10, m))
+est_ord <- cumsum(res_ord$par)
+err_ord <- mean(abs(est_ord - rates_sorted))
+cat("Estimates:", round(est_ord, 3), "\n")
+cat("Mean error:", round(err_ord, 3), "\n")
+```
+
+
+# 3. Heterogeneous system structures
+
+**Idea:** Observe the *same* component types deployed in systems
+with *different* k values.  The different censoring patterns provide
+complementary information that breaks symmetry.
+
+**Plausibility:** Moderate.  In fleet management, the same component
+type may be used in different system configurations (e.g., some
+aircraft have dual-redundant, others triple-redundant hydraulics).
+
+**Implementation:** Pool log-likelihoods from multiple k values.
+
+```{r heterogeneous}
+# Generate data from two different k configurations
+set.seed(2026)
+sys_k2 <- kofn_system(2, m)
+sys_k3 <- kofn_system(3, m)
+dat_k2 <- rdata_system(sys_k2, par = rates, n = n / 2)
+dat_k3 <- rdata_system(sys_k3, par = rates, n = n / 2)
+
+neg_ll_hetero <- function(par) {
+  if (any(par <= 0)) return(.Machine$double.xmax / 2)
+  ll2 <- loglik_system(dat_k2$t, sys_k2, par)
+  ll3 <- loglik_system(dat_k3$t, sys_k3, par)
+  val <- -(ll2 + ll3)
+  if (!is.finite(val)) return(.Machine$double.xmax / 2)
+  val
+}
+
+res_het <- multistart_mle(neg_ll_hetero, par0 = rep(0.5, m),
+                          n_par = m, n_starts = 5, nobs = n)
+est_het <- sort(coef(res_het))
+err_het <- mean(abs(est_het - rates_sorted))
+cat("Estimates:", round(est_het, 3), "\n")
+cat("Mean error:", round(err_het, 3), "\n")
+```
+
+
+# 4. Partial autopsy
+
+**Idea:** After system failure, inspect $r$ of the $m$ components
+to determine whether each inspected component failed or survived.
+Uninspected components have unknown status.
+
+**Plausibility:** Very high.  Post-failure inspection of accessible
+components is standard practice.  Some components may be physically
+inaccessible (inside a sealed unit) while others can be visually
+checked.
+
+**Implementation:** Observe a random subset of components; for each,
+learn failed/survived.  Marginalize over unknown components.
+
+```{r partial-autopsy}
+# Generate full component data
+set.seed(2026)
+comp_times <- matrix(0, nrow = n, ncol = m)
+for (j in seq_len(m)) comp_times[, j] <- stats::rexp(n, rate = rates[j])
+sys_times <- vapply(seq_len(n), function(i)
+  system_lifetime(model$system, comp_times[i, ]), numeric(1))
+
+# For each observation, inspect r=2 random components
+r_inspect <- 2
+inspected <- matrix(FALSE, nrow = n, ncol = m)
+known_failed <- matrix(FALSE, nrow = n, ncol = m)
+for (i in seq_len(n)) {
+  idx <- sample.int(m, r_inspect)
+  inspected[i, idx] <- TRUE
+  known_failed[i, idx] <- comp_times[i, idx] <= sys_times[i]
+}
+
+# Autopsy likelihood: for each observation, marginalize over
+# unknown component states
+neg_ll_autopsy <- function(par) {
+  if (any(par <= 0)) return(.Machine$double.xmax / 2)
+  ll <- 0
+  for (i in seq_len(n)) {
+    ti <- sys_times[i]
+    f_vals <- stats::dexp(ti, rate = par)
+    F_vals <- stats::pexp(ti, rate = par)
+    S_vals <- 1 - F_vals
+
+    # Known constraints from inspection
+    known_surv <- inspected[i, ] & !known_failed[i, ]
+    known_fail <- inspected[i, ] & known_failed[i, ]
+    unknown <- !inspected[i, ]
+
+    # Components known to have failed must be in F
+    # Components known to have survived must not be in F
+    # Unknown components: marginalize over failed/survived
+    # We enumerate all 2^(#unknown) possibilities for unknown components
+    unk_idx <- which(unknown)
+    n_unk <- length(unk_idx)
+
+    total <- 0
+    for (mask in seq_len(2^n_unk) - 1L) {
+      bits <- as.logical(as.integer(intToBits(mask))[seq_len(n_unk)])
+
+      # Build candidate failed set: known_fail + unknown[bits==TRUE]
+      F_cand <- which(known_fail)
+      F_cand <- c(F_cand, unk_idx[bits])
+
+      # Must have exactly k failures
+      if (length(F_cand) != k) next
+
+      not_F <- setdiff(seq_len(m), F_cand)
+
+      # Check consistency: known survivors must not be in F
+      if (any(known_surv[F_cand])) next
+
+      # Compute term: sum_j f_j * prod_{l in F\j} F_l * prod_{l not in F} S_l
+      for (j in F_cand) {
+        if (f_vals[j] <= 0) next
+        others_F <- setdiff(F_cand, j)
+        log_term <- log(f_vals[j])
+        if (length(others_F) > 0) {
+          if (any(F_vals[others_F] <= 0)) next
+          log_term <- log_term + sum(log(F_vals[others_F]))
+        }
+        if (length(not_F) > 0) {
+          if (any(S_vals[not_F] <= 0)) next
+          log_term <- log_term + sum(log(S_vals[not_F]))
+        }
+        total <- total + exp(log_term)
+      }
+    }
+    if (total <= 0) return(.Machine$double.xmax / 2)
+    ll <- ll + log(total)
+  }
+  -ll
+}
+
+res_aut <- multistart_mle(neg_ll_autopsy, par0 = rep(0.5, m),
+                          n_par = m, n_starts = 5, nobs = n)
+est_aut <- sort(coef(res_aut))
+err_aut <- mean(abs(est_aut - rates_sorted))
+cat("Inspected:", r_inspect, "of", m, "components per observation\n")
+cat("Estimates:", round(est_aut, 3), "\n")
+cat("Mean error:", round(err_aut, 3), "\n")
+```
+
+
+# 5. Periodic inspection (Scheme 1)
+
+**Plausibility:** High for systems that can be periodically accessed
+but not continuously monitored (industrial equipment, fleet vehicles).
+
+```{r scheme1}
+set.seed(2026)
+s1gen <- rdata_scheme1(model)
+dat1 <- s1gen(theta = rates, n = n, delta = 0.5)
+fitter1 <- fit_scheme1(model)
+res1 <- fitter1(dat1, n_starts = 5)
+est1 <- sort(coef(res1))
+err1 <- mean(abs(est1 - rates_sorted))
+cat("Estimates:", round(est1, 3), "\n")
+cat("Mean error:", round(err1, 3), "\n")
+```
+
+
+# 6. Masked failed sets (exact)
+
+**Plausibility:** Moderate.  Requires post-failure diagnostics that
+identify which components failed, but not their exact failure times.
+
+```{r masked}
+set.seed(2026)
+gen_m <- rdata_masked(model)
+df_m <- gen_m(theta = rates, n = n, p_mask = 0)
+
+ll_m <- loglik_masked(model)
+neg_ll_m <- function(p) {
+  val <- -ll_m(df_m, p)
+  if (!is.finite(val)) return(.Machine$double.xmax / 2)
+  val
+}
+res_mask <- multistart_mle(neg_ll_m, par0 = rep(0.5, m),
+                           n_par = m, n_starts = 5, nobs = n)
+est_mask <- sort(coef(res_mask))
+err_mask <- mean(abs(est_mask - rates_sorted))
+cat("Estimates:", round(est_mask, 3), "\n")
+cat("Mean error:", round(err_mask, 3), "\n")
+```
+
+
+# Comparison
+
+```{r comparison}
+results <- data.frame(
+  mechanism = c("Scheme 0 (baseline)", "Ordering constraints",
+                "Heterogeneous k", "Partial autopsy (r=2)",
+                "Periodic inspection", "Masked failed sets"),
+  mean_err = c(err0, err_ord, err_het, err_aut, err1, err_mask),
+  plausibility = c("Always available", "High (domain knowledge)",
+                    "Moderate (fleet data)", "Very high (standard practice)",
+                    "High (periodic access)", "Moderate (diagnostics)")
+)
+results$improvement <- sprintf("%.0fx",
+  results$mean_err[1] / results$mean_err)
+results <- results[order(results$mean_err), ]
+rownames(results) <- NULL
+knitr::kable(results, digits = 3,
+             caption = "Symmetry-breaking mechanisms for 2-of-4 exponential system")
+```
+
+
+# Discussion
+
+The mechanisms fall into three categories:
+
+**No additional data required:**
+
+- *Ordering constraints* use domain knowledge (component age, grade)
+  to eliminate equivalent modes.  This is the cheapest intervention
+  and should always be applied when a reliability ordering is known.
+
+**Post-failure information:**
+
+- *Partial autopsy* inspects $r$ of $m$ components after failure.
+  Even $r = 2$ out of $m = 4$ provides substantial improvement.
+  This is the most **plausible** mechanism: checking accessible
+  components after a failure is standard maintenance practice.
+- *Masked failed sets* is the limiting case of autopsy where all
+  components are inspected ($r = m$).  The improvement over partial
+  autopsy quantifies the value of inspecting every component.
+
+**During-operation monitoring:**
+
+- *Periodic inspection* adds interval-censored component lifetime
+  data.  This provides the most information per observation because
+  it constrains the component failure times, not just their
+  failed/survived status.
+- *Heterogeneous structures* exploit fleet diversity --- different
+  system configurations create different censoring patterns on shared
+  parameters.  This requires no component-level data, only system-level
+  observations from multiple configurations.
+
+The practical recommendation depends on what data is available:
+
+1. Always apply ordering constraints if a reliability ordering is known
+2. If post-failure inspection is possible, do partial autopsy (even
+   checking 2 of 4 components helps substantially)
+3. If periodic access is feasible, add inspection intervals
+4. If fleet data spans multiple configurations, pool across k values
+```
