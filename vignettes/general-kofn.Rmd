@@ -224,7 +224,59 @@ For series systems with identical-distribution components, only the sum of
 rates matters. For general k-out-of-n, the system structure creates
 asymmetric censoring patterns that can break some symmetries, but
 identifiability of individual rates remains fundamentally limited under
-Scheme 0.
+Scheme 0 (system lifetime only).
+
+
+# Breaking Symmetry with Masked Failed Sets
+
+The `loglik_masked()` function implements the generalized masking
+likelihood for k-out-of-n systems.  At system failure, k components
+have failed.  If we observe a **candidate failed set** $C_i$ (a
+superset of the true failed set), the likelihood marginalizes over
+all $\binom{|C_i|}{k}$ possible k-subsets.
+
+This additional information breaks the permutation symmetry that
+plagues Scheme 0 estimation:
+
+```{r masking-demo}
+set.seed(42)
+rates <- c(1, 0.8, 0.6, 0.4)
+model_2of4 <- kofn(k = 2, m = 4, family = "exponential")
+
+# Generate masked data: true failed set known (p_mask = 0)
+gen_m <- rdata_masked(model_2of4)
+df_masked <- gen_m(theta = rates, n = 200, p_mask = 0)
+
+# Scheme 0: system lifetime only
+dat0 <- rdata_system(model_2of4$system, par = rates, n = 200)
+res0 <- fit_system(dat0$t, model_2of4$system, n_starts = 5)
+
+# Masked: use candidate failed sets
+ll_m <- loglik_masked(model_2of4)
+neg_ll <- function(p) {
+  val <- -ll_m(df_masked, p)
+  if (!is.finite(val)) return(.Machine$double.xmax / 2)
+  val
+}
+res_m <- multistart_mle(neg_ll, par0 = rep(0.5, 4),
+                        n_par = 4, n_starts = 5, nobs = 200)
+
+data.frame(
+  method   = c("Scheme 0", "Masked (exact F)"),
+  est      = c(paste(round(sort(coef(res0)), 2), collapse = ", "),
+               paste(round(sort(coef(res_m)), 2), collapse = ", ")),
+  mean_err = c(round(mean(abs(sort(coef(res0)) - sort(rates))), 3),
+               round(mean(abs(sort(coef(res_m)) - sort(rates))), 3))
+)
+```
+
+Knowing *which* k components failed --- even without knowing their
+exact failure times --- provides the asymmetry the optimizer needs.
+Faster-failing components appear in the failed set more often,
+allowing the likelihood to distinguish individual rates.
+
+For series systems (k = 1), this reduces to the standard masked
+cause-of-failure problem handled by the `maskedcauses` package.
 
 ```{r cleanup, include = FALSE}
 options(old_opts)

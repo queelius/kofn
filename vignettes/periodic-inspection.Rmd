@@ -489,7 +489,71 @@ $\delta = 0.5$ recovers ~60% --- a three-order-of-magnitude improvement.
 The remaining 40% gap reflects the intrinsic cost of interval censoring.
 
 
-## 8. Practical guidelines
+## 8. Scheme 1 across the k-spectrum
+
+The analysis above focused on parallel systems ($k = m$). Does
+periodic inspection help at other values of $k$? We compare Scheme 0
+vs Scheme 1 for a 4-component exponential system across the full
+k-spectrum.
+
+```{r scheme1-k-spectrum}
+set.seed(42)
+rates <- c(1.0, 0.8, 0.6, 0.4)
+rates_sorted <- sort(rates)
+n <- 300
+
+k_results <- data.frame(
+  k = 2:4,
+  type = c("2-of-4", "3-of-4", "parallel"),
+  s0_mean_err = NA_real_,
+  s1_mean_err = NA_real_,
+  improvement = NA_character_
+)
+
+for (idx in seq_len(nrow(k_results))) {
+  k <- k_results$k[idx]
+  model_k <- kofn(k = k, m = 4, family = "exponential")
+
+  # Scheme 0: system lifetime only
+  dat0 <- rdata_system(model_k$system, par = rates, n = n)
+  res0 <- fit_system(dat0$t, model_k$system, n_starts = 5)
+
+  # Scheme 1: periodic inspection (delta = 0.5)
+  s1gen <- rdata_scheme1(model_k)
+  dat1 <- s1gen(theta = rates, n = n, delta = 0.5)
+  fitter1 <- fit_scheme1(model_k)
+  res1 <- fitter1(dat1, n_starts = 5)
+
+  if (res0$converged) {
+    k_results$s0_mean_err[idx] <- round(
+      mean(abs(sort(coef(res0)) - rates_sorted)), 3)
+  }
+  if (res1$converged) {
+    k_results$s1_mean_err[idx] <- round(
+      mean(abs(sort(coef(res1)) - rates_sorted)), 3)
+  }
+  if (!is.na(k_results$s0_mean_err[idx]) && !is.na(k_results$s1_mean_err[idx])) {
+    ratio <- k_results$s0_mean_err[idx] / k_results$s1_mean_err[idx]
+    k_results$improvement[idx] <- sprintf("%.0fx", ratio)
+  }
+}
+k_results
+```
+
+Periodic inspection consistently provides a large improvement for
+$k \geq 2$. The composite likelihood (system density $\times$
+component interval contributions) is effective here because all $k$
+failed components have failure times within the observation window.
+
+Note: Scheme 1 is **not shown for $k = 1$ (series)** because the
+composite likelihood breaks down --- at system failure, $m - 1$
+components are still alive, and their unconditional interval
+probabilities create a misleading likelihood surface. For series
+systems, the `maskedcauses` package (with candidate cause information)
+is the appropriate tool.
+
+
+## 9. Practical guidelines
 
 The results in this vignette point to clear practical recommendations:
 
