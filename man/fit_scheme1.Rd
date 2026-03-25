@@ -2,7 +2,7 @@
 % Please edit documentation in R/scheme1.R
 \name{fit_scheme1}
 \alias{fit_scheme1}
-\title{Fit parallel system MLE under Scheme 1 (periodic inspection)}
+\title{Fit k-out-of-n system MLE under Scheme 1 (periodic inspection)}
 \usage{
 fit_scheme1(model, ...)
 }

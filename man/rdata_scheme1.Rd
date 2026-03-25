@@ -25,9 +25,17 @@ The data frame has attributes \code{comp_times} (true component times),
 \code{delta} (inspection interval), and \code{par} (true parameters).
 }
 \description{
-Returns a closure that generates parallel system data under periodic
+Returns a closure that generates k-out-of-n system data under periodic
 inspection. Each observation yields the exact system failure time and
 interval-censored component failure times.
+}
+\details{
+Note: The Scheme 1 likelihood uses a composite approximation that
+treats the system density and component interval contributions as
+independent. This works well for k >= 2 but is unreliable for
+series systems (k = 1), where surviving components' intervals should
+be conditioned on survival past T_sys. For series systems, use the
+\code{maskedcauses} package instead.
 }
 \examples{
 model <- kofn(k = 2, m = 2, family = "exponential")

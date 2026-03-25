@@ -27,9 +27,16 @@
 
 #' Generate Scheme 1 (periodic inspection) data
 #'
-#' Returns a closure that generates parallel system data under periodic
+#' Returns a closure that generates k-out-of-n system data under periodic
 #' inspection. Each observation yields the exact system failure time and
 #' interval-censored component failure times.
+#'
+#' Note: The Scheme 1 likelihood uses a composite approximation that
+#' treats the system density and component interval contributions as
+#' independent. This works well for k >= 2 but is unreliable for
+#' series systems (k = 1), where surviving components' intervals should
+#' be conditioned on survival past T_sys. For series systems, use the
+#' \code{maskedcauses} package instead.
 #'
 #' @param model A \code{kofn} model object (exponential or Weibull).
 #' @param ... Additional arguments (currently unused).
@@ -73,8 +80,10 @@ rdata_scheme1 <- function(model, ...) {
                                          scale = scales[j])
     }
 
-    # System lifetime = max (parallel)
-    sys_times <- apply(comp_times, 1, max)
+    # System lifetime via coherent system structure
+    sys_times <- vapply(seq_len(n), function(i) {
+      system_lifetime(model$system, comp_times[i, ])
+    }, numeric(1))
 
     # Interval-censor each component to inspection grid (vectorized)
     comp_lower <- floor(comp_times / delta) * delta
@@ -131,6 +140,8 @@ rdata_scheme1 <- function(model, ...) {
 #' @export
 loglik_scheme1 <- function(model, ...) {
   m <- model$m
+  k <- model$k
+  system <- model$system
   lt <- model$lifetime
   family <- if (inherits(model, "wei_kofn")) "weibull" else "exponential"
 
@@ -145,12 +156,22 @@ loglik_scheme1 <- function(model, ...) {
     shapes <- pp$shapes
     scales <- pp$scales
 
+    # Build distribution objects for general density engine
+    dists <- lapply(seq_len(m), function(j) {
+      list(
+        pdf  = function(t) stats::dweibull(t, shape = shapes[j], scale = scales[j]),
+        cdf  = function(t) stats::pweibull(t, shape = shapes[j], scale = scales[j]),
+        surv = function(t) stats::pweibull(t, shape = shapes[j], scale = scales[j],
+                                           lower.tail = FALSE)
+      )
+    })
+
     ll <- 0
     for (i in seq_len(n)) {
       ti <- df[[lt]][i]
 
-      # System density via shared helper
-      f_sys <- weibull_f_sys(ti, shapes, scales)
+      # System density (general for any k, uses critical-state enumeration)
+      f_sys <- f_sys_general(ti, system, dists)
       if (f_sys <= 0) return(-Inf)
       ll <- ll + log(f_sys)
 
@@ -177,7 +198,7 @@ loglik_scheme1 <- function(model, ...) {
 # fit_scheme1: MLE fitting under periodic inspection
 # ---------------------------------------------------------------------------
 
-#' Fit parallel system MLE under Scheme 1 (periodic inspection)
+#' Fit k-out-of-n system MLE under Scheme 1 (periodic inspection)
 #'
 #' Returns a closure that fits the model to Scheme 1 data using multi-start
 #' optimization with L-BFGS-B and Nelder-Mead fallback.
