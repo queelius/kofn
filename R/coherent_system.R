@@ -142,14 +142,46 @@ coherent_system <- function(min_paths, m = NULL) {
   # Precompute minimal cut sets
   cuts <- min_cuts_from_paths(min_paths, m)
 
-  structure(
+  obj <- structure(
     list(
       min_paths = min_paths,
       min_cuts  = cuts,
-      m         = m
+      m         = m,
+      cache     = new.env(parent = emptyenv())
     ),
     class = "coherent_system"
   )
+
+  # Eagerly precompute critical states and functioning states (structure-only,
+  # parameter-independent). Stored in an environment for reference semantics.
+  crit_cache <- lapply(seq_len(m), function(j) {
+    cs <- critical_states(obj, j)
+    others <- setdiff(seq_len(m), j)
+    if (nrow(cs) == 0L) return(list(others = others, n_states = 0L))
+    up_list <- vector("list", nrow(cs))
+    down_list <- vector("list", nrow(cs))
+    for (r in seq_len(nrow(cs))) {
+      bits <- as.logical(cs[r, ])
+      up_list[[r]] <- others[bits]
+      down_list[[r]] <- others[!bits]
+    }
+    list(others = others, up = up_list, down = down_list, n_states = nrow(cs))
+  })
+  obj$cache$crit <- crit_cache
+
+  # Functioning states for S_sys_general
+  n_states <- 2L^m
+  func_states <- list()
+  for (k in seq_len(n_states) - 1L) {
+    x <- as.logical(as.integer(intToBits(k))[seq_len(m)])
+    if (phi(obj, x)) {
+      func_states[[length(func_states) + 1L]] <- list(
+        up = which(x), down = which(!x))
+    }
+  }
+  obj$cache$func <- func_states
+
+  obj
 }
 
 

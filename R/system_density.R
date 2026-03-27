@@ -52,20 +52,8 @@ S_sys_general <- function(t, system, dists) {
     log_F_mat[, j] <- log(pmax(dists[[j]]$cdf(t), .Machine$double.eps))
   }
 
-  # Cache functioning states (depends only on system structure)
-  func_states <- system$.func_states
-  if (is.null(func_states)) {
-    n_states <- 2L^m
-    func_states <- list()
-    for (k in seq_len(n_states) - 1L) {
-      x <- as.logical(as.integer(intToBits(k))[seq_len(m)])
-      if (phi(system, x)) {
-        func_states[[length(func_states) + 1L]] <- list(
-          up = which(x), down = which(!x))
-      }
-    }
-    system$.func_states <- func_states
-  }
+  # Use eagerly precomputed functioning states from system$cache
+  func_states <- system$cache$func
 
   result <- numeric(nt)
   for (s in func_states) {
@@ -123,26 +111,8 @@ f_sys_general <- function(t, system, dists) {
     log_F_mat[, j] <- log(pmax(F_j, .Machine$double.eps))
   }
 
-  # Use cached critical states if available, otherwise compute and cache
-  crit_cache <- system$.crit_cache
-  if (is.null(crit_cache)) {
-    crit_cache <- lapply(seq_len(m), function(j) {
-      cs <- critical_states(system, j)
-      others <- setdiff(seq_len(m), j)
-      # Precompute: for each critical state row, which 'others' indices are up vs down
-      if (nrow(cs) == 0L) return(list(others = others, up = list(), down = list()))
-      up_list <- vector("list", nrow(cs))
-      down_list <- vector("list", nrow(cs))
-      for (r in seq_len(nrow(cs))) {
-        bits <- as.logical(cs[r, ])
-        up_list[[r]] <- others[bits]
-        down_list[[r]] <- others[!bits]
-      }
-      list(others = others, up = up_list, down = down_list, n_states = nrow(cs))
-    })
-    # Cache on the system object (modifies in place via reference semantics of lists in R env)
-    system$.crit_cache <- crit_cache
-  }
+  # Use eagerly precomputed critical states from system$cache (environment, reference semantics)
+  crit_cache <- system$cache$crit
 
   result <- numeric(nt)
 
