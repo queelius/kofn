@@ -156,37 +156,33 @@ loglik_scheme1 <- function(model, ...) {
     shapes <- pp$shapes
     scales <- pp$scales
 
-    # Build distribution objects for general density engine
+    t_obs <- df[[lt]]
+
+    # Build lightweight dist objects (vectorized, no per-call closure overhead)
     dists <- lapply(seq_len(m), function(j) {
+      sh <- shapes[j]; sc <- scales[j]
       list(
-        pdf  = function(t) stats::dweibull(t, shape = shapes[j], scale = scales[j]),
-        cdf  = function(t) stats::pweibull(t, shape = shapes[j], scale = scales[j]),
-        surv = function(t) stats::pweibull(t, shape = shapes[j], scale = scales[j],
+        pdf  = function(t) stats::dweibull(t, shape = sh, scale = sc),
+        cdf  = function(t) stats::pweibull(t, shape = sh, scale = sc),
+        surv = function(t) stats::pweibull(t, shape = sh, scale = sc,
                                            lower.tail = FALSE)
       )
     })
 
-    ll <- 0
-    for (i in seq_len(n)) {
-      ti <- df[[lt]][i]
+    # System density for ALL time points at once (vectorized, uses cached critical states)
+    f_sys_vals <- f_sys_general(t_obs, system, dists)
+    if (any(f_sys_vals <= 0)) return(-Inf)
+    ll <- sum(log(f_sys_vals))
 
-      # System density (general for any k, uses critical-state enumeration)
-      f_sys <- f_sys_general(ti, system, dists)
-      if (f_sys <= 0) return(-Inf)
-      ll <- ll + log(f_sys)
-
-      # Component interval contributions: prod_j [F_j(upper) - F_j(lower)]
-      for (j in seq_len(m)) {
-        a_lower <- df[[lower_cols[j]]][i]
-        a_upper <- df[[upper_cols[j]]][i]
-        F_upper <- stats::pweibull(a_upper, shape = shapes[j],
-                                   scale = scales[j])
-        F_lower <- stats::pweibull(a_lower, shape = shapes[j],
-                                   scale = scales[j])
-        prob <- F_upper - F_lower
-        if (prob <= 0) return(-Inf)
-        ll <- ll + log(prob)
-      }
+    # Component interval contributions (vectorized per component)
+    for (j in seq_len(m)) {
+      a_lower <- df[[lower_cols[j]]]
+      a_upper <- df[[upper_cols[j]]]
+      F_upper <- stats::pweibull(a_upper, shape = shapes[j], scale = scales[j])
+      F_lower <- stats::pweibull(a_lower, shape = shapes[j], scale = scales[j])
+      probs <- F_upper - F_lower
+      if (any(probs <= 0)) return(-Inf)
+      ll <- ll + sum(log(probs))
     }
 
     ll

@@ -41,34 +41,42 @@ S_sys_general <- function(t, system, dists) {
   stopifnot(inherits(system, "coherent_system"))
   m <- system$m
   stopifnot(length(dists) == m)
+  t <- as.numeric(t)
+  nt <- length(t)
 
-  # Evaluate per-component survival and CDF at each time point
-  S_mat <- matrix(0, nrow = length(t), ncol = m)
-  F_mat <- matrix(0, nrow = length(t), ncol = m)
+  # Evaluate per-component log-survival and log-CDF as matrices
+  log_S_mat <- matrix(0, nrow = nt, ncol = m)
+  log_F_mat <- matrix(0, nrow = nt, ncol = m)
   for (j in seq_len(m)) {
-    S_mat[, j] <- dists[[j]]$surv(t)
-    F_mat[, j] <- dists[[j]]$cdf(t)
+    log_S_mat[, j] <- log(pmax(dists[[j]]$surv(t), .Machine$double.eps))
+    log_F_mat[, j] <- log(pmax(dists[[j]]$cdf(t), .Machine$double.eps))
   }
 
-  # Enumerate all 2^m state vectors
-  n_states <- 2L^m
-  result <- numeric(length(t))
-
-  for (k in seq_len(n_states) - 1L) {
-    # Decode state vector: bit j of k gives component j's state (1=up, 0=down)
-    x <- as.logical(as.integer(intToBits(k))[seq_len(m)])
-    if (!phi(system, x)) next
-
-    # Product of S_j^{x_j} * F_j^{1-x_j}
-    log_prob_mat <- matrix(0, nrow = length(t), ncol = m)
-    for (j in seq_len(m)) {
-      if (x[j]) {
-        log_prob_mat[, j] <- log(pmax(S_mat[, j], .Machine$double.eps))
-      } else {
-        log_prob_mat[, j] <- log(pmax(F_mat[, j], .Machine$double.eps))
+  # Cache functioning states (depends only on system structure)
+  func_states <- system$.func_states
+  if (is.null(func_states)) {
+    n_states <- 2L^m
+    func_states <- list()
+    for (k in seq_len(n_states) - 1L) {
+      x <- as.logical(as.integer(intToBits(k))[seq_len(m)])
+      if (phi(system, x)) {
+        func_states[[length(func_states) + 1L]] <- list(
+          up = which(x), down = which(!x))
       }
     }
-    result <- result + exp(rowSums(log_prob_mat))
+    system$.func_states <- func_states
+  }
+
+  result <- numeric(nt)
+  for (s in func_states) {
+    log_prod <- numeric(nt)
+    if (length(s$up) > 0L) {
+      log_prod <- log_prod + rowSums(log_S_mat[, s$up, drop = FALSE])
+    }
+    if (length(s$down) > 0L) {
+      log_prod <- log_prod + rowSums(log_F_mat[, s$down, drop = FALSE])
+    }
+    result <- result + exp(log_prod)
   }
   result
 }
@@ -81,7 +89,9 @@ S_sys_general <- function(t, system, dists) {
 #'   \prod_{k \neq j} p_k(x_k, t)}
 #'
 #' Uses [critical_states()] to identify pivotal states for each component.
-#' Computational cost is \eqn{O(m \cdot 2^{m-1})} per time point.
+#' Critical states are cached on the system object after first computation.
+#' Computational cost is \eqn{O(m \cdot 2^{m-1})} per time point for the
+#' first call; subsequent calls skip the state enumeration.
 #'
 #' @param t Numeric vector of time points.
 #' @param system A [coherent_system] object.
@@ -101,49 +111,61 @@ f_sys_general <- function(t, system, dists) {
   t <- as.numeric(t)
   nt <- length(t)
 
-  # Evaluate per-component density, survival, CDF at each time point
+  # Evaluate per-component density, survival, CDF as matrices (vectorized)
   f_mat <- matrix(0, nrow = nt, ncol = m)
-  S_mat <- matrix(0, nrow = nt, ncol = m)
-  F_mat <- matrix(0, nrow = nt, ncol = m)
+  log_S_mat <- matrix(0, nrow = nt, ncol = m)
+  log_F_mat <- matrix(0, nrow = nt, ncol = m)
   for (j in seq_len(m)) {
     f_mat[, j] <- dists[[j]]$pdf(t)
-    S_mat[, j] <- dists[[j]]$surv(t)
-    F_mat[, j] <- dists[[j]]$cdf(t)
+    S_j <- dists[[j]]$surv(t)
+    F_j <- dists[[j]]$cdf(t)
+    log_S_mat[, j] <- log(pmax(S_j, .Machine$double.eps))
+    log_F_mat[, j] <- log(pmax(F_j, .Machine$double.eps))
+  }
+
+  # Use cached critical states if available, otherwise compute and cache
+  crit_cache <- system$.crit_cache
+  if (is.null(crit_cache)) {
+    crit_cache <- lapply(seq_len(m), function(j) {
+      cs <- critical_states(system, j)
+      others <- setdiff(seq_len(m), j)
+      # Precompute: for each critical state row, which 'others' indices are up vs down
+      if (nrow(cs) == 0L) return(list(others = others, up = list(), down = list()))
+      up_list <- vector("list", nrow(cs))
+      down_list <- vector("list", nrow(cs))
+      for (r in seq_len(nrow(cs))) {
+        bits <- as.logical(cs[r, ])
+        up_list[[r]] <- others[bits]
+        down_list[[r]] <- others[!bits]
+      }
+      list(others = others, up = up_list, down = down_list, n_states = nrow(cs))
+    })
+    # Cache on the system object (modifies in place via reference semantics of lists in R env)
+    system$.crit_cache <- crit_cache
   }
 
   result <- numeric(nt)
 
-  # Precompute critical states for all components (depends only on system)
-  crit_list <- lapply(seq_len(m), function(j) critical_states(system, j))
-  others_list <- lapply(seq_len(m), function(j) setdiff(seq_len(m), j))
-
   for (j in seq_len(m)) {
-    crit <- crit_list[[j]]
-    if (nrow(crit) == 0L) next
+    cc <- crit_cache[[j]]
+    if (is.null(cc$n_states) || cc$n_states == 0L) next
 
-    others <- others_list[[j]]
-
-    # For each critical state, compute the product over k != j
-    state_contrib <- matrix(0, nrow = nt, ncol = nrow(crit))
-
-    for (r in seq_len(nrow(crit))) {
-      x_others <- as.logical(crit[r, ])
+    # For each critical state, compute product via log-sum of precomputed log matrices
+    state_contrib <- numeric(nt)
+    for (r in seq_len(cc$n_states)) {
       log_prod <- numeric(nt)
-      for (idx in seq_along(others)) {
-        k <- others[idx]
-        if (x_others[idx]) {
-          # Component k is up: contributes S_k(t)
-          log_prod <- log_prod + log(pmax(S_mat[, k], .Machine$double.eps))
-        } else {
-          # Component k is down: contributes F_k(t)
-          log_prod <- log_prod + log(pmax(F_mat[, k], .Machine$double.eps))
-        }
+      up_idx <- cc$up[[r]]
+      down_idx <- cc$down[[r]]
+      if (length(up_idx) > 0L) {
+        log_prod <- log_prod + rowSums(log_S_mat[, up_idx, drop = FALSE])
       }
-      state_contrib[, r] <- exp(log_prod)
+      if (length(down_idx) > 0L) {
+        log_prod <- log_prod + rowSums(log_F_mat[, down_idx, drop = FALSE])
+      }
+      state_contrib <- state_contrib + exp(log_prod)
     }
 
-    # Sum over critical states, then multiply by f_j(t)
-    result <- result + f_mat[, j] * rowSums(state_contrib)
+    result <- result + f_mat[, j] * state_contrib
   }
 
   result
