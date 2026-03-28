@@ -149,8 +149,8 @@ cause-of-failure framework from series to arbitrary $k$; and
 failed/survived status of a subset of components.
 %
 Third, we conduct a systematic Monte Carlo comparison of six
-symmetry-breaking mechanisms across the $k$-spectrum, scaling behavior,
-sensitivity analyses, and the Weibull extension (\cref{sec:monte-carlo}).
+symmetry-breaking mechanisms, with sensitivity analyses for masking noise,
+inspection granularity, and autopsy coverage (\cref{sec:monte-carlo}).
 The comparison reveals a binary identification threshold:
 \begin{enumerate}
   \item \textbf{Phase transition at $r=1$.}  Inspecting a single component
@@ -753,76 +753,6 @@ $k$-element failed set.  Partial autopsy ($r = 2$) gives two binary
 constraints.  The amount of information is $m > k > r$ constraints, and
 the MAE ordering follows.
 
-\subsection{The \texorpdfstring{$k$}{k}-spectrum}\label{sec:k-spectrum}
-
-We compare Scheme~0 and periodic inspection across $k = 2, 3, 4$ with the
-same $m = 4$ baseline and $R = 100$ replicates per $k$.
-
-\begin{center}
-\begin{tabular}{@{}ccccl@{}}
-\toprule
-$k$ & Scheme~0 median & Periodic median & Improvement & System type \\
-\midrule
-2 & 0.200 & 0.029 & $7.0\times$ & 2-out-of-4 \\
-3 & 0.191 & 0.030 & $6.3\times$ & 3-out-of-4 \\
-4 & 0.126 & 0.029 & $4.4\times$ & parallel \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-Hypothesis~H3 predicted that the improvement ratio would \emph{increase}
-with $k$, reasoning that parallel systems have the most severe symmetry
-and therefore the most room for improvement from inspection.  The data
-reject H3: the improvement ratio \emph{decreases} from $7.0\times$ at
-$k = 2$ to $4.4\times$ at $k = 4$.
-
-The explanation is that the Scheme~0 baseline itself improves with $k$.
-At $k = 4$ (parallel), all components have failed by $\Tsys$, and the
-system density $\fsys(t) = \sum_j f_j(t) \prod_{i \neq j} F_i(t)$ carries
-more information about the rate magnitudes than the $k = 2$ density.  The
-parallel system density is a mixture over which component failed last,
-and the mixing weights are informative.  Periodic inspection adds
-approximately the same absolute information at every $k$ (the $m$ interval
-contributions are unchanged), but the baseline is higher at $k = 4$, so
-the ratio is smaller.
-
-Note that the periodic inspection MAE is remarkably stable across $k$
-($0.029$--$0.030$): the component intervals dominate the system density
-contribution and provide approximately the same estimation quality
-regardless of the system structure.
-
-\subsection{Scaling with \texorpdfstring{$m$}{m}}\label{sec:scaling}
-
-\Cref{tab:scaling} compares periodic inspection and full autopsy
-(masking with $p_{\text{mask}} = 0$) as $m$ increases from 3 to 5,
-with $k = \lceil m/2 \rceil$ and $R = 50$ replicates.
-
-\begin{table}[t]
-\centering
-\caption{Scaling with $m$: median MAE for Scheme~0, periodic inspection
-  ($\delta = 0.5$), and full autopsy across $m = 3, 4, 5$ components with
-  $k = \lceil m/2 \rceil$ and $R = 50$.
-  The Per/Aut ratio shows periodic inspection's advantage over
-  autopsy.}\label{tab:scaling}
-\begin{tabular}{@{}cccccc@{}}
-\toprule
-$m$ & $k$ & Scheme~0 & Periodic & Autopsy & Per/Aut \\
-\midrule
-3 & 2 & 0.209 & 0.025 & 0.037 & 0.68 \\
-4 & 2 & 0.200 & 0.026 & 0.044 & 0.58 \\
-5 & 3 & 0.243 & 0.033 & 0.051 & 0.64 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Periodic inspection consistently outperforms autopsy, and the advantage
-is stable across $m$.  The periodic-to-autopsy MAE ratio ranges from
-$0.58$ to $0.68$, confirming Hypothesis~H2: periodic inspection provides
-$O(m)$ temporal constraints versus $O(k)$ binary constraints from
-autopsy.  Both mechanisms degrade gracefully as $m$ increases, with MAE
-roughly proportional to $m$ (more parameters to estimate, same sample size
-per system).
-
 \subsection{Sensitivity analyses}\label{sec:sensitivity}
 
 We examine three sensitivity dimensions, each with $R = 50$ replicates at
@@ -902,8 +832,8 @@ $r$ & Median MAE & Mean MAE & Conv.\ \\
 
 The transition from $r = 0$ (no inspection) to $r = 1$ (inspecting a
 single component) is dramatic: MAE drops from $0.200$ to $0.062$, a
-$3.2\times$ improvement that captures 69\% of the total improvement
-from $r = 0$ to full autopsy.  Subsequent inspections provide diminishing
+$3.2\times$ improvement that captures 91\% of the total improvement
+from $r = 0$ to full autopsy ($r = m$).  Subsequent inspections provide diminishing
 returns.  This confirms Hypothesis~H4: the phase transition occurs at
 $r = 1$, not gradually.
 
@@ -921,32 +851,15 @@ $m - 1 = 3$ components can be permuted, and the failed/survived partition
 further constrains).  The binary nature of the information---not its
 precision---is what matters.
 
-\subsection{Weibull extension}\label{sec:weibull}
+\subsection{Robustness to distributional assumptions}
 
-To verify that the symmetry-breaking rankings are not an artifact of the
-exponential distribution, we repeat the main comparison with Weibull
-components (shape $\alpha = 1.5$, scales chosen to match mean lifetimes
-of the exponential baseline).  With $R = 50$:
-
-\begin{center}
-\begin{tabular}{@{}lcc@{}}
-\toprule
-Mechanism & Median MAE & Conv.\ \\
-\midrule
-Scheme~0 & 0.478 & 50/50 \\
-Periodic ($\delta = 0.5$) & 0.053 & 50/50 \\
-Masking ($p_{\text{mask}} = 0$) & 0.099 & 50/50 \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-The Weibull case preserves the ranking (periodic $>$ masking $>$
-Scheme~0) with even larger improvement factors: $9.1\times$ for periodic
-inspection and $4.8\times$ for masking.  The Scheme~0 baseline is
-substantially worse for Weibull ($\MAE = 0.478$) than for exponential
-($\MAE = 0.200$), likely because the Weibull parameter space is
-$2m$-dimensional (shape and scale per component) rather than
-$m$-dimensional, amplifying the symmetry problem.
+A Weibull extension ($\alpha = 1.5$, $R = 50$) preserves the ranking:
+periodic ($\MAE = 0.053$, $9.1\times$) outperforms masking
+($\MAE = 0.099$, $4.8\times$), both far ahead of Scheme~0
+($\MAE = 0.478$).  The larger improvement factors reflect the
+$2m$-dimensional Weibull parameter space, which amplifies the symmetry
+problem.  Additional experiments (variation across $k$, scaling with $m$)
+are available in the \texttt{kofn} package vignettes.
 
 % ===========================================================================
 % 6. DISCUSSION
