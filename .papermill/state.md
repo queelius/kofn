@@ -1,12 +1,18 @@
 # Papermill State
 
 ## Meta
-- **Stage**: experiments-designed
+- **Stage**: draft-complete
 - **Format**: LaTeX (article class)
 - **Target venue**: Technometrics or Lifetime Data Analysis
 - **Repository**: /home/spinoza/github/rlang/kofn
 - **Initialized**: 2026-03-25
-- **Last updated**: 2026-03-26
+- **Last updated**: 2026-03-28
+
+## Draft History
+- **2026-03-28**: First complete draft (paper.tex, paper.bib). 19 pages,
+  8 sections + 3 appendices. Compiles cleanly (pdflatex + bibtex).
+  All 7 experiments integrated. Section drafts saved to
+  `.papermill/drafts/2026-03-28/`.
 
 ## Authors
 1. **Alexander Towell**:Southern Illinois University Edwardsville
@@ -17,32 +23,37 @@
 
 ## Thesis
 
-Individual component lifetime estimation from k-out-of-n system data
-is fundamentally limited by **permutation symmetry** in the system
-density: f_sys(t; lambda_1, ..., lambda_m) is invariant under
-relabeling of components, creating m! equivalent modes on the
-likelihood surface.
+The permutation symmetry of k-out-of-m system densities creates a
+**sharp information-theoretic threshold** for component parameter
+estimation.
 
-We show that:
-1. System-level data alone (Scheme 0) cannot identify individual
-   component parameters at any k.
-2. Domain knowledge (ordering constraints, heterogeneous fleet
-   structures) provides negligible improvement (~1x).
-3. **Component-level information** breaks the symmetry:
-   - Periodic inspection (temporal intervals): 7-29x improvement
-   - Partial autopsy (binary failed/survived for r of m components):
-     5x improvement even with r = ceil(m/2)
-   - Masked failed sets (which k components failed): 4x improvement
-4. Partial autopsy is the most *plausible* mechanism (standard
-   maintenance practice) and generalizes both masked cause-of-failure
-   (series, k=1) and full autopsy (r=m).
-5. Periodic inspection races ahead of autopsy as m increases because
-   it provides O(m) temporal constraints vs O(k) binary constraints.
+Below the threshold (system-level data, with or without domain
+knowledge), individual parameters are unidentifiable: m! equivalent
+modes on the likelihood surface collapse the MLE to the symmetric
+point.
 
-**One-sentence thesis**: Breaking the permutation symmetry inherent in
-k-out-of-n system densities requires component-level information, and
-even minimal component inspection (checking 2 of 4 components after
-failure) delivers dramatic improvement over system-only data.
+Above the threshold (any single component-level observation), the
+symmetry breaks and parameters become estimable with 3-7x improvement.
+
+Three key findings from R=50-100 Monte Carlo experiments:
+
+1. **The threshold is binary.** Inspecting r = 1 of m = 4 components
+   captures 91% of the improvement from inspecting all m
+   (MAE: 0.200 to 0.062 at r=1, vs 0.049 at r=m).
+2. **Temporal precision is irrelevant.** Inspection intervals spanning
+   a 20x range (delta = 0.1 to 2.0) produce identical estimation
+   accuracy (MAE = 0.031 to 0.033).
+3. **Domain knowledge fails.** Ordering constraints and heterogeneous
+   fleet structures give ~0% improvement over the system-only baseline
+   (median MAE 0.200 vs 0.200).
+
+What matters is the *identity* of a component (which one failed or
+survived), not the *timing* of its failure.
+
+**One-sentence thesis**: Permutation symmetry in k-out-of-m system
+densities creates a binary identification threshold: any single
+component observation breaks the symmetry, while system-level data
+and domain knowledge cannot.
 
 ## Key Results (from package vignettes and experiments)
 
