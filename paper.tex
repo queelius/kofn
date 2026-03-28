@@ -73,12 +73,12 @@ component parameters, creating $m!$ equivalent modes on the likelihood surface.
 This symmetry renders individual parameters non-identifiable from system-level
 data alone, and domain knowledge (ordering constraints, heterogeneous fleet
 structures) provides negligible improvement (${\approx}1\times$).
-We prove that a \emph{binary identification threshold} governs this problem:
+We demonstrate empirically that a \emph{binary identification threshold} governs this problem:
 any single component-level observation breaks the symmetry, while no amount of
 system-level data can.  We develop three observation mechanisms with explicit
 likelihoods for general $k$-out-of-$m$ systems: periodic inspection,
 generalized masking, and partial autopsy.  A Monte Carlo comparison
-($R = 100$ replicates, $m = 4$ exponential components, $n = 300$ observations)
+($m = 4$ exponential components, $n = 300$ observations, $R = 50$--$100$ replicates)
 yields two central findings.  First, inspecting just one of $m = 4$ components
 after failure captures 91\% of the improvement from inspecting all four
 ($\MAE$: $0.200 \to 0.062$ at $r = 1$, vs.\ $0.049$ at $r = m$).
@@ -123,9 +123,13 @@ permutation symmetry, and the $24$ modes persist.
 The standard framing of component estimation from system data treats the
 problem as one of censoring: at system failure time $\Tsys$, some component
 lifetimes are observed (or bounded) and others are censored
-\citep{BarlowProschan1975, LawlessBook2003}.  For series systems ($k=1$),
+\citep{BarlowProschan1975, LawlessBook2003}.
+Recent work by \citet{QiangPena2025} combines component and system test
+data via shrinkage estimation, but assumes at least some component-level
+observations are already available.  For series systems ($k=1$),
 this is the classical masked cause-of-failure problem, where the critical
-component's identity is latent \citep{Miyakawa1984, LinUsherGuess1993}.  For
+component's identity is latent \citep{Miyakawa1984, LinUsherGuess1993,
+Usher1996, KunduBasu2000}.  For
 general $k$-out-of-$m$ systems, the censoring structure is richer---$k-1$
 components are left-censored, one is exact, and $m-k$ are
 right-censored---but the symmetry barrier persists at every $k$.
@@ -189,7 +193,8 @@ comparison.  \Cref{sec:discussion} provides practical recommendations.
 A \emph{coherent system} with $m$ components is specified by its structure
 function $\phi: \{0,1\}^m \to \{0,1\}$, where $\phi(\bx) = 1$ indicates
 the system functions when component state vector is $\bx$
-\citep{BarlowProschan1975}.  Equivalently, the system is defined by its
+\citep{BarlowProschan1975}; see \citet{Samaniego2007} for the role of
+system signatures in reliability inference.  Equivalently, the system is defined by its
 collection of \emph{minimal path sets}---minimal sets of components whose
 simultaneous functioning guarantees system functioning---or dually by its
 \emph{minimal cut sets}---minimal sets whose simultaneous failure causes
@@ -342,18 +347,12 @@ vector.  For any $k$-out-of-$m$ system with independent component lifetimes,
 \end{equation}
 \end{proposition}
 
-\begin{proof}
-In a $k$-out-of-$m$ system, the minimal path sets are all $\binom{m}{m-k+1}$
-subsets of size $m - k + 1$.  For any permutation $\pi$, the collection of
-path sets is mapped bijectively onto itself: $\pi$ merely relabels the
-components within each path set, and since all subsets of a given size appear,
-the collection is invariant.  The same holds for minimal cut sets.  Consequently,
-the set of critical states for any relabeled component $\pi(j)$ under
-parameters $\blambda_\pi$ is in bijection with the critical states for
-component $j$ under $\blambda$.  Since the density \eqref{eq:fsys} is a sum
-over critical components and their critical states, and each term is a product
-of marginal densities and CDFs evaluated at the same time $t$, the relabeling
-merely permutes the terms.  The sum is invariant.
+\begin{proof}[Proof sketch]
+The collection of minimal path sets of a $k$-out-of-$m$ system (all
+$\binom{m}{m-k+1}$ subsets of size $m-k+1$) is invariant under any
+component relabeling~$\pi$.  Hence the sum in \eqref{eq:fsys} under
+$\blambda_\pi$ is merely a rearrangement of the sum under $\blambda$.
+See \cref{sec:proof-symmetry} for the full argument.
 \end{proof}
 
 \begin{remark}
@@ -375,7 +374,7 @@ for every permutation $\pi$.
 \Cref{cor:modes} explains the well-known difficulty of estimating individual
 component parameters from system data \citep{Nowik1990}.  The MLE is
 non-unique, and gradient-based optimizers typically converge to the symmetric
-saddle point $\hat\lambda_1 = \cdots = \hat\lambda_m$, which correctly
+stationary point $\hat\lambda_1 = \cdots = \hat\lambda_m$, which correctly
 estimates the sum $\sum_j \lambda_j$ but reveals nothing about individual
 rates.
 
@@ -389,10 +388,10 @@ The symmetry has three practical manifestations:
     criteria, the optimizer reports the first mode reached, which may be any
     of the $m!$ equivalents.
 
-  \item \textbf{Singular Fisher information.}  At the symmetric point
+  \item \textbf{Near-singular Fisher information.}  At the symmetric point
     $\lambda_1 = \cdots = \lambda_m$, the observed Fisher information matrix
-    has rank 1 (in the exponential case): only the sum $\sum \lambda_j$
-    is locally identifiable.
+    becomes nearly singular, with the sum $\sum \lambda_j$ being the only
+    locally well-identified function of the parameters.
 
   \item \textbf{Identifiable functions.}  For series systems ($k = 1$),
     the sum $\sum \lambda_j$ is the system failure rate and is identifiable;
@@ -448,7 +447,8 @@ between identity and temporal information.
 
 \subsection{Periodic inspection (Scheme 1)}\label{sec:periodic}
 
-Under periodic inspection at interval $\delta$, the observer records the
+Under periodic inspection at interval $\delta$ \citep[see][for a
+general treatment of interval censoring]{Sun2006}, the observer records the
 exact system failure time $\Tsys$ and knows, for each component~$j$, the
 inspection interval $[a_j^{-}, a_j^{+})$ that contains $T_j$.
 The data for observation $i$ are
@@ -512,7 +512,9 @@ subsets:
     \prod_{\ell \notin F} S_\ell(t_i; \theta_\ell),
 \end{equation}
 where $\binom{C_i}{k}$ denotes the collection of $k$-element subsets of
-$C_i$.
+$C_i$.  This likelihood assumes non-informative masking: the distribution
+of the candidate set $C_i$ given the true failed set $F_i$ does not
+depend on $\btheta$.
 \end{definition}
 
 Two special cases clarify the definition:
@@ -548,7 +550,10 @@ subsets by their probability under the current parameter estimates.
 In many maintenance scenarios, the observer can inspect $r$ of $m$
 components after system failure, determining their binary status
 (failed or survived) but not the exact failure times.  We call this
-\emph{partial autopsy}.
+\emph{partial autopsy}.  The closest prior art is
+\citet{FlehingerReiserYashchin1998}, who considered two-stage diagnosis
+in competing risks with partial cause information; our formulation
+generalizes this to arbitrary $k$-out-of-$m$ systems.
 
 Let $\mathcal{I} \subset \{1, \ldots, m\}$ with $|\mathcal{I}| = r$
 be the set of inspected components.  For each inspected component
@@ -603,9 +608,9 @@ while further inspections yield diminishing returns.
 If the component reliability ordering is known a priori
 ($\lambda_1 \leq \lambda_2 \leq \cdots \leq \lambda_m$), the parameter
 space can be restricted to the ascending cone.  We implement this via
-cumulative increment reparameterization: $\lambda_1 = \delta_1$,
-$\lambda_j = \lambda_{j-1} + \delta_j$ with $\delta_j \geq 0$, and
-optimize over $(\delta_1, \ldots, \delta_m)$ with positivity constraints.
+cumulative increment reparameterization: $\lambda_1 = \gamma_1$,
+$\lambda_j = \lambda_{j-1} + \gamma_j$ with $\gamma_j \geq 0$, and
+optimize over $(\gamma_1, \ldots, \gamma_m)$ with positivity constraints.
 
 \textbf{Heterogeneous fleet structures.}
 If the same components are deployed in systems at different $k$ values
@@ -662,6 +667,9 @@ Partial autopsy & Identity & $\Tsys, d_j$ for $r$ components &
 \subsection{Experimental design}\label{sec:design}
 
 \textbf{Baseline configuration.}
+All experiments use $k \geq 2$; the composite likelihood breaks down
+for series systems ($k = 1$), which are better served by the
+\texttt{maskedcauses} framework (see \cref{rem:series-breakdown}).
 Unless stated otherwise, experiments use $m = 4$ exponential components
 with rates $\blambda = (0.4, 0.6, 0.8, 1.0)$ in a $k = 2$ system
 (2-out-of-4), sample size $n = 300$, and $R = 100$ Monte Carlo replicates.
@@ -727,7 +735,17 @@ Periodic ($\delta{=}0.5$) & 0.029 & 0.032 & 0.014 & [0.023, 0.041] &
 \end{tabular}
 \end{table}
 
-The results confirm Hypothesis~H1 decisively.  Component-level mechanisms
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig1_mechanism_comparison.pdf}
+\caption{Distribution of MAE across $R = 100$ replicates for the six
+  symmetry-breaking mechanisms ($m = 4$, $k = 2$, $n = 300$, exponential).
+  The dashed line marks the symmetric-point MAE ($0.200$).  Component-level
+  mechanisms (blue) achieve $3.5$--$6.9\times$ improvement over domain
+  knowledge mechanisms (gray).}\label{fig:mechanism-comparison}
+\end{figure}
+
+The results confirm that component-level mechanisms dramatically outperform domain knowledge.  Component-level mechanisms
 (periodic inspection, masking, partial autopsy) reduce the median MAE
 from $0.200$ to $0.029$--$0.057$, improvements of $3.5$--$6.9\times$.
 Domain knowledge mechanisms (ordering constraints, heterogeneous fleet)
@@ -760,7 +778,12 @@ the baseline configuration ($m = 4$, $k = 2$, $n = 300$).
 
 \subsubsection{Masking noise}\label{sec:masking-noise}
 
-\begin{center}
+\begin{table}[t]
+\centering
+\caption{Masking noise sensitivity ($m = 4$, $k = 2$, $n = 300$,
+  $R = 50$).  MAE is robust through $p_{\text{mask}} = 0.3$ and
+  degrades gracefully until full masking ($p_{\text{mask}} = 1$)
+  recovers the Scheme~0 baseline.}\label{tab:masking-noise}
 \begin{tabular}{@{}cccc@{}}
 \toprule
 $p_\text{mask}$ & Median MAE & Mean MAE & Conv.\ \\
@@ -772,7 +795,7 @@ $p_\text{mask}$ & Median MAE & Mean MAE & Conv.\ \\
 1.0 & 0.200 & 0.280 & 50/50 \\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{table}
 
 The generalized masking likelihood is robust to substantial noise.
 MAE roughly doubles from $p_{\text{mask}} = 0$ (exact failed set) to
@@ -780,12 +803,16 @@ $p_{\text{mask}} = 0.5$ (each surviving component has a 50\% chance
 of being falsely included in the candidate set).  Only at
 $p_{\text{mask}} = 1.0$ (all components always in the candidate set,
 hence no information) does the MAE collapse to the Scheme~0 baseline.
-This confirms Hypothesis~H5a: moderate masking noise ($p_{\text{mask}}
-\leq 0.3$) barely degrades estimation quality.
+This confirms robustness to moderate masking noise: $p_{\text{mask}}
+\leq 0.3$ barely degrades estimation quality.
 
 \subsubsection{Inspection granularity}\label{sec:delta-sensitivity}
 
-\begin{center}
+\begin{table}[t]
+\centering
+\caption{Inspection granularity sensitivity ($m = 4$, $k = 2$, $n = 300$,
+  $R = 50$).  Across a $20\times$ range of $\delta$, estimation accuracy
+  is effectively constant.}\label{tab:delta-sensitivity}
 \begin{tabular}{@{}cccc@{}}
 \toprule
 $\delta$ & Median MAE & Mean MAE & Conv.\ \\
@@ -796,12 +823,22 @@ $\delta$ & Median MAE & Mean MAE & Conv.\ \\
 2.0 & 0.033 & 0.037 & 50/50 \\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.65\textwidth]{figures/fig3_delta_sensitivity.pdf}
+\caption{Median and mean MAE vs.\ inspection interval~$\delta$
+  ($m = 4$, $k = 2$, $n = 300$, $R = 50$).  Across a $20\times$
+  range of inspection granularity, estimation accuracy is effectively
+  constant, confirming that temporal resolution is
+  irrelevant.}\label{fig:delta-sensitivity}
+\end{figure}
 
 This is the most surprising finding.  Across a $20\times$ range of
 inspection granularity ($\delta = 0.1$ to $2.0$, where the median
 component lifetime is approximately $1.4$), the median MAE varies by
-less than $0.002$.  Hypothesis~H5b predicted monotonically increasing
+less than $0.002$.  One might expect monotonically increasing
 MAE with coarser inspection.  Instead, estimation accuracy is
 \emph{completely insensitive} to $\delta$.
 
@@ -816,7 +853,12 @@ The temporal resolution that matters is not $\delta$ but
 
 \subsubsection{Autopsy coverage}\label{sec:autopsy-sensitivity}
 
-\begin{center}
+\begin{table}[t]
+\centering
+\caption{Autopsy coverage sensitivity ($m = 4$, $k = 2$, $n = 300$,
+  $R = 50$).  The phase transition from $r = 0$ to $r = 1$ captures
+  91\% of the total improvement from no inspection to full
+  autopsy.}\label{tab:autopsy-coverage}
 \begin{tabular}{@{}cccc@{}}
 \toprule
 $r$ & Median MAE & Mean MAE & Conv.\ \\
@@ -828,23 +870,32 @@ $r$ & Median MAE & Mean MAE & Conv.\ \\
 4 & 0.049 & 0.046 & 50/50 \\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.65\textwidth]{figures/fig2_autopsy_coverage.pdf}
+\caption{Median MAE vs.\ number of inspected components~$r$
+  ($m = 4$, $k = 2$, $n = 300$, $R = 50$).  The sharp drop from
+  $r = 0$ to $r = 1$ captures 91\% of the total improvement,
+  demonstrating the binary identification threshold.}\label{fig:autopsy-coverage}
+\end{figure}
 
 The transition from $r = 0$ (no inspection) to $r = 1$ (inspecting a
 single component) is dramatic: MAE drops from $0.200$ to $0.062$, a
 $3.2\times$ improvement that captures 91\% of the total improvement
 from $r = 0$ to full autopsy ($r = m$).  Subsequent inspections provide diminishing
-returns.  This confirms Hypothesis~H4: the phase transition occurs at
-$r = 1$, not gradually.
+returns.  This confirms the phase transition at $r = 1$: the jump is discrete,
+not gradual.
 
 The slight increase from $r = 3$ ($\text{MAE} = 0.042$) to
 $r = 4$ ($\text{MAE} = 0.049$) is likely Monte Carlo noise at $R = 50$;
-the mean MAE continues to decrease ($0.043 \to 0.046$), and the
-differences are within sampling variability.
+both median and mean MAE show slight fluctuation between $r = 3$ and
+$r = 4$, within sampling variability.
 
 \textbf{Interpretation.}  A single inspected component breaks the $m!$
 symmetry because knowing whether \emph{one} named component failed or
-survived at $\Tsys$ immediately eliminates half of the permutation
+survived at $\Tsys$ immediately eliminates most of the permutation
 equivalences.  With $m = 4$ and $k = 2$, knowing that component~1 failed
 reduces the ambiguity from 24 permutations to 6 (only the remaining
 $m - 1 = 3$ components can be permuted, and the failed/survived partition
@@ -951,11 +1002,27 @@ component-level data into the likelihood.
 For series systems, the non-identifiability of marginal distributions from
 the joint survival function is a classical result \citep{Tsiatis1975,
 Cox1959}.  \citet{Meilijson1981} showed that autopsy data (observing which
-component caused system failure) restores identifiability.
+component caused system failure) restores identifiability;
+\citet{SarhanElBassiouny2003} developed parallel-system component
+estimation under masked data.
 \citet{Komarova2017} extended this to $k$-out-of-$m$ systems under
-nonparametric assumptions.  Our contribution complements these theoretical
+nonparametric assumptions (see also the general incomplete-data framework
+of \citealp{DempsterLairdRubin1977}).  Our contribution complements these theoretical
 results with a quantitative comparison of the \emph{degree} of identifiability
 under different observation mechanisms.
+
+\textbf{Component estimation from system data.}
+Several recent papers address the specific problem of estimating component
+parameters from system-level observations.
+\citet{BhattacharyaSamaniego2010} derived component estimators using
+system signatures, while \citet{NgNavarroBalakrishnan2017} and
+\citet{YangNgBalakrishnan2019} developed stochastic EM algorithms for
+system lifetime data with known and unknown signatures, respectively.
+\citet{DembinskaJasinski2021} studied MLE from discrete $k$-out-of-$n$
+component lifetimes.  \citet{RodriguesPereira2019} considered masked
+data in general coherent systems.  Our work complements these by
+systematically comparing the \emph{type} of supplementary information
+needed rather than developing estimators for a single observation scheme.
 
 \textbf{Optimal experimental design.}
 Our sensitivity results---especially the $\delta$-insensitivity and the
@@ -1038,13 +1105,6 @@ data alone.  Second, the complete insensitivity to temporal resolution:
 the binary fact of \emph{which} component failed matters infinitely more
 than the precision of \emph{when}.  Coarse monitoring ($\delta = 2.0$)
 works as well as fine monitoring ($\delta = 0.1$).
-
-The rejection of Hypothesis~H3 (improvement ratio increasing with $k$)
-provides an honest correction to our initial intuition: while parallel
-systems have the most severe symmetry, they also carry the most inherent
-information in the system density.  The improvement ratio from inspection
-is highest at intermediate $k$ values, where the system density is least
-informative about individual parameters.
 
 Several directions remain open.  The composite likelihood for periodic
 inspection could be replaced with a full conditional likelihood, at the
