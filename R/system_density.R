@@ -16,6 +16,57 @@
 # ===========================================================================
 
 
+#' Compute log-survival and log-CDF matrices for component distributions
+#'
+#' Evaluates each component distribution at the given time points and returns
+#' log-transformed matrices. Values are floored at `log(.Machine$double.eps)`
+#' to avoid `-Inf`.
+#'
+#' @param t Numeric vector of time points.
+#' @param dists List of m distribution objects.
+#' @param m Number of components.
+#' @return A list with elements `log_S` and `log_F`, each an `nt x m` matrix.
+#' @keywords internal
+log_surv_cdf_matrices <- function(t, dists, m) {
+  nt <- length(t)
+  log_S <- matrix(0, nrow = nt, ncol = m)
+  log_F <- matrix(0, nrow = nt, ncol = m)
+  for (j in seq_len(m)) {
+    log_S[, j] <- log(pmax(dists[[j]]$surv(t), .Machine$double.eps))
+    log_F[, j] <- log(pmax(dists[[j]]$cdf(t), .Machine$double.eps))
+  }
+  list(log_S = log_S, log_F = log_F)
+}
+
+
+#' Sum state contributions from up/down index sets
+#'
+#' For a list of states (each with `up` and `down` index vectors), computes
+#' the sum of `exp(log_S[up] + log_F[down])` across all states. This is the
+#' shared accumulation pattern for both the survival and density functions.
+#'
+#' @param states List of lists, each with `up` and `down` integer vectors.
+#' @param log_S Log-survival matrix (nt x m).
+#' @param log_F Log-CDF matrix (nt x m).
+#' @param nt Number of time points.
+#' @return Numeric vector of length `nt`.
+#' @keywords internal
+sum_state_contributions <- function(states, log_S, log_F, nt) {
+  result <- numeric(nt)
+  for (s in states) {
+    log_prod <- numeric(nt)
+    if (length(s$up) > 0L) {
+      log_prod <- log_prod + rowSums(log_S[, s$up, drop = FALSE])
+    }
+    if (length(s$down) > 0L) {
+      log_prod <- log_prod + rowSums(log_F[, s$down, drop = FALSE])
+    }
+    result <- result + exp(log_prod)
+  }
+  result
+}
+
+
 #' System survival function (general coherent system)
 #'
 #' Computes \eqn{P(T_{sys} > t)} by summing over all \eqn{2^m} state vectors:
@@ -42,31 +93,10 @@ S_sys_general <- function(t, system, dists) {
   m <- system$m
   stopifnot(length(dists) == m)
   t <- as.numeric(t)
-  nt <- length(t)
 
-  # Evaluate per-component log-survival and log-CDF as matrices
-  log_S_mat <- matrix(0, nrow = nt, ncol = m)
-  log_F_mat <- matrix(0, nrow = nt, ncol = m)
-  for (j in seq_len(m)) {
-    log_S_mat[, j] <- log(pmax(dists[[j]]$surv(t), .Machine$double.eps))
-    log_F_mat[, j] <- log(pmax(dists[[j]]$cdf(t), .Machine$double.eps))
-  }
-
-  # Use eagerly precomputed functioning states from system$cache
-  func_states <- system$cache$func
-
-  result <- numeric(nt)
-  for (s in func_states) {
-    log_prod <- numeric(nt)
-    if (length(s$up) > 0L) {
-      log_prod <- log_prod + rowSums(log_S_mat[, s$up, drop = FALSE])
-    }
-    if (length(s$down) > 0L) {
-      log_prod <- log_prod + rowSums(log_F_mat[, s$down, drop = FALSE])
-    }
-    result <- result + exp(log_prod)
-  }
-  result
+  mats <- log_surv_cdf_matrices(t, dists, m)
+  sum_state_contributions(system$cache$func, mats$log_S, mats$log_F,
+                          length(t))
 }
 
 
@@ -100,42 +130,22 @@ f_sys_general <- function(t, system, dists) {
   t <- as.numeric(t)
   nt <- length(t)
 
-  # Evaluate per-component density, survival, CDF as matrices (vectorized)
+  # Per-component density matrix
   f_mat <- matrix(0, nrow = nt, ncol = m)
-  log_S_mat <- matrix(0, nrow = nt, ncol = m)
-  log_F_mat <- matrix(0, nrow = nt, ncol = m)
   for (j in seq_len(m)) {
     f_mat[, j] <- dists[[j]]$pdf(t)
-    S_j <- dists[[j]]$surv(t)
-    F_j <- dists[[j]]$cdf(t)
-    log_S_mat[, j] <- log(pmax(S_j, .Machine$double.eps))
-    log_F_mat[, j] <- log(pmax(F_j, .Machine$double.eps))
   }
 
-  # Use eagerly precomputed critical states from system$cache (environment, reference semantics)
+  mats <- log_surv_cdf_matrices(t, dists, m)
   crit_cache <- system$cache$crit
 
   result <- numeric(nt)
-
   for (j in seq_len(m)) {
     cc <- crit_cache[[j]]
-    if (is.null(cc$n_states) || cc$n_states == 0L) next
+    if (cc$n_states == 0L) next
 
-    # For each critical state, compute product via log-sum of precomputed log matrices
-    state_contrib <- numeric(nt)
-    for (r in seq_len(cc$n_states)) {
-      log_prod <- numeric(nt)
-      up_idx <- cc$up[[r]]
-      down_idx <- cc$down[[r]]
-      if (length(up_idx) > 0L) {
-        log_prod <- log_prod + rowSums(log_S_mat[, up_idx, drop = FALSE])
-      }
-      if (length(down_idx) > 0L) {
-        log_prod <- log_prod + rowSums(log_F_mat[, down_idx, drop = FALSE])
-      }
-      state_contrib <- state_contrib + exp(log_prod)
-    }
-
+    state_contrib <- sum_state_contributions(cc$states, mats$log_S, mats$log_F,
+                                             nt)
     result <- result + f_mat[, j] * state_contrib
   }
 

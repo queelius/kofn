@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 # Experiments 4, 5, 6: Sensitivity analyses (masking noise, delta, r)
 devtools::load_all(".")
+source("inst/experiments/helpers.R")
 
 m <- 4; k_val <- 2; n <- 300; R <- 50
 rates <- c(0.4, 0.6, 0.8, 1.0)
@@ -24,16 +25,12 @@ for (p_mask in c(0, 0.1, 0.3, 0.5, 1.0)) {
     res <- tryCatch(
       suppressWarnings(multistart_mle(neg_ll, rep(0.5, m), m, n_starts = 5, nobs = n)),
       error = function(e) NULL)
-    if (!is.null(res) && !any(is.na(coef(res)))) {
-      maes[rep] <- mean(abs(sort(coef(res)) - rates_sorted))
-    } else {
-      maes[rep] <- NA
-    }
+    maes[rep] <- get_mae(res, rates_sorted)
   }
   exp4[[length(exp4) + 1]] <- data.frame(
     p_mask = p_mask, median_mae = median(maes, na.rm = TRUE),
     mean_mae = mean(maes, na.rm = TRUE), conv = sum(!is.na(maes)))
-  cat(sprintf("  p_mask=%.1f: median_mae=%.3f\n", p_mask, median(maes, na.rm=TRUE)))
+  cat(sprintf("  p_mask=%.1f: median_mae=%.3f\n", p_mask, median(maes, na.rm = TRUE)))
 }
 exp4 <- do.call(rbind, exp4)
 saveRDS(exp4, "inst/precomputed/paper/exp4_masking_noise.rds")
@@ -49,8 +46,8 @@ for (delta in c(0.1, 0.5, 1.0, 2.0)) {
     df1 <- s1gen(theta = rates, n = n, delta = delta)
     res <- tryCatch(fit_scheme1(model)(df1, n_starts = 5),
                     error = function(e) NULL)
-    if (!is.null(res) && res$converged && !any(is.na(coef(res)))) {
-      maes[rep] <- mean(abs(sort(coef(res)) - rates_sorted))
+    if (!is.null(res) && res$converged) {
+      maes[rep] <- get_mae(res, rates_sorted)
     } else {
       maes[rep] <- NA
     }
@@ -58,7 +55,7 @@ for (delta in c(0.1, 0.5, 1.0, 2.0)) {
   exp5[[length(exp5) + 1]] <- data.frame(
     delta = delta, median_mae = median(maes, na.rm = TRUE),
     mean_mae = mean(maes, na.rm = TRUE), conv = sum(!is.na(maes)))
-  cat(sprintf("  delta=%.1f: median_mae=%.3f\n", delta, median(maes, na.rm=TRUE)))
+  cat(sprintf("  delta=%.1f: median_mae=%.3f\n", delta, median(maes, na.rm = TRUE)))
 }
 exp5 <- do.call(rbind, exp5)
 saveRDS(exp5, "inst/precomputed/paper/exp5_inspection_delta.rds")
@@ -70,74 +67,29 @@ for (r_inspect in 0:4) {
   maes <- numeric(R)
   for (rep in seq_len(R)) {
     set.seed(2026 + rep)
-    comp_times <- matrix(0, nrow = n, ncol = m)
-    for (j in seq_len(m)) comp_times[, j] <- stats::rexp(n, rate = rates[j])
-    sys_times <- vapply(seq_len(n), function(i)
-      system_lifetime(model$system, comp_times[i, ]), numeric(1))
+    sim <- generate_system_data(n, m, model$system, rates = rates)
 
     if (r_inspect == 0) {
       # Scheme 0
-      res <- tryCatch(fit_system(sys_times, model$system, n_starts = 5),
+      res <- tryCatch(fit_system(sim$sys_times, model$system, n_starts = 5),
                       error = function(e) NULL)
     } else {
       # Partial autopsy
-      inspected <- matrix(FALSE, nrow = n, ncol = m)
-      known_failed <- matrix(FALSE, nrow = n, ncol = m)
-      for (i in seq_len(n)) {
-        idx <- sample.int(m, r_inspect)
-        inspected[i, idx] <- TRUE
-        known_failed[i, idx] <- comp_times[i, idx] <= sys_times[i]
-      }
-      neg_ll_aut <- function(par) {
-        if (any(par <= 0)) return(.Machine$double.xmax / 2)
-        ll <- 0
-        for (i in seq_len(n)) {
-          ti <- sys_times[i]
-          f_v <- stats::dexp(ti, rate = par)
-          F_v <- stats::pexp(ti, rate = par)
-          S_v <- 1 - F_v
-          ks <- inspected[i, ] & !known_failed[i, ]
-          kf <- inspected[i, ] & known_failed[i, ]
-          unk <- !inspected[i, ]
-          unk_idx <- which(unk)
-          n_unk <- length(unk_idx)
-          total <- 0
-          for (mask in seq_len(2^n_unk) - 1L) {
-            bits <- as.logical(as.integer(intToBits(mask))[seq_len(n_unk)])
-            Fc <- c(which(kf), unk_idx[bits])
-            if (length(Fc) != k_val) next
-            if (any(ks[Fc])) next
-            nF <- setdiff(seq_len(m), Fc)
-            for (j in Fc) {
-              if (f_v[j] <= 0) next
-              oF <- setdiff(Fc, j)
-              lt <- log(f_v[j])
-              if (length(oF) > 0) { if (any(F_v[oF] <= 0)) next; lt <- lt + sum(log(F_v[oF])) }
-              if (length(nF) > 0) { if (any(S_v[nF] <= 0)) next; lt <- lt + sum(log(S_v[nF])) }
-              total <- total + exp(lt)
-            }
-          }
-          if (total <= 0) return(.Machine$double.xmax / 2)
-          ll <- ll + log(total)
-        }
-        -ll
-      }
+      aut_data <- generate_autopsy_data(sim$comp_times, sim$sys_times,
+                                        r_inspect, m)
+      neg_ll_aut <- make_autopsy_negll(sim$sys_times, aut_data$inspected,
+                                       aut_data$known_failed, k_val, m)
       res <- tryCatch(
         suppressWarnings(multistart_mle(neg_ll_aut, rep(0.5, m), m, n_starts = 5, nobs = n)),
         error = function(e) NULL)
     }
 
-    if (!is.null(res) && !any(is.na(tryCatch(coef(res), error = function(e) NA)))) {
-      est <- tryCatch(coef(res), error = function(e) res$par)
-      maes[rep] <- mean(abs(sort(est) - rates_sorted))
-    } else {
-      maes[rep] <- NA
-    }
+    maes[rep] <- get_mae(res, rates_sorted)
   }
   exp6[[length(exp6) + 1]] <- data.frame(
     r = r_inspect, median_mae = median(maes, na.rm = TRUE),
     mean_mae = mean(maes, na.rm = TRUE), conv = sum(!is.na(maes)))
-  cat(sprintf("  r=%d: median_mae=%.3f\n", r_inspect, median(maes, na.rm=TRUE)))
+  cat(sprintf("  r=%d: median_mae=%.3f\n", r_inspect, median(maes, na.rm = TRUE)))
 }
 exp6 <- do.call(rbind, exp6)
 saveRDS(exp6, "inst/precomputed/paper/exp6_autopsy_coverage.rds")

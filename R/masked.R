@@ -87,19 +87,14 @@ loglik_masked <- function(model, candset = "c", ...) {
     # Extract candidate set matrix
     cmat <- as.matrix(df[cand_cols])
 
+    # Build dist objects once (used for non-exact observations)
+    dists <- make_dists(par, family)
+
     ll <- 0
     for (i in seq_len(n)) {
       if (omega_vals[i] != "exact") {
         # For non-exact observations, fall back to marginal system density
         # (masking info not applicable for censored obs)
-        dists <- lapply(seq_len(m), function(j) {
-          list(
-            pdf  = function(t) stats::dweibull(t, shape = shapes[j], scale = scales[j]),
-            cdf  = function(t) stats::pweibull(t, shape = shapes[j], scale = scales[j]),
-            surv = function(t) stats::pweibull(t, shape = shapes[j], scale = scales[j],
-                                               lower.tail = FALSE)
-          )
-        })
         if (omega_vals[i] == "right") {
           S_sys <- S_sys_general(t_obs[i], model$system, dists)
           if (S_sys <= 0) return(-Inf)

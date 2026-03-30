@@ -150,7 +150,6 @@ loglik_scheme1 <- function(model, ...) {
 
   function(df, par) {
     if (any(!is.finite(par)) || any(par <= 0)) return(-Inf)
-    n <- nrow(df)
 
     pp <- parse_params(par, m, family)
     shapes <- pp$shapes
@@ -158,16 +157,8 @@ loglik_scheme1 <- function(model, ...) {
 
     t_obs <- df[[lt]]
 
-    # Build lightweight dist objects (vectorized, no per-call closure overhead)
-    dists <- lapply(seq_len(m), function(j) {
-      sh <- shapes[j]; sc <- scales[j]
-      list(
-        pdf  = function(t) stats::dweibull(t, shape = sh, scale = sc),
-        cdf  = function(t) stats::pweibull(t, shape = sh, scale = sc),
-        surv = function(t) stats::pweibull(t, shape = sh, scale = sc,
-                                           lower.tail = FALSE)
-      )
-    })
+    # Reuse package dist objects (same interface as make_dists)
+    dists <- make_dists(par, family)
 
     # System density for ALL time points at once (vectorized, uses cached critical states)
     f_sys_vals <- f_sys_general(t_obs, system, dists)

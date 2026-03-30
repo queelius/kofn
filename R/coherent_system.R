@@ -157,15 +157,15 @@ coherent_system <- function(min_paths, m = NULL) {
   crit_cache <- lapply(seq_len(m), function(j) {
     cs <- critical_states(obj, j)
     others <- setdiff(seq_len(m), j)
-    if (nrow(cs) == 0L) return(list(others = others, n_states = 0L))
-    up_list <- vector("list", nrow(cs))
-    down_list <- vector("list", nrow(cs))
+    if (nrow(cs) == 0L) {
+      return(list(others = others, n_states = 0L, states = list()))
+    }
+    states <- vector("list", nrow(cs))
     for (r in seq_len(nrow(cs))) {
       bits <- as.logical(cs[r, ])
-      up_list[[r]] <- others[bits]
-      down_list[[r]] <- others[!bits]
+      states[[r]] <- list(up = others[bits], down = others[!bits])
     }
-    list(others = others, up = up_list, down = down_list, n_states = nrow(cs))
+    list(others = others, n_states = nrow(cs), states = states)
   })
   obj$cache$crit <- crit_cache
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 # Experiment 3: Scaling with m + Experiment 7: Weibull extension
 devtools::load_all(".")
+source("inst/experiments/helpers.R")
 
 # === Exp 3: Scaling with m ===
 cat("=== Exp 3: Scaling with m ===\n")
@@ -24,21 +25,13 @@ for (m_str in names(all_rates)) {
   maes_s0 <- maes_per <- maes_mask <- numeric(R)
   for (rep in seq_len(R)) {
     set.seed(2026 + rep)
-    comp_times <- matrix(0, nrow = n, ncol = m)
-    for (j in seq_len(m)) comp_times[, j] <- stats::rexp(n, rate = rates[j])
-    sys_times <- vapply(seq_len(n), function(i)
-      system_lifetime(model$system, comp_times[i, ]), numeric(1))
+    sim <- generate_system_data(n, m, model$system, rates = rates)
 
     # Scheme 0
-    res0 <- tryCatch(fit_system(sys_times, model$system, n_starts = 5),
+    res0 <- tryCatch(fit_system(sim$sys_times, model$system, n_starts = 5),
                      error = function(e) NULL)
     # Periodic
-    df_s1 <- data.frame(t = sys_times)
-    for (j in seq_len(m)) {
-      lower_j <- floor(comp_times[, j] / 0.5) * 0.5
-      df_s1[[paste0("comp_lower_", j)]] <- lower_j
-      df_s1[[paste0("comp_upper_", j)]] <- lower_j + 0.5
-    }
+    df_s1 <- build_scheme1_df(sim$sys_times, sim$comp_times)
     res1 <- tryCatch(fit_scheme1(model)(df_s1, n_starts = 5),
                      error = function(e) NULL)
     # Masked (full autopsy)
@@ -53,15 +46,9 @@ for (m_str in names(all_rates)) {
       suppressWarnings(multistart_mle(neg_ll, rep(0.5, m), m, n_starts = 5, nobs = n)),
       error = function(e) NULL)
 
-    get_mae <- function(res) {
-      if (is.null(res)) return(NA)
-      est <- tryCatch(coef(res), error = function(e) NULL)
-      if (is.null(est) || any(is.na(est))) return(NA)
-      mean(abs(sort(est) - rates_sorted))
-    }
-    maes_s0[rep] <- get_mae(res0)
-    maes_per[rep] <- get_mae(res1)
-    maes_mask[rep] <- get_mae(res_mask)
+    maes_s0[rep] <- get_mae(res0, rates_sorted)
+    maes_per[rep] <- get_mae(res1, rates_sorted)
+    maes_mask[rep] <- get_mae(res_mask, rates_sorted)
   }
 
   exp3[[length(exp3) + 1]] <- data.frame(
@@ -71,8 +58,8 @@ for (m_str in names(all_rates)) {
     autopsy_median = median(maes_mask, na.rm = TRUE))
 
   cat(sprintf("m=%d k=%d: S0=%.3f, Per=%.3f, Aut=%.3f\n", m, k_val,
-    median(maes_s0, na.rm=TRUE), median(maes_per, na.rm=TRUE),
-    median(maes_mask, na.rm=TRUE)))
+    median(maes_s0, na.rm = TRUE), median(maes_per, na.rm = TRUE),
+    median(maes_mask, na.rm = TRUE)))
 }
 exp3 <- do.call(rbind, exp3)
 saveRDS(exp3, "inst/precomputed/paper/exp3_scaling.rds")
@@ -84,27 +71,19 @@ m <- 4; k_val <- 2; n <- 300; R_w <- 50
 wei_par <- c(1.5, 2.5, 1.5, 1.7, 1.5, 1.25, 1.5, 1.0)  # interleaved shape, scale
 model_w <- kofn(k = k_val, m = m, family = "weibull")
 pp <- parse_params(wei_par, m, "weibull")
+wei_par_sorted <- sort(wei_par)
 
 maes_s0 <- maes_per <- maes_mask <- numeric(R_w)
 for (rep in seq_len(R_w)) {
   set.seed(2026 + rep)
-  comp_times <- matrix(0, nrow = n, ncol = m)
-  for (j in seq_len(m)) {
-    comp_times[, j] <- stats::rweibull(n, shape = pp$shapes[j], scale = pp$scales[j])
-  }
-  sys_times <- vapply(seq_len(n), function(i)
-    system_lifetime(model_w$system, comp_times[i, ]), numeric(1))
+  sim <- generate_system_data(n, m, model_w$system, family = "weibull",
+                              shapes = pp$shapes, scales = pp$scales)
 
   # Scheme 0
-  res0 <- tryCatch(fit_system(sys_times, model_w$system, family = "weibull", n_starts = 5),
+  res0 <- tryCatch(fit_system(sim$sys_times, model_w$system, family = "weibull", n_starts = 5),
                    error = function(e) NULL)
   # Periodic
-  df_s1 <- data.frame(t = sys_times)
-  for (j in seq_len(m)) {
-    lower_j <- floor(comp_times[, j] / 0.5) * 0.5
-    df_s1[[paste0("comp_lower_", j)]] <- lower_j
-    df_s1[[paste0("comp_upper_", j)]] <- lower_j + 0.5
-  }
+  df_s1 <- build_scheme1_df(sim$sys_times, sim$comp_times)
   res1 <- tryCatch(fit_scheme1(model_w)(df_s1, n_starts = 5),
                    error = function(e) NULL)
   # Masked (full autopsy)
@@ -116,26 +95,20 @@ for (rep in seq_len(R_w)) {
     if (!is.finite(val)) .Machine$double.xmax / 2 else val
   }
   res_mask <- tryCatch(
-    suppressWarnings(multistart_mle(neg_ll, rep(1, 2*m), 2*m, n_starts = 5, nobs = n)),
+    suppressWarnings(multistart_mle(neg_ll, rep(1, 2 * m), 2 * m, n_starts = 5, nobs = n)),
     error = function(e) NULL)
 
-  get_mae_w <- function(res) {
-    if (is.null(res)) return(NA)
-    est <- tryCatch(coef(res), error = function(e) NULL)
-    if (is.null(est) || any(is.na(est))) return(NA)
-    mean(abs(sort(est) - sort(wei_par)))
-  }
-  maes_s0[rep] <- get_mae_w(res0)
-  maes_per[rep] <- get_mae_w(res1)
-  maes_mask[rep] <- get_mae_w(res_mask)
+  maes_s0[rep] <- get_mae(res0, wei_par_sorted)
+  maes_per[rep] <- get_mae(res1, wei_par_sorted)
+  maes_mask[rep] <- get_mae(res_mask, wei_par_sorted)
 
   if (rep %% 10 == 0) cat(sprintf("Exp7: %d/%d done\n", rep, R_w))
 }
 
 exp7 <- data.frame(
   mechanism = c("scheme0", "periodic", "masked"),
-  median_mae = c(median(maes_s0, na.rm=TRUE), median(maes_per, na.rm=TRUE),
-                 median(maes_mask, na.rm=TRUE)),
+  median_mae = c(median(maes_s0, na.rm = TRUE), median(maes_per, na.rm = TRUE),
+                 median(maes_mask, na.rm = TRUE)),
   conv = c(sum(!is.na(maes_s0)), sum(!is.na(maes_per)), sum(!is.na(maes_mask))))
 saveRDS(exp7, "inst/precomputed/paper/exp7_weibull.rds")
 
