@@ -79,18 +79,6 @@ for (r_inspect in 0:4) {
       # Scheme 0
       res <- tryCatch(fit_system(sys_times, model$system, n_starts = 5),
                       error = function(e) NULL)
-    } else if (r_inspect == m) {
-      # Full autopsy = masked (p_mask=0)
-      gen_m <- rdata_masked(model)
-      df_m <- gen_m(theta = rates, n = n, p_mask = 0)
-      ll_m <- loglik_masked(model)
-      neg_ll <- function(p) {
-        val <- -ll_m(df_m, p)
-        if (!is.finite(val)) .Machine$double.xmax / 2 else val
-      }
-      res <- tryCatch(
-        suppressWarnings(multistart_mle(neg_ll, rep(0.5, m), m, n_starts = 5, nobs = n)),
-        error = function(e) NULL)
     } else {
       # Partial autopsy
       inspected <- matrix(FALSE, nrow = n, ncol = m)
