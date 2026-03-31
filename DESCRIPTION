@@ -17,6 +17,7 @@ Description: Maximum likelihood estimation of component lifetime parameters
 License: MIT + file LICENSE
 URL: https://github.com/queelius/kofn
 BugReports: https://github.com/queelius/kofn/issues
+Depends: R (>= 4.1.0)
 Imports:
     stats,
     numDeriv,

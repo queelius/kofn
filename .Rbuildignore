@@ -5,3 +5,7 @@
 ^vignettes/.*_cache$
 ^\.claude$
 ^docs$
+^paper$
+^\.papermill$
+^inst/notes$
+^inst/experiments$

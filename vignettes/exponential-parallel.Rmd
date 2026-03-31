@@ -337,7 +337,7 @@ saveRDS(
        ci_lower = ci_lower, ci_upper = ci_upper,
        converged = converged, R = R, n_mc = n_mc,
        theta_sorted = theta_sorted, alpha = alpha),
-  "precomputed_exp_parallel.rds"
+  file.path(tempdir(), "precomputed_exp_parallel.rds")
 )
 ```
 

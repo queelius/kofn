@@ -30,4 +30,3 @@ L-BFGS-B primary with Nelder-Mead log-scale fallback, multi-start
 with log-normal perturbation. Computes Hessian and score at the MLE
 via numDeriv and returns a \code{fisher_mle} object.
 }
-\keyword{internal}

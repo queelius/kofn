@@ -451,7 +451,7 @@ test_that("weibull_f_sys is non-negative and integrates to ~1", {
 
   # Density should be non-negative
   t_grid <- seq(0.01, 15, length.out = 200)
-  f_vals <- vapply(t_grid, function(t) weibull_f_sys(t, shapes, scales),
+  f_vals <- vapply(t_grid, function(t) kofn:::weibull_f_sys(t, shapes, scales),
                    numeric(1))
   expect_true(all(f_vals >= 0))
 
@@ -466,7 +466,7 @@ test_that("weibull_S_sys is monotone decreasing", {
   scales <- c(2.0, 3.0)
 
   t_grid <- seq(0.1, 10, by = 0.5)
-  s_vals <- vapply(t_grid, function(t) weibull_S_sys(t, shapes, scales),
+  s_vals <- vapply(t_grid, function(t) kofn:::weibull_S_sys(t, shapes, scales),
                    numeric(1))
 
   # Should be monotone decreasing

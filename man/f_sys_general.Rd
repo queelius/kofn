@@ -23,7 +23,10 @@ Computes the system failure density:
 }
 \details{
 Uses \code{\link[=critical_states]{critical_states()}} to identify pivotal states for each component.
-Computational cost is \eqn{O(m \cdot 2^{m-1})} per time point.
+Critical states are eagerly precomputed and cached in the
+\link{coherent_system} constructor.  Computational cost of the state
+enumeration is \eqn{O(m \cdot 2^{m-1})} and is paid once at
+construction time.
 }
 \examples{
 sys <- parallel_system(2)

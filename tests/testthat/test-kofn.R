@@ -392,11 +392,11 @@ test_that("exponential parallel MLE recovers sum of rates", {
 # ===========================================================================
 
 test_that("parse_params extracts shapes and scales correctly", {
-  pp_exp <- parse_params(c(0.5, 0.3, 0.2), m = 3, family = "exponential")
+  pp_exp <- kofn:::parse_params(c(0.5, 0.3, 0.2), m = 3, family = "exponential")
   expect_equal(pp_exp$shapes, c(1, 1, 1))
   expect_equal(pp_exp$scales, c(2, 10/3, 5))
 
-  pp_wei <- parse_params(c(1.5, 2.0, 2.5, 3.0), m = 2, family = "weibull")
+  pp_wei <- kofn:::parse_params(c(1.5, 2.0, 2.5, 3.0), m = 2, family = "weibull")
   expect_equal(pp_wei$shapes, c(1.5, 2.5))
   expect_equal(pp_wei$scales, c(2.0, 3.0))
 })

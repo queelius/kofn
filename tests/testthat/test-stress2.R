@@ -505,7 +505,7 @@ test_that("hessian_score_at_mle handles non-differentiable function", {
     sum(par^2)
   }
   # Should not error — tryCatch handles it gracefully
-  result <- hessian_score_at_mle(bad_fn, c(1, 2), 2L)
+  result <- kofn:::hessian_score_at_mle(bad_fn, c(1, 2), 2L)
   expect_true(is.matrix(result$hessian))
   expect_equal(length(result$score), 2)
 })
@@ -523,7 +523,7 @@ test_that("Weibull f_sys reduces to exponential for shape=1", {
 
   for (t in c(0.5, 1.0, 2.0, 5.0)) {
     # Weibull system density
-    f_wei <- weibull_f_sys(t, shapes, scales)
+    f_wei <- kofn:::weibull_f_sys(t, shapes, scales)
 
     # Exponential system density via IE
     f_exp <- sum(vapply(seq_along(rates),

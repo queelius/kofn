@@ -107,7 +107,7 @@ hessian_score_at_mle <- function(neg_ll, par, n_par) {
 #' @param ... Additional named elements attached to the result
 #'   (e.g. \code{shapes}, \code{scales}).
 #' @return A \code{fisher_mle} object (from likelihood.model).
-#' @keywords internal
+#' @export
 multistart_mle <- function(neg_ll, par0, n_par, n_starts = 5L,
                            nobs = NULL, ...) {
   fit_from_init <- function(init_par) {
