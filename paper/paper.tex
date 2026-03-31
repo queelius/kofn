@@ -740,9 +740,10 @@ Periodic ($\delta{=}0.5$) & 0.029 & 0.032 & 0.014 & [0.023, 0.041] &
 \includegraphics[width=\textwidth]{figures/fig1_mechanism_comparison.pdf}
 \caption{Distribution of MAE across $R = 100$ replicates for the six
   symmetry-breaking mechanisms ($m = 4$, $k = 2$, $n = 300$, exponential).
-  The dashed line marks the symmetric-point MAE ($0.200$).  Component-level
-  mechanisms (blue) achieve $3.5$--$6.9\times$ improvement over domain
-  knowledge mechanisms (gray).}\label{fig:mechanism-comparison}
+  The dashed line marks the Scheme~0 baseline MAE ($0.200$).  Component-level
+  mechanisms (blue) achieve $3.5$--$6.9\times$ improvement over the baseline
+  and domain knowledge mechanisms (gray), which provide negligible
+  improvement.}\label{fig:mechanism-comparison}
 \end{figure}
 
 The results confirm that component-level mechanisms dramatically outperform domain knowledge.  Component-level mechanisms
@@ -768,8 +769,8 @@ outperforms masking, which outperforms partial autopsy---reflects the
 amount of information each provides.  Periodic inspection gives $m$
 interval constraints (one per component).  Exact masking gives the
 $k$-element failed set.  Partial autopsy ($r = 2$) gives two binary
-constraints.  The amount of information is $m > k > r$ constraints, and
-the MAE ordering follows.
+constraints.  The amount of information follows the ordering
+$m \geq k \geq r$, and the MAE ranking reflects this.
 
 \subsection{Sensitivity analyses}\label{sec:sensitivity}
 
@@ -907,7 +908,7 @@ precision---is what matters.
 A Weibull extension ($\alpha = 1.5$, $R = 50$) preserves the ranking:
 periodic ($\MAE = 0.053$, $9.1\times$) outperforms masking
 ($\MAE = 0.099$, $4.8\times$), both far ahead of Scheme~0
-($\MAE = 0.478$).  The larger improvement factors reflect the
+($\MAE = 0.472$).  The larger improvement factors reflect the
 $2m$-dimensional Weibull parameter space, which amplifies the symmetry
 problem.  Additional experiments (variation across $k$, scaling with $m$)
 are available in the \texttt{kofn} package vignettes.
