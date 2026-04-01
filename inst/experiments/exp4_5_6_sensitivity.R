@@ -23,7 +23,7 @@ for (p_mask in c(0, 0.1, 0.3, 0.5, 1.0)) {
       if (!is.finite(val)) .Machine$double.xmax / 2 else val
     }
     res <- tryCatch(
-      suppressWarnings(multistart_mle(neg_ll, rep(0.5, m), m, n_starts = 5, nobs = n)),
+      suppressWarnings(solve_mle(neg_ll, rep(0.5, m), m, n_starts = 5, nobs = n)),
       error = function(e) NULL)
     maes[rep] <- get_mae(res, rates_sorted)
   }
@@ -80,7 +80,7 @@ for (r_inspect in 0:4) {
       neg_ll_aut <- make_autopsy_negll(sim$sys_times, aut_data$inspected,
                                        aut_data$known_failed, k_val, m)
       res <- tryCatch(
-        suppressWarnings(multistart_mle(neg_ll_aut, rep(0.5, m), m, n_starts = 5, nobs = n)),
+        suppressWarnings(solve_mle(neg_ll_aut, rep(0.5, m), m, n_starts = 5, nobs = n)),
         error = function(e) NULL)
     }
 

@@ -455,20 +455,29 @@ em_solver <- function(model, ll_fn, ...) {
       if (!is.finite(val)) return(.Machine$double.xmax / 2)
       val
     }
-    hs <- hessian_score_at_mle(neg_ll, par_est, n_par)
+    H <- tryCatch(
+      numDeriv::hessian(neg_ll, x = par_est),
+      error = function(e) matrix(NA_real_, n_par, n_par)
+    )
+    hess_ll <- if (all(is.finite(H))) -H else NULL
+    score_val <- tryCatch(
+      -numDeriv::grad(neg_ll, x = par_est),
+      error = function(e) rep(NA_real_, n_par)
+    )
 
     pp_est <- parse_params(par_est, m, "weibull")
-    make_mle_result(
+    result <- likelihood.model::fisher_mle(
       par        = par_est,
-      loglik     = best$loglik,
-      hessian    = hs$hessian,
-      score      = hs$score,
+      loglik_val = best$loglik,
+      hessian    = hess_ll,
+      score_val  = score_val,
       nobs       = n,
-      converged  = best$converged,
-      iterations = best$iterations,
-      shapes     = pp_est$shapes,
-      scales     = pp_est$scales
+      converged  = best$converged
     )
+    result$iterations <- best$iterations
+    result$shapes     <- pp_est$shapes
+    result$scales     <- pp_est$scales
+    result
   }
 }
 
@@ -503,9 +512,9 @@ mle_solver <- function(model, ll_fn, ...) {
       val
     }
 
-    result <- multistart_mle(neg_ll, par0, n_par = n_par,
-                             n_starts = n_starts, nobs = n)
-    pp <- parse_params(result$par, m, "weibull")
+    result <- solve_mle(neg_ll, par0, n_par = n_par,
+                        n_starts = n_starts, nobs = n)
+    pp <- parse_params(coef(result), m, "weibull")
     result$shapes <- pp$shapes
     result$scales <- pp$scales
     result

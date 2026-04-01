@@ -43,7 +43,7 @@ for (m_str in names(all_rates)) {
       if (!is.finite(val)) .Machine$double.xmax / 2 else val
     }
     res_mask <- tryCatch(
-      suppressWarnings(multistart_mle(neg_ll, rep(0.5, m), m, n_starts = 5, nobs = n)),
+      suppressWarnings(solve_mle(neg_ll, rep(0.5, m), m, n_starts = 5, nobs = n)),
       error = function(e) NULL)
 
     maes_s0[rep] <- get_mae(res0, rates_sorted)
@@ -95,7 +95,7 @@ for (rep in seq_len(R_w)) {
     if (!is.finite(val)) .Machine$double.xmax / 2 else val
   }
   res_mask <- tryCatch(
-    suppressWarnings(multistart_mle(neg_ll, rep(1, 2 * m), 2 * m, n_starts = 5, nobs = n)),
+    suppressWarnings(solve_mle(neg_ll, rep(1, 2 * m), 2 * m, n_starts = 5, nobs = n)),
     error = function(e) NULL)
 
   maes_s0[rep] <- get_mae(res0, wei_par_sorted)

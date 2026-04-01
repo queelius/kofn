@@ -66,8 +66,8 @@ test_that("exponential parallel MLE converges", {
   fitter <- fit(model)
   result <- fitter(df, n_starts = 3)
   expect_true(result$converged)
-  expect_true(all(is.finite(result$par)))
-  expect_true(all(result$par > 0))
+  expect_true(all(is.finite(coef(result))))
+  expect_true(all(coef(result) > 0))
 })
 
 test_that("Weibull EM converges for parallel system", {
@@ -348,7 +348,7 @@ test_that("single-component system works", {
   fitter <- fit(model)
   result <- fitter(df, n_starts = 2)
   expect_true(result$converged)
-  expect_equal(length(result$par), 1)
+  expect_equal(length(coef(result)), 1)
 })
 
 test_that("series system (k = 1) works for exponential", {
@@ -381,7 +381,7 @@ test_that("exponential parallel MLE recovers sum of rates", {
   result <- fitter(df, n_starts = 3)
 
   expect_true(result$converged)
-  est_sum <- sum(result$par)
+  est_sum <- sum(coef(result))
   # With n=500, the sum should be within ~20% of truth
   expect_equal(est_sum, true_sum, tolerance = 0.2)
 })
@@ -415,8 +415,8 @@ test_that("Weibull direct MLE converges for parallel system", {
   fitter <- fit(model)
   result <- fitter(df, n_starts = 3)
   expect_true(result$converged)
-  expect_true(all(is.finite(result$par)))
-  expect_true(all(result$par > 0))
+  expect_true(all(is.finite(coef(result))))
+  expect_true(all(coef(result) > 0))
 })
 
 
@@ -433,7 +433,7 @@ test_that("fit_system works for bridge system", {
   res <- fit_system(dat$t, br, family = "exponential", n_starts = 3)
   expect_true(res$converged)
   expect_equal(res$convergence, 0L)  # backward compat field
-  expect_equal(length(res$par), 5)
+  expect_equal(length(coef(res)), 5)
   expect_true(all(is.finite(res$se)))
 })
 
@@ -475,8 +475,8 @@ test_that("fit_scheme1 converges for exponential parallel", {
   fitter <- fit_scheme1(model)
   result <- fitter(df, n_starts = 3)
   expect_true(result$converged)
-  expect_true(all(is.finite(result$par)))
-  expect_true(all(result$par > 0))
+  expect_true(all(is.finite(coef(result))))
+  expect_true(all(coef(result) > 0))
 })
 
 

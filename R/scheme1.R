@@ -244,7 +244,7 @@ fit_scheme1 <- function(model, ...) {
       val
     }
 
-    multistart_mle(neg_ll, par0, n_par = n_par, n_starts = n_starts,
-                   nobs = nrow(df))
+    solve_mle(neg_ll, par0, n_par = n_par, n_starts = n_starts,
+              nobs = nrow(df))
   }
 }

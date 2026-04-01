@@ -245,8 +245,8 @@ fit.exp_kofn <- function(object, ...) {
       val
     }
 
-    multistart_mle(neg_ll, par0, n_par = m, n_starts = n_starts,
-                   nobs = nrow(df))
+    solve_mle(neg_ll, par0, n_par = m, n_starts = n_starts,
+              nobs = nrow(df))
   }
 }
 

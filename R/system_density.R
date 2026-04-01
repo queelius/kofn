@@ -248,9 +248,15 @@ fit_system <- function(t_obs, system, family = "exponential",
     val
   }
 
-  result <- multistart_mle(neg_ll, init, n_par = n_par, n_starts = n_starts,
-                           nobs = length(t_obs))
+  result <- solve_mle(neg_ll, init, n_par = n_par, n_starts = n_starts,
+                      nobs = length(t_obs))
 
+  if (is.null(result)) {
+    return(likelihood.model::fisher_mle(
+      par = rep(NA_real_, n_par), loglik_val = -Inf,
+      hessian = NULL, score_val = rep(NA_real_, n_par),
+      nobs = length(t_obs), converged = FALSE))
+  }
   # Backward-compatible fields for vignette / direct users
   result$convergence <- if (result$converged) 0L else 1L
   result$se <- tryCatch({

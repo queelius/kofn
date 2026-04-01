@@ -47,7 +47,7 @@ for (rep in seq_len(R)) {
     if (!is.finite(val)) .Machine$double.xmax / 2 else val
   }
   res_het <- tryCatch(
-    suppressWarnings(multistart_mle(neg_ll_het, rep(0.5, m), m, n_starts = 5, nobs = n)),
+    suppressWarnings(solve_mle(neg_ll_het, rep(0.5, m), m, n_starts = 5, nobs = n)),
     error = function(e) NULL)
 
   # --- Periodic inspection ---
@@ -64,7 +64,7 @@ for (rep in seq_len(R)) {
     if (!is.finite(val)) .Machine$double.xmax / 2 else val
   }
   res_mask <- tryCatch(
-    suppressWarnings(multistart_mle(neg_ll_m, rep(0.5, m), m, n_starts = 5, nobs = n)),
+    suppressWarnings(solve_mle(neg_ll_m, rep(0.5, m), m, n_starts = 5, nobs = n)),
     error = function(e) NULL)
 
   # --- Partial autopsy (r=2) ---
@@ -72,7 +72,7 @@ for (rep in seq_len(R)) {
   neg_ll_aut <- make_autopsy_negll(sys_times, aut_data$inspected,
                                    aut_data$known_failed, k_val, m)
   res_aut <- tryCatch(
-    suppressWarnings(multistart_mle(neg_ll_aut, rep(0.5, m), m, n_starts = 5, nobs = n)),
+    suppressWarnings(solve_mle(neg_ll_aut, rep(0.5, m), m, n_starts = 5, nobs = n)),
     error = function(e) NULL)
 
   # Collect results
