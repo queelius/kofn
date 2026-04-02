@@ -80,8 +80,8 @@ likelihoods for general $k$-out-of-$m$ systems: periodic inspection,
 generalized masking, and partial autopsy.  A Monte Carlo comparison
 ($m = 4$ exponential components, $n = 300$ observations, $R = 50$--$100$ replicates)
 yields two central findings.  First, inspecting just one of $m = 4$ components
-after failure captures 91\% of the improvement from inspecting all four
-($\MAE$: $0.200 \to 0.062$ at $r = 1$, vs.\ $0.049$ at $r = m$).
+after failure captures 87\% of the improvement from inspecting all four
+($\MAE$: $0.200 \to 0.062$ at $r = 1$, vs.\ $0.042$ at $r = m$).
 Second, temporal resolution is irrelevant: inspection intervals from
 $\delta = 0.1$ to $\delta = 2.0$ produce identical accuracy
 ($\MAE \approx 0.032$).  The symmetry-breaking information is the
@@ -158,9 +158,9 @@ inspection granularity, and autopsy coverage (\cref{sec:monte-carlo}).
 The comparison reveals a binary identification threshold:
 \begin{enumerate}
   \item \textbf{Phase transition at $r=1$.}  Inspecting a single component
-    after system failure captures 91\% of the improvement from full autopsy.
+    after system failure captures 87\% of the improvement from full autopsy.
     The transition is from $\MAE = 0.200$ (system-only) to $\MAE = 0.062$
-    (one component inspected), vs.\ $0.049$ at $r = m$.  The first
+    (one component inspected), vs.\ $0.042$ at $r = m$.  The first
     component observation collapses the $m!$ modes; additional observations
     refine, but the identification is already achieved.
   \item \textbf{Temporal resolution is irrelevant.}  Periodic inspection at
@@ -719,7 +719,7 @@ across $R = 100$ replicates.
 Mechanism & Median & Mean & SD & IQR &
   Conv.\ & Improv.\ \\
 \midrule
-Scheme~0 (baseline) & 0.200 & 0.297 & 0.187 & [0.200, 0.289] &
+Scheme~0 (baseline) & 0.200 & 0.278 & 0.175 & [0.197, 0.281] &
   100/100 & $1.0\times$ \\
 Ordering constraints & 0.200 & 0.203 & 0.031 & [0.200, 0.200] &
   100/100 & $1.0\times$ \\
@@ -754,10 +754,10 @@ produce median MAE of $0.189$--$0.200$, essentially unchanged from the
 baseline.
 
 Two features of the Scheme~0 baseline deserve comment.  First, the
-median ($0.200$) is much lower than the mean ($0.297$), revealing a heavy
+median ($0.200$) is much lower than the mean ($0.278$), revealing a heavy
 right tail: in a substantial fraction of replicates, the optimizer
 converges to a mode that assigns nearly all rate mass to a single
-component.  The standard deviation ($0.187$) is comparable to the mean.
+component.  The standard deviation ($0.175$) is comparable to the mean.
 Second, the median MAE of $0.200$ is exactly the average absolute
 deviation of $(0.4, 0.6, 0.8, 1.0)$ from the equal-rates point
 $(0.7, 0.7, 0.7, 0.7)$, confirming that the optimizer converges to the
@@ -793,7 +793,7 @@ $p_\text{mask}$ & Median MAE & Mean MAE & Conv.\ \\
 0.1 & 0.048 & 0.049 & 50/50 \\
 0.3 & 0.049 & 0.049 & 50/50 \\
 0.5 & 0.059 & 0.062 & 50/50 \\
-1.0 & 0.200 & 0.280 & 50/50 \\
+1.0 & 0.200 & 0.274 & 50/50 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -858,17 +858,17 @@ The temporal resolution that matters is not $\delta$ but
 \centering
 \caption{Autopsy coverage sensitivity ($m = 4$, $k = 2$, $n = 300$,
   $R = 50$).  The phase transition from $r = 0$ to $r = 1$ captures
-  91\% of the total improvement from no inspection to full
+  87\% of the total improvement from no inspection to full
   autopsy.}\label{tab:autopsy-coverage}
 \begin{tabular}{@{}cccc@{}}
 \toprule
 $r$ & Median MAE & Mean MAE & Conv.\ \\
 \midrule
-0 & 0.200 & 0.296 & 50/50 \\
+0 & 0.200 & 0.274 & 50/50 \\
 1 & 0.062 & 0.065 & 50/50 \\
 2 & 0.048 & 0.049 & 50/50 \\
 3 & 0.042 & 0.043 & 50/50 \\
-4 & 0.049 & 0.046 & 50/50 \\
+4 & 0.042 & 0.043 & 50/50 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -878,21 +878,19 @@ $r$ & Median MAE & Mean MAE & Conv.\ \\
 \includegraphics[width=0.65\textwidth]{figures/fig2_autopsy_coverage.pdf}
 \caption{Median MAE vs.\ number of inspected components~$r$
   ($m = 4$, $k = 2$, $n = 300$, $R = 50$).  The sharp drop from
-  $r = 0$ to $r = 1$ captures 91\% of the total improvement,
+  $r = 0$ to $r = 1$ captures 87\% of the total improvement,
   demonstrating the binary identification threshold.}\label{fig:autopsy-coverage}
 \end{figure}
 
 The transition from $r = 0$ (no inspection) to $r = 1$ (inspecting a
 single component) is dramatic: MAE drops from $0.200$ to $0.062$, a
-$3.2\times$ improvement that captures 91\% of the total improvement
+$3.2\times$ improvement that captures 87\% of the total improvement
 from $r = 0$ to full autopsy ($r = m$).  Subsequent inspections provide diminishing
 returns.  This confirms the phase transition at $r = 1$: the jump is discrete,
-not gradual.
-
-The slight increase from $r = 3$ ($\text{MAE} = 0.042$) to
-$r = 4$ ($\text{MAE} = 0.049$) is likely Monte Carlo noise at $R = 50$;
-both median and mean MAE show slight fluctuation between $r = 3$ and
-$r = 4$, within sampling variability.
+not gradual.  The MAE plateaus at $r = 3$ and $r = 4$
+($\text{MAE} = 0.042$), indicating that beyond the initial
+symmetry-breaking observation, additional inspections yield rapidly
+diminishing returns.
 
 \textbf{Interpretation.}  A single inspected component breaks the $m!$
 symmetry because knowing whether \emph{one} named component failed or
@@ -906,9 +904,9 @@ precision---is what matters.
 \subsection{Robustness to distributional assumptions}
 
 A Weibull extension ($\alpha = 1.5$, $R = 50$) preserves the ranking:
-periodic ($\MAE = 0.053$, $9.1\times$) outperforms masking
-($\MAE = 0.099$, $4.8\times$), both far ahead of Scheme~0
-($\MAE = 0.472$).  The larger improvement factors reflect the
+periodic ($\MAE = 0.053$, $16.7\times$) outperforms masking
+($\MAE = 0.099$, $9.0\times$), both far ahead of Scheme~0
+($\MAE = 0.887$).  The larger improvement factors reflect the
 $2m$-dimensional Weibull parameter space, which amplifies the symmetry
 problem.  Additional experiments (variation across $k$, scaling with $m$)
 are available in the \texttt{kofn} package vignettes.

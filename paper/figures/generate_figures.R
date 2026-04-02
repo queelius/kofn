@@ -53,7 +53,7 @@ segments(x0 = 0, y0 = exp6$median_mae[exp6$r == 0],
 points(c(0, 1),
        exp6$median_mae[exp6$r %in% c(0, 1)],
        pch = 19, col = "firebrick", cex = 1.3)
-text(0.6, 0.14, expression(paste("91% drop at ", italic(r) == 1)),
+text(0.6, 0.14, expression(paste("87% drop at ", italic(r) == 1)),
      cex = 0.85, col = "firebrick")
 dev.off()
 cat("Wrote figures/fig2_autopsy_coverage.pdf\n")
