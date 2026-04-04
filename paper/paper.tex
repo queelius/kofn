@@ -730,7 +730,7 @@ Partial autopsy ($r{=}2$) & 0.057 & 0.057 & 0.023 & [0.042, 0.070] &
 Masking ($p_\text{mask}{=}0$) & 0.045 & 0.047 & 0.020 & [0.034, 0.060] &
   100/100 & $4.4\times$ \\
 Periodic ($\delta{=}0.5$) & 0.029 & 0.032 & 0.014 & [0.023, 0.041] &
-  100/100 & $6.9\times$ \\
+  100/100 & $7.0\times$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -741,14 +741,14 @@ Periodic ($\delta{=}0.5$) & 0.029 & 0.032 & 0.014 & [0.023, 0.041] &
 \caption{Distribution of MAE across $R = 100$ replicates for the six
   symmetry-breaking mechanisms ($m = 4$, $k = 2$, $n = 300$, exponential).
   The dashed line marks the Scheme~0 baseline MAE ($0.200$).  Component-level
-  mechanisms (blue) achieve $3.5$--$6.9\times$ improvement over the baseline
+  mechanisms (blue) achieve $3.5$--$7.0\times$ improvement over the baseline
   and domain knowledge mechanisms (gray), which provide negligible
   improvement.}\label{fig:mechanism-comparison}
 \end{figure}
 
-The results confirm that component-level mechanisms dramatically outperform domain knowledge.  Component-level mechanisms
+The results (\cref{tab:main-results,fig:mechanism-comparison}) confirm that component-level mechanisms dramatically outperform domain knowledge.  Component-level mechanisms
 (periodic inspection, masking, partial autopsy) reduce the median MAE
-from $0.200$ to $0.029$--$0.057$, improvements of $3.5$--$6.9\times$.
+from $0.200$ to $0.029$--$0.057$, improvements of $3.5$--$7.0\times$.
 Domain knowledge mechanisms (ordering constraints, heterogeneous fleet)
 produce median MAE of $0.189$--$0.200$, essentially unchanged from the
 baseline.
@@ -789,7 +789,7 @@ the baseline configuration ($m = 4$, $k = 2$, $n = 300$).
 \toprule
 $p_\text{mask}$ & Median MAE & Mean MAE & Conv.\ \\
 \midrule
-0.0 & 0.046 & 0.046 & 50/50 \\
+0.0 & 0.045 & 0.046 & 50/50 \\
 0.1 & 0.048 & 0.049 & 50/50 \\
 0.3 & 0.049 & 0.049 & 50/50 \\
 0.5 & 0.059 & 0.062 & 50/50 \\
@@ -798,7 +798,7 @@ $p_\text{mask}$ & Median MAE & Mean MAE & Conv.\ \\
 \end{tabular}
 \end{table}
 
-The generalized masking likelihood is robust to substantial noise.
+The generalized masking likelihood is robust to substantial noise (\cref{tab:masking-noise}).
 MAE roughly doubles from $p_{\text{mask}} = 0$ (exact failed set) to
 $p_{\text{mask}} = 0.5$ (each surviving component has a 50\% chance
 of being falsely included in the candidate set).  Only at
@@ -836,7 +836,7 @@ $\delta$ & Median MAE & Mean MAE & Conv.\ \\
   irrelevant.}\label{fig:delta-sensitivity}
 \end{figure}
 
-This is the most surprising finding.  Across a $20\times$ range of
+This is the most surprising finding (\cref{tab:delta-sensitivity,fig:delta-sensitivity}).  Across a $20\times$ range of
 inspection granularity ($\delta = 0.1$ to $2.0$, where the median
 component lifetime is approximately $1.4$), the median MAE varies by
 less than $0.002$.  One might expect monotonically increasing
@@ -882,7 +882,7 @@ $r$ & Median MAE & Mean MAE & Conv.\ \\
   demonstrating the binary identification threshold.}\label{fig:autopsy-coverage}
 \end{figure}
 
-The transition from $r = 0$ (no inspection) to $r = 1$ (inspecting a
+The transition from $r = 0$ to $r = 1$ (\cref{tab:autopsy-coverage,fig:autopsy-coverage}) is dramatic: inspecting a
 single component) is dramatic: MAE drops from $0.200$ to $0.062$, a
 $3.2\times$ improvement that captures 87\% of the total improvement
 from $r = 0$ to full autopsy ($r = m$).  Subsequent inspections provide diminishing
@@ -904,7 +904,7 @@ precision---is what matters.
 \subsection{Robustness to distributional assumptions}
 
 A Weibull extension ($\alpha = 1.5$, $R = 50$) preserves the ranking:
-periodic ($\MAE = 0.053$, $16.7\times$) outperforms masking
+periodic ($\MAE = 0.053$, $17.0\times$) outperforms masking
 ($\MAE = 0.099$, $9.0\times$), both far ahead of Scheme~0
 ($\MAE = 0.887$).  The larger improvement factors reflect the
 $2m$-dimensional Weibull parameter space, which amplifies the symmetry
@@ -1094,7 +1094,7 @@ We have shown that estimating individual component parameters from
 $k$-out-of-$m$ system data is fundamentally limited by permutation
 symmetry in the system density, and that breaking this symmetry requires
 component-level information.  Three mechanisms---periodic inspection,
-generalized masking, and partial autopsy---provide $3.5$--$6.9\times$
+generalized masking, and partial autopsy---provide $3.5$--$7.0\times$
 improvement over system-only data, while domain knowledge (ordering
 constraints, heterogeneous fleet data) provides negligible help.
 
