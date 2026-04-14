@@ -21,6 +21,17 @@ parameters.  This creates $m!$ equivalent modes on the likelihood
 surface.  For $m = 4$, that is 24 modes --- the optimizer typically
 converges to the symmetric point where all rates are equal.
 
+The binary identification threshold demonstrated below is a statement
+about information in the *likelihood*, the object that
+`likelihood.model` formalizes as a generic across all reliability
+packages in the rlang stack.  Each of the six mechanisms modifies the
+likelihood function (by adding new observation-level terms) rather
+than the estimator.  That is why every mechanism can be implemented
+without leaving the ecosystem interface: define a new negative
+log-likelihood, pass it to `solve_mle`, and inherit the full
+`algebraic.mle` inference machinery on the result.  See
+`vignette("ecosystem")` for the map.
+
 We compare **six mechanisms** for breaking this symmetry, all on the
 same baseline: $m = 4$ exponential components with rates
 $\boldsymbol{\lambda} = (0.4, 0.6, 0.8, 1.0)$, $n = 300$

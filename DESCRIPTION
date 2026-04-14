@@ -13,7 +13,10 @@ Description: Maximum likelihood estimation of component lifetime parameters
     parallel systems, Fisher information comparison across schemes, and
     coherent system infrastructure via minimal path/cut sets. The k-out-of-n
     framework unifies series (k=1) and parallel (k=n)
-    systems as a censoring problem on component lifetimes.
+    systems as a censoring problem on component lifetimes. Conforms to the
+    'likelihood.model' generics and returns fitted objects compatible with
+    'algebraic.mle', so inference, composition, and the distributional
+    bridge to 'algebraic.dist' come from the surrounding ecosystem.
 License: MIT + file LICENSE
 URL: https://github.com/queelius/kofn
 BugReports: https://github.com/queelius/kofn/issues
@@ -25,6 +28,7 @@ Imports:
     compositional.mle,
     generics
 Suggests:
+    algebraic.mle,
     maskedcauses,
     testthat (>= 3.0.0),
     knitr,

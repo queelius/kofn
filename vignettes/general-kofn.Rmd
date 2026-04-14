@@ -275,6 +275,14 @@ exact failure times --- provides the asymmetry the optimizer needs.
 Faster-failing components appear in the failed set more often,
 allowing the likelihood to distinguish individual rates.
 
+`solve_mle` is a thin wrapper around `compositional.mle` primitives
+(L-BFGS-B with a Nelder-Mead log-scale fallback).  Because the
+ecosystem treats solvers as first-class composable functions, you can
+drop in alternative strategies (`%>>%` for sequential warm starts,
+`%|%` for parallel races, `with_restarts` for random restarts) without
+changing the likelihood.  See `vignette("ecosystem")` for worked
+examples.
+
 For series systems (k = 1), this reduces to the standard masked
 cause-of-failure problem handled by the `maskedcauses` package.
 

@@ -218,6 +218,12 @@ c(loglik = logLik(result), AIC = AIC(result), BIC = BIC(result))
 summary(result)
 ```
 
+Every method used above, `coef`, `vcov`, `confint`, `logLik`, `AIC`,
+`BIC`, `summary`, comes from `algebraic.mle` via its `mle` result
+class, not from `kofn` itself.  `kofn` supplies the likelihood; the
+inference operations are inherited.  See `vignette("ecosystem")` for
+the full walk through the rlang MLE stack.
+
 ## Comparison with true values
 
 ```{r compare-truth}
