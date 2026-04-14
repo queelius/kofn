@@ -33,3 +33,4 @@ paper/paper.html/
 # OS
 .DS_Store
 Thumbs.db
+.playwright-mcp/

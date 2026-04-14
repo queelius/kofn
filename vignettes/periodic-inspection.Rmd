@@ -119,11 +119,12 @@ Scheme 0 confirms this:
 solver <- fit(model_em)
 mle0 <- solver(df0, n_starts = 3L)
 
+est0 <- coef(mle0)
 cat("Scheme 0 estimates vs truth:\n")
 cat(sprintf("  Component 1 (fast): shape = %.3f (true: 1.500), scale = %.3f (true: 2.000)\n",
-            mle0$par[1], mle0$par[2]))
+            est0[1], est0[2]))
 cat(sprintf("  Component 2 (slow): shape = %.3f (true: 2.000), scale = %.3f (true: 3.000)\n",
-            mle0$par[3], mle0$par[4]))
+            est0[3], est0[4]))
 
 # Standard errors from the variance-covariance matrix
 se_vec <- tryCatch({
@@ -186,11 +187,12 @@ cat("  comp_upper_j: upper bound of component j's inspection interval\n")
 solver_s1 <- fit_scheme1(model_wei)
 mle1 <- solver_s1(df1, n_starts = 3L)
 
+est1 <- coef(mle1)
 cat("Scheme 1 (delta = 0.5) estimates vs truth:\n")
 cat(sprintf("  Component 1 (fast): shape = %.3f (true: 1.500), scale = %.3f (true: 2.000)\n",
-            mle1$par[1], mle1$par[2]))
+            est1[1], est1[2]))
 cat(sprintf("  Component 2 (slow): shape = %.3f (true: 2.000), scale = %.3f (true: 3.000)\n",
-            mle1$par[3], mle1$par[4]))
+            est1[3], est1[4]))
 ```
 
 
@@ -238,8 +240,8 @@ cat("=== Single-sample comparison (n = 300) ===\n\n")
 results <- data.frame(
   Parameter = c("shape_1", "scale_1", "shape_2", "scale_2"),
   Truth     = theta_true,
-  Scheme_0  = round(mle_s0$par, 3),
-  Scheme_1  = round(mle_s1$par, 3)
+  Scheme_0  = round(coef(mle_s0), 3),
+  Scheme_1  = round(coef(mle_s1), 3)
 )
 results$Error_S0 <- round(abs(results$Scheme_0 - results$Truth), 3)
 results$Error_S1 <- round(abs(results$Scheme_1 - results$Truth), 3)
@@ -273,7 +275,7 @@ for (r in seq_len(n_rep)) {
   res0 <- tryCatch(solver_em(df_s0, n_starts = 3L),
                     error = function(e) NULL)
   if (!is.null(res0) && res0$converged) {
-    est_s0[r, ] <- res0$par
+    est_s0[r, ] <- coef(res0)
     conv_s0[r] <- TRUE
   }
 
@@ -286,7 +288,7 @@ for (r in seq_len(n_rep)) {
   res1 <- tryCatch(solver_s1(df_s1, n_starts = 3L),
                     error = function(e) NULL)
   if (!is.null(res1) && res1$converged) {
-    est_s1[r, ] <- res1$par
+    est_s1[r, ] <- coef(res1)
     conv_s1[r] <- TRUE
   }
 
@@ -367,7 +369,7 @@ for (d_idx in seq_along(deltas)) {
     res_d <- tryCatch(solver_s1(df_d, n_starts = 3L),
                       error = function(e) NULL)
     if (!is.null(res_d) && res_d$converged) {
-      est_d[r, ] <- res_d$par
+      est_d[r, ] <- coef(res_d)
     }
   }
 

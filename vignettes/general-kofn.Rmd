@@ -258,7 +258,7 @@ neg_ll <- function(p) {
   if (!is.finite(val)) return(.Machine$double.xmax / 2)
   val
 }
-res_m <- kofn:::solve_mle(neg_ll, par0 = rep(0.5, 4),
+res_m <- solve_mle(neg_ll, par0 = rep(0.5, 4),
                         n_par = 4, n_starts = 5, nobs = 200)
 
 data.frame(

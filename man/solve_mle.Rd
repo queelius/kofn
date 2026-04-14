@@ -20,7 +20,8 @@ log-likelihood (returns \code{.Machine$double.xmax / 2} on failure).}
 }
 \value{
 An \code{mle_numerical} result object (from algebraic.mle)
-with \code{coef()}, \code{vcov()}, \code{logLik()}, etc.
+with \code{coef()}, \code{vcov()}, \code{logLik()}, etc. Returns
+\code{NULL} if all starts fail.
 }
 \description{
 Multi-start optimization via \pkg{compositional.mle}: L-BFGS-B
@@ -28,4 +29,10 @@ with positivity constraints as the primary solver, Nelder-Mead on
 the log-parameter scale as fallback. Runs from \code{n_starts}
 random perturbations of \code{par0} and returns the best result.
 }
-\keyword{internal}
+\examples{
+# Fit a simple exponential rate from positive data
+x <- rexp(100, rate = 0.5)
+neg_ll <- function(rate) -sum(dexp(x, rate, log = TRUE))
+fit <- solve_mle(neg_ll, par0 = 1, n_par = 1, nobs = length(x))
+coef(fit)
+}

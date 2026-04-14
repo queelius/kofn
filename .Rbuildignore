@@ -9,3 +9,5 @@
 ^\.papermill$
 ^inst/notes$
 ^inst/experiments$
+^\.playwright-mcp$
+^CRAN_AUDIT\.md$

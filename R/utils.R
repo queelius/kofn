@@ -1,3 +1,6 @@
+#' @importFrom stats coef
+NULL
+
 #' Parse a flat parameter vector into shapes and scales
 #'
 #' Unified extraction of Weibull shape/scale parameters from the flat
@@ -35,8 +38,15 @@ parse_params <- function(par, m, family) {
 #' @param n_starts Integer number of random restarts (default 5).
 #' @param nobs Integer number of observations.
 #' @return An \code{mle_numerical} result object (from algebraic.mle)
-#'   with \code{coef()}, \code{vcov()}, \code{logLik()}, etc.
-#' @keywords internal
+#'   with \code{coef()}, \code{vcov()}, \code{logLik()}, etc. Returns
+#'   \code{NULL} if all starts fail.
+#' @export
+#' @examples
+#' # Fit a simple exponential rate from positive data
+#' x <- rexp(100, rate = 0.5)
+#' neg_ll <- function(rate) -sum(dexp(x, rate, log = TRUE))
+#' fit <- solve_mle(neg_ll, par0 = 1, n_par = 1, nobs = length(x))
+#' coef(fit)
 solve_mle <- function(neg_ll, par0, n_par, n_starts = 5L, nobs = NULL) {
   loglike <- function(par) -neg_ll(par)
   prob <- compositional.mle::mle_problem(
@@ -80,6 +90,12 @@ solve_mle <- function(neg_ll, par0, n_par, n_starts = 5L, nobs = NULL) {
         best <- res_s
       }
     }
+  }
+
+  # Ensure nobs is populated for downstream BIC()/AIC() calls; the
+  # compositional.mle solver does not always propagate it from mle_problem().
+  if (!is.null(best) && is.null(best$nobs) && !is.null(nobs)) {
+    best$nobs <- nobs
   }
 
   best

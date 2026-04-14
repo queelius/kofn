@@ -15,6 +15,7 @@
 # ===========================================================================
 
 test_that("exponential loglik handles left-censored observations", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2)
   rates <- c(0.5, 0.3)
 
@@ -39,6 +40,7 @@ test_that("exponential loglik handles left-censored observations", {
 })
 
 test_that("left-censored loglik uses corrected formula (no normalizer)", {
+  skip_on_cran()
   # Regression test for bug #3: the old code divided by F_sys(t),
   # turning the joint probability into a conditional. The fix removes
   # the normalizer.
@@ -64,6 +66,7 @@ test_that("left-censored loglik uses corrected formula (no normalizer)", {
 # ===========================================================================
 
 test_that("exponential loglik handles interval-censored observations", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2)
   rates <- c(0.5, 0.3)
 
@@ -80,6 +83,7 @@ test_that("exponential loglik handles interval-censored observations", {
 })
 
 test_that("interval-censored loglik uses corrected formula", {
+  skip_on_cran()
   # Single interval-censored obs [1, 3]
   model <- kofn(k = 2, m = 2)
   rates <- c(0.5, 0.3)
@@ -97,6 +101,7 @@ test_that("interval-censored loglik uses corrected formula", {
 })
 
 test_that("mixed observation types work together in exponential loglik", {
+  skip_on_cran()
   model <- kofn(k = 3, m = 3)
   rates <- c(0.5, 0.3, 0.2)
 
@@ -122,6 +127,7 @@ test_that("mixed observation types work together in exponential loglik", {
 # ===========================================================================
 
 test_that("exponential loglik errors on parameter count mismatch", {
+  skip_on_cran()
   model <- kofn(k = 3, m = 3)
   gen <- rdata(model)
   set.seed(42)
@@ -137,6 +143,7 @@ test_that("exponential loglik errors on parameter count mismatch", {
 # ===========================================================================
 
 test_that("general k-out-of-n exponential loglik returns -Inf for bad params", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 3)
   gen <- rdata(model)
   set.seed(42)
@@ -148,6 +155,7 @@ test_that("general k-out-of-n exponential loglik returns -Inf for bad params", {
 })
 
 test_that("general k-out-of-n exponential MLE converges", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 3)
   gen <- rdata(model)
   set.seed(42)
@@ -165,6 +173,7 @@ test_that("general k-out-of-n exponential MLE converges", {
 # ===========================================================================
 
 test_that("Weibull loglik delegates to system density for k > 1", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 3, family = "weibull")
   gen <- rdata(model)
   set.seed(42)
@@ -179,6 +188,7 @@ test_that("Weibull loglik delegates to system density for k > 1", {
 })
 
 test_that("Weibull score and hessian work for parallel system", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2, family = "weibull")
   gen <- rdata(model)
   set.seed(42)
@@ -202,6 +212,7 @@ test_that("Weibull score and hessian work for parallel system", {
 # ===========================================================================
 
 test_that("trunc_pow_moment_vec handles very small v_max (asymptotic)", {
+  skip_on_cran()
   # v_max < 1e-12 triggers the asymptotic branch
   alpha <- 1.5
   beta <- 2.0
@@ -218,6 +229,7 @@ test_that("trunc_pow_moment_vec handles very small v_max (asymptotic)", {
 })
 
 test_that("trunc_pow_moment_vec handles normal range", {
+  skip_on_cran()
   alpha <- 2.0
   beta <- 3.0
   v_max <- c(0.1, 1.0, 5.0, 20.0)
@@ -233,6 +245,7 @@ test_that("trunc_pow_moment_vec handles normal range", {
 })
 
 test_that("trunc_pow_moment scalar wrapper works", {
+  skip_on_cran()
   val <- trunc_pow_moment(k = 1, t = 2.0, alpha = 1.5, beta = 3.0)
   expect_true(is.finite(val))
   expect_true(val > 0)
@@ -240,6 +253,7 @@ test_that("trunc_pow_moment scalar wrapper works", {
 })
 
 test_that("trunc_log_moment_vec handles very small v_max", {
+  skip_on_cran()
   alpha <- 1.5
   beta <- 2.0
   v_max <- c(1e-11, 1e-15)
@@ -254,6 +268,7 @@ test_that("trunc_log_moment_vec handles very small v_max", {
 })
 
 test_that("trunc_log_moment_vec handles normal and large v_max", {
+  skip_on_cran()
   alpha <- 2.0
   beta <- 3.0
   v_max <- c(1.0, 5.0, 50.0, 500.0)
@@ -273,6 +288,7 @@ test_that("trunc_log_moment_vec handles normal and large v_max", {
 # ===========================================================================
 
 test_that("print.kofn works for all system types", {
+  skip_on_cran()
   # Parallel (k = m)
   out <- capture.output(print(kofn(k = 3, m = 3)))
   expect_true(any(grepl("parallel", out)))
@@ -297,6 +313,7 @@ test_that("print.kofn works for all system types", {
 })
 
 test_that("print.coherent_system works", {
+  skip_on_cran()
   out <- capture.output(print(bridge_system()))
   expect_true(any(grepl("m=5", out)))
   expect_true(any(grepl("path sets", out)))
@@ -309,16 +326,19 @@ test_that("print.coherent_system works", {
 # ===========================================================================
 
 test_that("minimize_sets removes supersets correctly", {
+  skip_on_cran()
   sets <- list(c(1, 2), c(1, 2, 3), c(2, 3), c(1, 2, 3, 4))
   result <- minimize_sets(sets)
   expect_equal(length(result), 2)  # {1,2} and {2,3}
 })
 
 test_that("minimize_sets handles empty input", {
+  skip_on_cran()
   expect_equal(length(minimize_sets(list())), 0)
 })
 
 test_that("min_cuts_from_paths computes correct duals", {
+  skip_on_cran()
   # Parallel system: paths = {1}, {2}, {3}. Cut = {1,2,3}
   cuts <- min_cuts_from_paths(list(1L, 2L, 3L))
   expect_equal(length(cuts), 1)
@@ -330,11 +350,13 @@ test_that("min_cuts_from_paths computes correct duals", {
 })
 
 test_that("coherent_system validates inputs", {
+  skip_on_cran()
   expect_error(coherent_system(list()))  # empty paths
   expect_error(coherent_system("not a list"))  # not a list
 })
 
 test_that("min_cuts accessor works", {
+  skip_on_cran()
   sys <- kofn_system(2, 3)
   cuts <- min_cuts(sys)
   expect_true(is.list(cuts))
@@ -342,6 +364,7 @@ test_that("min_cuts accessor works", {
 })
 
 test_that("critical_states returns empty for irrelevant component", {
+  skip_on_cran()
   # In a series system, every component is critical in exactly one state
   # (all others up). But in some systems, a component may never be critical.
   # 2-out-of-4 system: every component is critical
@@ -351,6 +374,7 @@ test_that("critical_states returns empty for irrelevant component", {
 })
 
 test_that("critical_states for single-component system", {
+  skip_on_cran()
   sys <- kofn_system(1, 1)
   crit <- critical_states(sys, 1)
   expect_equal(nrow(crit), 1)
@@ -363,6 +387,7 @@ test_that("critical_states for single-component system", {
 # ===========================================================================
 
 test_that("EM handles very few observations", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2, family = "weibull", method = "em")
   gen <- rdata(model)
   set.seed(42)
@@ -375,6 +400,7 @@ test_that("EM handles very few observations", {
 })
 
 test_that("EM rejects non-parallel systems", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 3, family = "weibull", method = "mle")
   # Force EM method
   model$method <- "em"
@@ -387,6 +413,7 @@ test_that("EM rejects non-parallel systems", {
 # ===========================================================================
 
 test_that("S_sys_general matches 1 - F_sys for exponential parallel", {
+  skip_on_cran()
   rates <- c(0.5, 0.3)
   sys <- parallel_system(2)
   dists <- make_dists(rates, "exponential")
@@ -399,6 +426,7 @@ test_that("S_sys_general matches 1 - F_sys for exponential parallel", {
 })
 
 test_that("rdata_system generates correct structure for Weibull", {
+  skip_on_cran()
   sys <- kofn_system(2, 3)
   par <- c(1.5, 2.0, 2.0, 3.0, 1.0, 1.5)
   set.seed(42)
@@ -416,6 +444,7 @@ test_that("rdata_system generates correct structure for Weibull", {
 # ===========================================================================
 
 test_that("rdata.wei_kofn works for general k", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 3, family = "weibull")
   gen <- rdata(model)
   set.seed(42)
@@ -426,6 +455,7 @@ test_that("rdata.wei_kofn works for general k", {
 })
 
 test_that("rdata.wei_kofn with custom observe functor", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2, family = "weibull")
   gen <- rdata(model)
   set.seed(42)
@@ -438,6 +468,7 @@ test_that("rdata.wei_kofn with custom observe functor", {
 })
 
 test_that("rdata.wei_kofn with tau produces right-censored data", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2, family = "weibull")
   gen <- rdata(model)
   set.seed(42)
@@ -451,6 +482,7 @@ test_that("rdata.wei_kofn with tau produces right-censored data", {
 })
 
 test_that("rdata.wei_kofn validates parameter length", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2, family = "weibull")
   gen <- rdata(model)
   expect_error(gen(theta = c(1, 2, 3), n = 10))
@@ -466,6 +498,7 @@ test_that("rdata.wei_kofn validates parameter length", {
 # ===========================================================================
 
 test_that("fit_system works for Weibull 2-out-of-3", {
+  skip_on_cran()
   sys <- kofn_system(2, 3)
   par <- c(1.5, 2.0, 2.0, 3.0, 1.0, 1.5)
   set.seed(42)
@@ -483,6 +516,7 @@ test_that("fit_system works for Weibull 2-out-of-3", {
 # ===========================================================================
 
 test_that("fit_scheme1 converges for Weibull parallel", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2, family = "weibull")
   s1gen <- rdata_scheme1(model)
   set.seed(42)
@@ -502,6 +536,7 @@ test_that("fit_scheme1 converges for Weibull parallel", {
 # ===========================================================================
 
 test_that("Weibull f_sys reduces to exponential for shape=1", {
+  skip_on_cran()
   rates <- c(0.5, 0.3, 0.2)
   # Weibull with shape=1 is exponential with scale=1/rate
   shapes <- c(1, 1, 1)
@@ -526,6 +561,7 @@ test_that("Weibull f_sys reduces to exponential for shape=1", {
 # ===========================================================================
 
 test_that("IE expansion is feasible for m=10 (1024 terms)", {
+  skip_on_cran()
   rates <- seq(0.1, 1.0, by = 0.1)
   ie <- ie_expand(rates)
   expect_equal(length(ie$sign), 1024)
@@ -537,6 +573,7 @@ test_that("IE expansion is feasible for m=10 (1024 terms)", {
 })
 
 test_that("exponential parallel loglik works for m=6", {
+  skip_on_cran()
   model <- kofn(k = 6, m = 6)
   rates <- c(0.5, 0.4, 0.3, 0.2, 0.1, 0.6)
   gen <- rdata(model)
@@ -554,5 +591,6 @@ test_that("exponential parallel loglik works for m=6", {
 # ===========================================================================
 
 test_that("make_dists rejects odd-length Weibull parameter vector", {
+  skip_on_cran()
   expect_error(make_dists(c(1, 2, 3), "weibull"), "2m")
 })

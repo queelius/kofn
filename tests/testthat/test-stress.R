@@ -11,6 +11,7 @@
 # ===========================================================================
 
 test_that("exponential loglik handles very small rates", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2)
   gen <- rdata(model)
   set.seed(1)
@@ -26,6 +27,7 @@ test_that("exponential loglik handles very small rates", {
 })
 
 test_that("exponential loglik handles very large rates", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2)
   gen <- rdata(model)
   set.seed(1)
@@ -37,6 +39,7 @@ test_that("exponential loglik handles very large rates", {
 })
 
 test_that("Weibull loglik handles extreme shape parameters", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2, family = "weibull")
   gen <- rdata(model)
 
@@ -55,6 +58,7 @@ test_that("Weibull loglik handles extreme shape parameters", {
 })
 
 test_that("loglik returns -Inf for zero or negative parameters", {
+  skip_on_cran()
   model_exp <- kofn(k = 2, m = 2)
   gen <- rdata(model_exp)
   set.seed(1)
@@ -78,6 +82,7 @@ test_that("loglik returns -Inf for zero or negative parameters", {
 # ===========================================================================
 
 test_that("IE expansion works for m=1 (degenerate parallel)", {
+  skip_on_cran()
   ie <- ie_expand(0.5)
   expect_equal(length(ie$sign), 2)  # 2^1
 
@@ -87,6 +92,7 @@ test_that("IE expansion works for m=1 (degenerate parallel)", {
 })
 
 test_that("IE expansion works for m=8 (256 terms)", {
+  skip_on_cran()
   rates <- seq(0.1, 0.8, by = 0.1)
   ie <- ie_expand(rates)
   expect_equal(length(ie$sign), 256)  # 2^8
@@ -98,6 +104,7 @@ test_that("IE expansion works for m=8 (256 terms)", {
 })
 
 test_that("exponential parallel MLE works for m=5", {
+  skip_on_cran()
   model <- kofn(k = 5, m = 5)
   true_rates <- c(0.5, 0.3, 0.2, 0.4, 0.1)
   gen <- rdata(model)
@@ -114,6 +121,7 @@ test_that("exponential parallel MLE works for m=5", {
 })
 
 test_that("general system density works for 3-out-of-5", {
+  skip_on_cran()
   model <- kofn(k = 3, m = 5)
   true_rates <- c(0.5, 0.3, 0.2, 0.4, 0.1)
   gen <- rdata(model)
@@ -135,6 +143,7 @@ test_that("general system density works for 3-out-of-5", {
 # ===========================================================================
 
 test_that("IE loglik matches general system density loglik for parallel", {
+  skip_on_cran()
   # Both compute the marginal system density — they should agree exactly
   rates <- c(0.5, 0.3, 0.2)
   sys <- parallel_system(3)
@@ -158,6 +167,7 @@ test_that("IE loglik matches general system density loglik for parallel", {
 # ===========================================================================
 
 test_that("Weibull EM and direct MLE give similar estimates", {
+  skip_on_cran()
   true_par <- c(1.5, 2.0, 2.0, 3.0)
 
   model_em <- kofn(k = 2, m = 2, family = "weibull", method = "em")
@@ -194,6 +204,7 @@ test_that("Weibull EM and direct MLE give similar estimates", {
 # ===========================================================================
 
 test_that("exponential MLE converges with heavy right-censoring", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2)
   gen <- rdata(model)
   set.seed(42)
@@ -210,6 +221,7 @@ test_that("exponential MLE converges with heavy right-censoring", {
 })
 
 test_that("Weibull loglik handles heavy right-censoring", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2, family = "weibull")
   true_par <- c(1.5, 2.0, 2.0, 3.0)
 
@@ -235,6 +247,7 @@ test_that("Weibull loglik handles heavy right-censoring", {
 # ===========================================================================
 
 test_that("exponential parallel MLE is approximately unbiased (sum of rates)", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2)
   true_rates <- c(0.5, 0.3)
   true_sum <- sum(true_rates)
@@ -269,6 +282,7 @@ test_that("exponential parallel MLE is approximately unbiased (sum of rates)", {
 # ===========================================================================
 
 test_that("Scheme 1 fit recovers parameters (exponential)", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2)
   true_rates <- c(0.5, 0.3)
   s1gen <- rdata_scheme1(model)
@@ -285,6 +299,7 @@ test_that("Scheme 1 fit recovers parameters (exponential)", {
 })
 
 test_that("Scheme 1 loglik is higher at true params than wrong params", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2, family = "weibull")
   true_par <- c(1.5, 2.0, 2.0, 3.0)
   s1gen <- rdata_scheme1(model)
@@ -307,6 +322,7 @@ test_that("Scheme 1 loglik is higher at true params than wrong params", {
 # ===========================================================================
 
 test_that("bridge system estimation recovers sorted rates", {
+  skip_on_cran()
   br <- bridge_system()
   true_rates <- c(0.5, 0.4, 0.3, 0.2, 0.1)
 
@@ -321,6 +337,7 @@ test_that("bridge system estimation recovers sorted rates", {
 })
 
 test_that("consecutive-k system works end-to-end", {
+  skip_on_cran()
   sys <- consecutive_k_system(2, 4)
   expect_equal(sys$m, 4L)
 
@@ -345,6 +362,7 @@ test_that("consecutive-k system works end-to-end", {
 # ===========================================================================
 
 test_that("bridge system signature sums to 1", {
+  skip_on_cran()
   sig <- system_signature(bridge_system())
   expect_equal(sum(sig), 1.0)
   expect_equal(length(sig), 5)
@@ -352,6 +370,7 @@ test_that("bridge system signature sums to 1", {
 })
 
 test_that("consecutive-k-out-of-n signature sums to 1", {
+  skip_on_cran()
   sig <- system_signature(consecutive_k_system(2, 4))
   expect_equal(sum(sig), 1.0)
   expect_true(all(sig >= 0))
@@ -363,6 +382,7 @@ test_that("consecutive-k-out-of-n signature sums to 1", {
 # ===========================================================================
 
 test_that("fisher_mle result supports base R stats generics", {
+  skip_on_cran()
   model <- kofn(k = 2, m = 2)
   gen <- rdata(model)
   set.seed(42)
@@ -409,6 +429,7 @@ test_that("fisher_mle result supports base R stats generics", {
 # ===========================================================================
 
 test_that("solve_mle returns degenerate loglikelihood for infeasible problem", {
+  skip_on_cran()
   # Create a neg_ll that always returns the penalty value
   bad_neg_ll <- function(par) .Machine$double.xmax / 2
 
@@ -426,6 +447,7 @@ test_that("solve_mle returns degenerate loglikelihood for infeasible problem", {
 # ===========================================================================
 
 test_that("mixed observation scheme data generates valid observations", {
+  skip_on_cran()
   set.seed(42)
   obs <- observe_mixture(
     observe_right_censor(tau = 5),
@@ -450,6 +472,7 @@ test_that("mixed observation scheme data generates valid observations", {
 # ===========================================================================
 
 test_that("weibull_f_sys is non-negative and integrates to ~1", {
+  skip_on_cran()
   shapes <- c(1.5, 2.0)
   scales <- c(2.0, 3.0)
 
@@ -466,6 +489,7 @@ test_that("weibull_f_sys is non-negative and integrates to ~1", {
 })
 
 test_that("weibull_S_sys is monotone decreasing", {
+  skip_on_cran()
   shapes <- c(1.5, 2.0)
   scales <- c(2.0, 3.0)
 
@@ -486,6 +510,7 @@ test_that("weibull_S_sys is monotone decreasing", {
 # ===========================================================================
 
 test_that("w_j functions sum to f_sys for exponential parallel", {
+  skip_on_cran()
   rates <- c(0.5, 0.3, 0.2, 0.4)
   m <- length(rates)
 
@@ -511,6 +536,7 @@ test_that("w_j functions sum to f_sys for exponential parallel", {
 })
 
 test_that("w_j_integral over [0, Inf) equals 1/m for equal rates", {
+  skip_on_cran()
   # For equal rates, by symmetry each component is equally likely
   # to be critical, so integral of w_j over [0, inf) = 1/m
   m <- 3

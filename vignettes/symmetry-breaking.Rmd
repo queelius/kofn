@@ -112,7 +112,7 @@ neg_ll_hetero <- function(par) {
   val
 }
 
-res_het <- kofn:::solve_mle(neg_ll_hetero, par0 = rep(0.5, m),
+res_het <- solve_mle(neg_ll_hetero, par0 = rep(0.5, m),
                           n_par = m, n_starts = 5, nobs = n)
 est_het <- sort(coef(res_het))
 err_het <- mean(abs(est_het - rates_sorted))
@@ -214,7 +214,7 @@ neg_ll_autopsy <- function(par) {
   -ll
 }
 
-res_aut <- kofn:::solve_mle(neg_ll_autopsy, par0 = rep(0.5, m),
+res_aut <- solve_mle(neg_ll_autopsy, par0 = rep(0.5, m),
                           n_par = m, n_starts = 5, nobs = n)
 est_aut <- sort(coef(res_aut))
 err_aut <- mean(abs(est_aut - rates_sorted))
@@ -258,7 +258,7 @@ neg_ll_m <- function(p) {
   if (!is.finite(val)) return(.Machine$double.xmax / 2)
   val
 }
-res_mask <- kofn:::solve_mle(neg_ll_m, par0 = rep(0.5, m),
+res_mask <- solve_mle(neg_ll_m, par0 = rep(0.5, m),
                            n_par = m, n_starts = 5, nobs = n)
 est_mask <- sort(coef(res_mask))
 err_mask <- mean(abs(est_mask - rates_sorted))

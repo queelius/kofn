@@ -10,7 +10,10 @@
   `coherent_system()` and vectorized `f_sys_general()` give ~70x speedup
   for Scheme 1 likelihood evaluation.
 
-* Exported `multistart_mle()` for users building custom likelihoods.
+* Migrated optimization to the `compositional.mle` package. The internal
+  helper `multistart_mle()` was removed and replaced by a private
+  `solve_mle()` wrapper around `compositional.mle::lbfgsb()` with a
+  Nelder-Mead fallback in log-parameterization.
 
 * New vignettes: symmetry-breaking comparison, periodic inspection,
   observation schemes, general k-out-of-m.
