@@ -1,3 +1,21 @@
+# kofn 0.3.1
+
+## Documentation
+
+* Vignettes restructured around the post-refactor package scope.
+  Deleted outdated vignettes (`censoring-framework`, `kofn-systems`,
+  `general-kofn`, `symmetry-breaking`) that documented removed
+  topology / general-system APIs; added:
+  - `getting-started`: quick tour of the kofn model, fit, and
+    observation schemes.
+  - `dist-structure-integration`: how kofn delegates DGP and topology
+    to dist.structure, convention conversion, migration notes for
+    v0.2.0 users.
+* Added `_pkgdown.yml` configuring navbar, article menus, and a
+  reference index grouped by theme.
+* Retained and verified: `exponential-parallel`, `observation-schemes`,
+  `weibull-em`, `periodic-inspection`, `ecosystem`.
+
 # kofn 0.3.0
 
 ## Major refactor: dist.structure adoption

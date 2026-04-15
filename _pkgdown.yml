@@ -1,0 +1,115 @@
+url: https://queelius.github.io/kofn
+
+template:
+  bootstrap: 5
+  bootswatch: cosmo
+
+home:
+  title: Maximum Likelihood Estimation for k-out-of-n Systems
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    intro:
+      text: Get started
+      href: articles/getting-started.html
+    articles:
+      text: Articles
+      menu:
+      - text: Core workflows
+      - text: Getting started
+        href: articles/getting-started.html
+      - text: Exponential parallel systems
+        href: articles/exponential-parallel.html
+      - text: Observation schemes
+        href: articles/observation-schemes.html
+      - text: Weibull EM
+        href: articles/weibull-em.html
+      - text: Periodic inspection
+        href: articles/periodic-inspection.html
+      - text: Ecosystem integration
+      - text: dist.structure integration
+        href: articles/dist-structure-integration.html
+      - text: Likelihood model ecosystem
+        href: articles/ecosystem.html
+
+reference:
+- title: Model constructor
+  desc: Create a likelihood model for k-out-of-n systems.
+  contents:
+  - kofn
+  - is_kofn
+  - ncomponents.kofn
+  - print.kofn
+
+- title: Likelihood generics
+  desc: S3 methods for the likelihood.model protocol.
+  contents:
+  - loglik.exp_kofn
+  - loglik.wei_kofn
+  - score.exp_kofn
+  - score.wei_kofn
+  - hess_loglik.exp_kofn
+  - hess_loglik.wei_kofn
+  - fit.exp_kofn
+  - fit.wei_kofn
+  - rdata.exp_kofn
+  - rdata.wei_kofn
+  - assumptions.exp_kofn
+  - assumptions.wei_kofn
+
+- title: Observation functors
+  desc: Composable observation schemes for censored and inspected data.
+  contents:
+  - observe_exact
+  - observe_right_censor
+  - observe_left_censor
+  - observe_interval_censor
+  - observe_periodic
+  - observe_mixture
+
+- title: Periodic inspection (Scheme 1)
+  contents:
+  - loglik_scheme1
+  - rdata_scheme1
+  - fit_scheme1
+
+- title: Masked cause-of-failure
+  contents:
+  - loglik_masked
+  - rdata_masked
+
+- title: Fisher information
+  contents:
+  - compare_fisher_info
+
+- title: Parallel fast-path internals
+  desc: Inclusion-exclusion expansion for parallel exponential systems.
+  contents:
+  - ie_expand
+  - w_j_exact
+  - w_j_integral
+  - F_sys_exp
+  - S_sys_exp
+
+- title: Shared helpers
+  contents:
+  - solve_mle
+  - trunc_log_moment_vec
+  - trunc_pow_moment
+  - trunc_pow_moment_vec
+
+articles:
+- title: Core workflows
+  contents:
+  - getting-started
+  - exponential-parallel
+  - observation-schemes
+  - weibull-em
+  - periodic-inspection
+- title: Ecosystem integration
+  contents:
+  - dist-structure-integration
+  - ecosystem

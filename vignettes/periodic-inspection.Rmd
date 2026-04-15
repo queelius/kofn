@@ -502,7 +502,7 @@ k-spectrum.
 set.seed(42)
 rates <- c(1.0, 0.8, 0.6, 0.4)
 rates_sorted <- sort(rates)
-n <- 300
+n <- 150
 
 k_results <- data.frame(
   k = 2:4,
@@ -517,14 +517,16 @@ for (idx in seq_len(nrow(k_results))) {
   model_k <- kofn(k = k, m = 4, family = "exponential")
 
   # Scheme 0: system lifetime only
-  dat0 <- rdata_system(model_k$system, par = rates, n = n)
-  res0 <- fit_system(dat0$t, model_k$system, n_starts = 5)
+  gen0 <- rdata(model_k)
+  dat0 <- gen0(theta = rates, n = n)
+  fitter0 <- fit(model_k)
+  res0 <- fitter0(dat0, n_starts = 2)
 
   # Scheme 1: periodic inspection (delta = 0.5)
   s1gen <- rdata_scheme1(model_k)
   dat1 <- s1gen(theta = rates, n = n, delta = 0.5)
   fitter1 <- fit_scheme1(model_k)
-  res1 <- fitter1(dat1, n_starts = 5)
+  res1 <- fitter1(dat1, n_starts = 2)
 
   if (res0$converged) {
     k_results$s0_mean_err[idx] <- round(

@@ -113,35 +113,42 @@ Shape RMSE drops by an order of magnitude — even coarse inspection
 intervals provide dramatic improvement for the worst-estimated
 components.
 
-## Coherent System Engine
+## Topology and DGP
 
-The package includes a general coherent system engine based on minimal
-path and cut sets, supporting arbitrary system structures beyond
-k-out-of-n:
+As of v0.3.0, kofn delegates topology and data-generating process
+queries to the [dist.structure](https://github.com/queelius/dist.structure)
+package. For non-k-of-n topologies (bridges, arbitrary coherent
+systems), use dist.structure directly:
 
 ```r
-# Standard systems
-sys_parallel <- parallel_system(5)
-sys_series   <- series_system(5)
-sys_2of5     <- kofn_system(2, 5)
-sys_bridge   <- bridge_system()
+library(dist.structure)
+
+# Standard systems with arbitrary component distributions
+sys_parallel <- parallel_dist(replicate(5, algebraic.dist::exponential(1),
+                                        simplify = FALSE))
+sys_2of5     <- exp_kofn(k = 4, rates = c(1, 1, 1, 1, 1))  # dist.structure :G
+sys_bridge   <- bridge_dist(replicate(5, algebraic.dist::exponential(1),
+                                       simplify = FALSE))
 
 # System properties
 system_signature(sys_2of5)
-phi(sys_bridge, c(TRUE, FALSE, TRUE, TRUE, FALSE))
-system_censoring(sys_parallel, c(1.2, 3.4, 2.1, 0.8, 4.5))
+phi(sys_bridge, c(1L, 0L, 1L, 1L, 0L))
 ```
+
+Note the convention: kofn uses :F (k = number of failures triggering
+system failure), dist.structure uses :G (k = number of functioning
+components required). They convert via `k_dist = m - k_kofn + 1`.
 
 ## Key Features
 
 | Feature | Description |
 |---------|-------------|
-| **Exponential MLE** | Closed-form likelihood via inclusion-exclusion expansion |
+| **Exponential MLE** | Closed-form likelihood via inclusion-exclusion expansion for parallel; dist.structure delegation for general k |
 | **Weibull EM** | EM algorithm with incomplete gamma E-step and profile M-step |
 | **Direct MLE** | L-BFGS-B with Nelder-Mead fallback, multi-start |
-| **Observation schemes** | Scheme 0 (black box), Scheme 1 (periodic inspection), Scheme 2 (complete) |
+| **Observation schemes** | Scheme 0 (black box), Scheme 1 (periodic inspection), Scheme 2 (complete), masked cause-of-failure |
 | **Fisher information** | Compare information across observation schemes |
-| **Coherent systems** | Arbitrary systems via minimal path/cut sets |
+| **dist.structure integration** | Full topology, signature, importance measures, compositional operations via the distribution protocol |
 | **Base R integration** | `coef()`, `vcov()`, `logLik()`, `AIC()`, `confint()`, `summary()` |
 
 ## Ecosystem

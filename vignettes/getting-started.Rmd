@@ -1,0 +1,171 @@
+---
+title: "Getting started with kofn"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with kofn}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+set.seed(42)
+```
+
+```{r setup}
+library(kofn)
+```
+
+## What `kofn` does
+
+`kofn` is a maximum likelihood estimation toolkit for **k-out-of-n
+systems**: reliability systems that fail when `k` of `m` components
+have failed. `k = 1` is a series system (first failure ends it), `k =
+m` is a parallel system (all must fail), and intermediate values
+interpolate between them.
+
+The package focuses exclusively on inference: log-likelihood, score,
+Hessian, fit, observation schemes (right/left/interval/periodic),
+masked cause-of-failure, and Fisher information comparison. The
+underlying data-generating process (DGP) and topology queries are
+delegated to `dist.structure`, which kofn imports.
+
+## Your first fit
+
+```{r}
+# A 2-of-3 exponential system: system fails when 2 of 3 components fail.
+model <- kofn(k = 2, m = 3, family = "exponential")
+
+# Generate 200 complete (Scheme 0) observations.
+gen <- rdata(model)
+df <- gen(theta = c(1, 2, 3), n = 200)
+
+# Fit via maximum likelihood.
+fitter <- fit(model)
+result <- fitter(df, n_starts = 3)
+result$converged
+coef(result)
+```
+
+For exponential parallel systems (k = m), only the sum of rates is
+identifiable from system-level data alone; individual rates are not.
+The sum typically recovers well:
+
+```{r}
+sum(coef(result))
+sum(c(1, 2, 3))
+```
+
+## Convention
+
+kofn uses the **:F convention**: `k` counts component failures that
+trigger system failure.
+
+- `kofn(k = 1, m)` = series (first failure ends the system).
+- `kofn(k = m, m)` = parallel (system survives until the m-th failure).
+- `kofn(k, m)` for intermediate k = k-out-of-m systems.
+
+(dist.structure internally uses the :G convention, which is the dual.
+kofn handles the conversion for you; you never need to think about
+:G.)
+
+## Observation schemes
+
+Real experiments rarely observe system failure exactly. kofn provides
+composable observation functors for censoring and periodic inspection:
+
+```{r}
+# Right-censored: systems that fail after tau = 2 get recorded at t = 2
+df_cens <- gen(c(1, 2, 3), n = 200,
+               observe = observe_right_censor(tau = 2))
+table(df_cens$omega)
+```
+
+The log-likelihood handles mixed observation types automatically:
+
+```{r}
+ll <- loglik(model)
+ll(df_cens, c(1, 2, 3))  # finite; right-censored obs contribute log S(t)
+```
+
+Other functors: `observe_left_censor`, `observe_interval_censor`,
+`observe_periodic`, `observe_mixture`. See the observation-schemes
+vignette.
+
+## Weibull components
+
+Weibull component lifetimes work analogously, with parameters
+interleaved as `(shape_1, scale_1, shape_2, scale_2, ...)`:
+
+```{r}
+model_wei <- kofn(k = 2, m = 2, family = "weibull", method = "em")
+gen_wei <- rdata(model_wei)
+df_wei <- gen_wei(theta = c(1.5, 2.0, 2.0, 3.0), n = 300)
+result_wei <- fit(model_wei)(df_wei, n_starts = 3)
+result_wei$shapes
+result_wei$scales
+```
+
+For parallel Weibull systems (`k = m`), `method = "em"` uses an EM
+algorithm treating the identity of the last-failing component as
+latent. For general k, use `method = "mle"` (direct L-BFGS-B).
+
+## Periodic inspection (Scheme 1)
+
+When only periodic snapshots are available, use
+`loglik_scheme1`/`fit_scheme1`:
+
+```{r}
+s1gen <- rdata_scheme1(model)
+df_s1 <- s1gen(theta = c(1, 2, 3), n = 200, delta = 0.5)
+ll_s1 <- loglik_scheme1(model)
+ll_s1(df_s1, c(1, 2, 3))
+```
+
+## Masked cause-of-failure
+
+When you observe system failure and a candidate set (superset of the
+truly-failed components) rather than knowing which components failed:
+
+```{r}
+rgen <- rdata_masked(model)
+df_masked <- rgen(theta = c(1, 2, 3), n = 100, p_mask = 0.3)
+ll_masked <- loglik_masked(model)
+ll_masked(df_masked, c(1, 2, 3))
+```
+
+## Fisher information comparison
+
+How much precision do you gain from each observation scheme? kofn
+provides a built-in comparison:
+
+```{r, eval = FALSE}
+res <- compare_fisher_info(
+  rates = c(0.5, 0.3), n = 50, delta = 1.0, n_rep = 10,
+  family = "exponential"
+)
+res$median_det
+```
+
+This runs `n_rep` replications of each scheme and reports the median
+determinant of the observed information matrix per scheme.
+
+## What's next
+
+See the other vignettes for deeper coverage:
+
+- **[Exponential parallel](exponential-parallel.html)**: the IE
+  expansion fast path for parallel exponentials.
+- **[Observation schemes](observation-schemes.html)**: composable
+  observation functors for complex monitoring setups.
+- **[Weibull EM](weibull-em.html)**: the EM algorithm details.
+- **[Periodic inspection](periodic-inspection.html)**: Scheme 1
+  workflows.
+- **[dist.structure integration](dist-structure-integration.html)**:
+  how kofn delegates DGP and topology to dist.structure; migration
+  notes for v0.2.0 users.
+- **[Ecosystem](ecosystem.html)**: how kofn fits with
+  `likelihood.model`, `algebraic.mle`, and `dist.structure`.

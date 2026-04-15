@@ -11,3 +11,5 @@
 ^inst/experiments$
 ^\.playwright-mcp$
 ^CRAN_AUDIT\.md$
+^doc$
+^Meta$

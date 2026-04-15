@@ -1,6 +1,6 @@
 Package: kofn
 Title: Maximum Likelihood Estimation for k-out-of-n System Data
-Version: 0.3.0
+Version: 0.3.1
 Authors@R: person("Alexander", "Towell",
     email = "lex@metafunctor.com",
     role = c("aut", "cre"),
@@ -19,7 +19,8 @@ Description: Maximum likelihood estimation of component lifetime parameters
     measures) are delegated to the 'dist.structure' package; kofn focuses
     exclusively on inference for the k-out-of-n family.
 License: MIT + file LICENSE
-URL: https://github.com/queelius/kofn
+URL: https://github.com/queelius/kofn,
+    https://queelius.github.io/kofn/
 BugReports: https://github.com/queelius/kofn/issues
 Depends: R (>= 4.1.0)
 Imports:

@@ -88,7 +88,7 @@ the RMSE of the sorted rate estimates.
 
 ```{r scheme-comparison}
 set.seed(2026)
-R <- 10; n <- 200
+R <- 5; n <- 200
 theta <- c(1.0, 0.5)
 theta_sorted <- sort(theta)
 model <- kofn(k = 2, m = 2, family = "exponential")

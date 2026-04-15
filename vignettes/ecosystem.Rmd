@@ -272,10 +272,10 @@ they encode the physics of k-out-of-m censoring.
 lifetimes, compute system failure time, record censoring pattern).
 Trivial in principle, but the package has to know the model.
 
-**3. Custom observation schemes**.  `loglik_scheme1`, `loglik_masked`,
-and `fit_system` for partial autopsy are three extra observation
-mechanisms that require their own likelihood construction.  Each of
-them, once written, plugs back into the same generics above.
+**3. Custom observation schemes**.  `loglik_scheme1` (periodic
+inspection) and `loglik_masked` (partial autopsy) are two extra
+observation mechanisms that require their own likelihood construction.
+Each of them, once written, plugs back into the same generics above.
 
 Everything else, the solver, the inference, the composition, the
 distributional bridge, came from the ecosystem.
