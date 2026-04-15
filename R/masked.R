@@ -87,16 +87,21 @@ loglik_masked <- function(model, candset = "c", ...) {
     # Extract candidate set matrix
     cmat <- as.matrix(df[cand_cols])
 
-    # Build dist objects once (used for non-exact observations)
-    dists <- make_dists(par, family)
+    # Lazily construct dist.structure DGP for non-exact contributions.
+    dgp <- NULL
+    surv_fn <- NULL
 
     ll <- 0
     for (i in seq_len(n)) {
       if (omega_vals[i] != "exact") {
-        # For non-exact observations, fall back to marginal system density
+        # For non-exact observations, fall back to marginal system survival
         # (masking info not applicable for censored obs)
         if (omega_vals[i] == "right") {
-          S_sys <- S_sys_general(t_obs[i], model$system, dists)
+          if (is.null(dgp)) {
+            dgp <- kofn_dgp(k, m, family, par)
+            surv_fn <- algebraic.dist::surv(dgp)
+          }
+          S_sys <- surv_fn(t_obs[i])
           if (S_sys <= 0) return(-Inf)
           ll <- ll + log(S_sys)
         }
@@ -182,7 +187,6 @@ loglik_masked <- function(model, candset = "c", ...) {
 rdata_masked <- function(model, candset = "c", ...) {
   m <- model$m
   k <- model$k
-  system <- model$system
   lt <- model$lifetime
   om <- model$omega
   family <- model$family
@@ -209,7 +213,7 @@ rdata_masked <- function(model, candset = "c", ...) {
     sys_times <- numeric(n)
     failed_sets <- vector("list", n)
     for (i in seq_len(n)) {
-      cinfo <- system_censoring(system, comp_times[i, ])
+      cinfo <- kofn_censoring(k, comp_times[i, ])
       sys_times[i] <- cinfo$T_sys
       # Failed set: components with status "exact" or "left"
       failed_sets[[i]] <- which(cinfo$status != "right")

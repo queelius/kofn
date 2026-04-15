@@ -88,7 +88,9 @@ weibull_f_sys <- function(t, shapes, scales) {
 #' Left and interval censoring are not supported for Weibull (no IE
 #' expansion); use the exponential model or Scheme 1 for those cases.
 #'
-#' For general k, delegates to [loglik_system()] with \code{family = "weibull"}.
+#' For general k, delegates per-observation to
+#' \code{dist.structure::wei_kofn(k, shapes, scales)} via the
+#' algebraic.dist generics \code{density}, \code{surv}, and \code{cdf}.
 #'
 #' @param model A \code{wei_kofn} object.
 #' @param ... Additional arguments (currently unused).
@@ -105,9 +107,9 @@ weibull_f_sys <- function(t, shapes, scales) {
 loglik.wei_kofn <- function(model, ...) {
   m <- model$m
   k <- model$k
-  system <- model$system
   lt <- model$lifetime
   om <- model$omega
+  lt_up <- model$lifetime_upper
 
   if (isTRUE(k == m)) {
     # Parallel system: direct density computation
@@ -144,11 +146,23 @@ loglik.wei_kofn <- function(model, ...) {
       ll
     }
   } else {
-    # General k-out-of-n: delegate to system density engine
+    # General k path: delegate per-observation contributions to dist.structure.
     function(df, par) {
       if (any(!is.finite(par)) || any(par <= 0)) return(-Inf)
+      if (length(par) != 2L * m) {
+        stop(sprintf("Expected %d Weibull parameters but got %d",
+                     2L * m, length(par)))
+      }
       t_obs <- df[[lt]]
-      loglik_system(t_obs, system, par, family = "weibull")
+      omega_vals <- if (om %in% names(df)) {
+        as.character(df[[om]])
+      } else {
+        rep("exact", length(t_obs))
+      }
+      lt_up_avail <- (lt_up %in% names(df))
+      t_upper <- if (lt_up_avail) df[[lt_up]] else NULL
+      dgp <- kofn_dgp(k, m, "weibull", par)
+      ll_via_dgp(dgp, t_obs, omega_vals, t_upper, lt_up_avail)
     }
   }
 }
@@ -562,9 +576,9 @@ mle_solver <- function(model, ll_fn, ...) {
 rdata.wei_kofn <- function(model, ...) {
   m <- model$m
   k <- model$k
-  system <- model$system
   lt <- model$lifetime
   om <- model$omega
+  lt_up <- model$lifetime_upper
 
   function(theta, n, observe = NULL) {
     stopifnot(length(theta) == 2L * m)
@@ -580,30 +594,31 @@ rdata.wei_kofn <- function(model, ...) {
                                          scale = scales[j])
     }
 
-    # Compute system lifetimes
-    if (isTRUE(k == m)) {
-      sys_times <- apply(comp_times, 1, max)
-    } else {
-      sys_times <- vapply(seq_len(n), function(i) {
-        system_lifetime(system, comp_times[i, ])
-      }, numeric(1))
-    }
+    # k-of-n system lifetime is the (m - k + 1)-th order statistic.
+    sys_times <- vapply(seq_len(n), function(i) {
+      kofn_censoring(k, comp_times[i, ])$T_sys
+    }, numeric(1))
 
     # Apply observation functor (default: exact, no censoring)
     if (is.null(observe)) {
       observe <- observe_exact()
     }
 
-    obs_t      <- numeric(n)
-    omega_vals <- character(n)
+    obs_t       <- numeric(n)
+    omega_vals  <- character(n)
+    t_upper_vals <- rep(NA_real_, n)
     for (i in seq_len(n)) {
       obs <- observe(sys_times[i])
-      obs_t[i]      <- obs$t
-      omega_vals[i] <- obs$omega
+      obs_t[i]        <- obs$t
+      omega_vals[i]   <- obs$omega
+      t_upper_vals[i] <- obs$t_upper
     }
 
     df <- data.frame(obs_t, omega_vals, stringsAsFactors = FALSE)
     names(df) <- c(lt, om)
+    if (any(omega_vals == "interval")) {
+      df[[lt_up]] <- t_upper_vals
+    }
     attr(df, "comp_times") <- comp_times
     attr(df, "par") <- theta
 
@@ -634,11 +649,9 @@ assumptions.wei_kofn <- function(model, ...) {
   k <- model$k
   method <- model$method
 
-  sys_desc <- if (is.na(k)) {
-    sprintf("General coherent system with m = %d components", m)
-  } else {
-    sprintf("System is %d-out-of-%d (k=%d component failures for system failure)", k, m, k)
-  }
+  sys_desc <- sprintf(
+    "System is %d-out-of-%d (k=%d component failures for system failure)",
+    k, m, k)
 
   assumptions <- c(
     sys_desc,

@@ -139,14 +139,14 @@ test_that("general system density works for 3-out-of-5", {
 
 
 # ===========================================================================
-# Cross-validation: IE vs general system density
+# Cross-validation: IE (kofn parallel fast path) vs dist.structure exp_kofn
+# density. Both compute the same marginal system density via different
+# routes, so they should agree to high precision.
 # ===========================================================================
 
-test_that("IE loglik matches general system density loglik for parallel", {
+test_that("IE loglik matches dist.structure exp_kofn loglik for parallel", {
   skip_on_cran()
-  # Both compute the marginal system density — they should agree exactly
   rates <- c(0.5, 0.3, 0.2)
-  sys <- parallel_system(3)
 
   model <- kofn(k = 3, m = 3)
   gen <- rdata(model)
@@ -156,7 +156,11 @@ test_that("IE loglik matches general system density loglik for parallel", {
   ll_ie <- loglik(model)
   val_ie <- ll_ie(df, rates)
 
-  val_gen <- loglik_system(df$t, sys, rates, family = "exponential")
+  # dist.structure-based reference: sum log f(t_i) where f is the
+  # exp_kofn closed-form density (critical-state subset enumeration).
+  # kofn parallel (k_kofn = m) maps to dist.structure k_dist = 1.
+  sys <- dist.structure::exp_kofn(k = 1L, rates = rates)
+  val_gen <- sum(log(density(sys)(df$t)))
 
   expect_equal(val_ie, val_gen, tolerance = 1e-8)
 })
@@ -317,64 +321,9 @@ test_that("Scheme 1 loglik is higher at true params than wrong params", {
 })
 
 
-# ===========================================================================
-# Coherent system: bridge and consecutive-k
-# ===========================================================================
-
-test_that("bridge system estimation recovers sorted rates", {
-  skip_on_cran()
-  br <- bridge_system()
-  true_rates <- c(0.5, 0.4, 0.3, 0.2, 0.1)
-
-  set.seed(42)
-  dat <- rdata_system(br, par = true_rates, family = "exponential", n = 500)
-
-  res <- fit_system(dat$t, br, family = "exponential", n_starts = 5)
-  skip_if(!res$converged, "bridge system solver did not converge (hard problem)")
-
-  # Sorted estimates should roughly match sorted truth
-  expect_equal(sort(coef(res)), sort(true_rates), tolerance = 0.3)
-})
-
-test_that("consecutive-k system works end-to-end", {
-  skip_on_cran()
-  sys <- consecutive_k_system(2, 4)
-  expect_equal(sys$m, 4L)
-
-  # Generate data and evaluate loglik
-  rates <- c(0.5, 0.3, 0.2, 0.4)
-  set.seed(42)
-  dat <- rdata_system(sys, par = rates, family = "exponential", n = 100)
-  expect_true(all(dat$t > 0))
-
-  ll_val <- loglik_system(dat$t, sys, rates, family = "exponential")
-  expect_true(is.finite(ll_val))
-
-  # Should be better than wildly wrong rates
-  ll_wrong <- loglik_system(dat$t, sys, c(10, 10, 10, 10),
-                            family = "exponential")
-  expect_true(ll_val > ll_wrong)
-})
-
-
-# ===========================================================================
-# System signatures for non-trivial systems
-# ===========================================================================
-
-test_that("bridge system signature sums to 1", {
-  skip_on_cran()
-  sig <- system_signature(bridge_system())
-  expect_equal(sum(sig), 1.0)
-  expect_equal(length(sig), 5)
-  expect_true(all(sig >= 0))
-})
-
-test_that("consecutive-k-out-of-n signature sums to 1", {
-  skip_on_cran()
-  sig <- system_signature(consecutive_k_system(2, 4))
-  expect_equal(sum(sig), 1.0)
-  expect_true(all(sig >= 0))
-})
+# Coherent-system topology tests (bridge, consecutive-k, signatures)
+# moved to the dist.structure test suite since that infrastructure now
+# lives there. kofn focuses exclusively on k-of-n inference.
 
 
 # ===========================================================================

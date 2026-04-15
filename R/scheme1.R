@@ -80,9 +80,9 @@ rdata_scheme1 <- function(model, ...) {
                                          scale = scales[j])
     }
 
-    # System lifetime via coherent system structure
+    # System lifetime: k-of-n is the (m - k + 1)-th order statistic.
     sys_times <- vapply(seq_len(n), function(i) {
-      system_lifetime(model$system, comp_times[i, ])
+      kofn_censoring(model$k, comp_times[i, ])$T_sys
     }, numeric(1))
 
     # Interval-censor each component to inspection grid (vectorized)
@@ -141,7 +141,6 @@ rdata_scheme1 <- function(model, ...) {
 loglik_scheme1 <- function(model, ...) {
   m <- model$m
   k <- model$k
-  system <- model$system
   lt <- model$lifetime
   family <- if (inherits(model, "wei_kofn")) "weibull" else "exponential"
 
@@ -157,12 +156,11 @@ loglik_scheme1 <- function(model, ...) {
 
     t_obs <- df[[lt]]
 
-    # Reuse package dist objects (same interface as make_dists)
-    dists <- make_dists(par, family)
-
-    # System density for ALL time points at once (vectorized, uses cached critical states)
-    f_sys_vals <- f_sys_general(t_obs, system, dists)
-    if (any(f_sys_vals <= 0)) return(-Inf)
+    # System density via dist.structure (vectorized via the closure
+    # returned by `density`).
+    dgp <- kofn_dgp(k, m, family, par)
+    f_sys_vals <- density(dgp)(t_obs)
+    if (any(!is.finite(f_sys_vals)) || any(f_sys_vals <= 0)) return(-Inf)
     ll <- sum(log(f_sys_vals))
 
     # Component interval contributions (vectorized per component)

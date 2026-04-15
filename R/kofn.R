@@ -18,6 +18,11 @@
 #'   \item \code{"likelihood_model"} (generic inference infrastructure)
 #' }
 #'
+#' For non-k-of-n topologies (bridges, arbitrary coherent systems), use
+#' \code{\link[dist.structure]{coherent_dist}} or one of the topology
+#' shortcuts in \code{dist.structure} directly. kofn is exclusively for
+#' the k-out-of-n family.
+#'
 #' @param k System parameter: system fails when k components have failed.
 #'   \code{k=1} is series, \code{k=m} is parallel.
 #' @param m Number of components.
@@ -25,9 +30,6 @@
 #'   \code{"weibull"}.
 #' @param method Estimation method: \code{"mle"} (direct MLE) or \code{"em"}
 #'   (EM algorithm, Weibull only).
-#' @param system Optional: a \code{coherent_system} object (created by
-#'   \code{\link{kofn_system}}). If provided, \code{k} and \code{m} are
-#'   ignored and this system is used directly.
 #' @param lifetime Column name for system lifetime (default \code{"t"}).
 #' @param omega Column name for observation type (default \code{"omega"}).
 #' @param lifetime_upper Column name for interval upper bound (default
@@ -46,7 +48,7 @@
 #' # Weibull parallel system with EM estimation
 #' model_wei <- kofn(k = 2, m = 2, family = "weibull", method = "em")
 kofn <- function(k = 1L, m = 2L, family = "exponential",
-                 method = "mle", system = NULL,
+                 method = "mle",
                  lifetime = "t", omega = "omega",
                  lifetime_upper = "t_upper") {
   family <- match.arg(family, c("exponential", "weibull"))
@@ -59,31 +61,11 @@ kofn <- function(k = 1L, m = 2L, family = "exponential",
 
   k <- as.integer(k)
   m <- as.integer(m)
-
-  if (is.null(system)) {
-    stopifnot(k >= 1L, k <= m, m >= 1L)
-    system <- kofn_system(k, m)
-  } else {
-    m <- system$m
-    # Detect k from system structure: k-out-of-n iff all paths have equal
-    # size AND the number of paths equals choose(m, k)
-    path_sizes <- vapply(system$min_paths, length, integer(1))
-    if (length(unique(path_sizes)) == 1L) {
-      detected_k <- as.integer(m - path_sizes[1L] + 1L)
-      if (length(system$min_paths) == choose(m, path_sizes[1L])) {
-        k <- detected_k
-      } else {
-        k <- NA_integer_
-      }
-    } else {
-      k <- NA_integer_
-    }
-  }
+  stopifnot(k >= 1L, k <= m, m >= 1L)
 
   model <- list(
-    system = system,
-    k = as.integer(k),
-    m = as.integer(m),
+    k = k,
+    m = m,
     family = family,
     method = method,
     lifetime = lifetime,
@@ -111,9 +93,7 @@ kofn <- function(k = 1L, m = 2L, family = "exponential",
 #' @examples
 #' print(kofn(k = 3, m = 3))
 print.kofn <- function(x, ...) {
-  sys_type <- if (is.na(x$k)) {
-    "general coherent"
-  } else if (x$k == 1L) {
+  sys_type <- if (x$k == 1L) {
     "series"
   } else if (x$k == x$m) {
     "parallel"
@@ -123,9 +103,8 @@ print.kofn <- function(x, ...) {
 
   cat("k-out-of-n System Likelihood Model\n")
   cat("-----------------------------------\n")
-  k_str <- if (is.na(x$k)) "NA" else as.character(x$k)
   cat("  System type:", sys_type,
-      sprintf("(k=%s, m=%d)\n", k_str, x$m))
+      sprintf("(k=%d, m=%d)\n", x$k, x$m))
   cat("  Component distribution:", x$family, "\n")
   cat("  Estimation method:", x$method, "\n")
   cat("  Column conventions:\n")
@@ -136,21 +115,7 @@ print.kofn <- function(x, ...) {
 }
 
 
-#' Number of components in a system model
-#'
-#' Generic function to return the number of components in a system model.
-#'
-#' @param model A model object.
-#' @param ... Additional arguments (currently ignored).
-#' @return Integer number of components.
-#' @examples
-#' ncomponents(kofn(k = 4, m = 4))  # 4
-#'
-#' @export
-ncomponents <- function(model, ...) UseMethod("ncomponents")
-
-
-#' @describeIn ncomponents Method for kofn models
+#' Number of components in a kofn model
 #'
 #' Returns the number of components \code{m} in the k-out-of-n system.
 #'
@@ -158,6 +123,7 @@ ncomponents <- function(model, ...) UseMethod("ncomponents")
 #' @param ... Additional arguments (ignored).
 #' @return Integer number of components.
 #' @method ncomponents kofn
+#' @importFrom dist.structure ncomponents
 #' @export
 #' @examples
 #' ncomponents(kofn(k = 5, m = 5))

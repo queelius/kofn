@@ -25,7 +25,7 @@ exponential k-out-of-n data-generating process.
 Workflow:
 \enumerate{
 \item Generate i.i.d. exponential component lifetimes.
-\item Compute system lifetime via the coherent system structure function.
+\item Compute system lifetime as the (m - k + 1)-th order statistic.
 \item Apply the observation functor (exact observation by default).
 }
 }

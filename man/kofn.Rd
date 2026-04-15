@@ -9,7 +9,6 @@ kofn(
   m = 2L,
   family = "exponential",
   method = "mle",
-  system = NULL,
   lifetime = "t",
   omega = "omega",
   lifetime_upper = "t_upper"
@@ -26,10 +25,6 @@ kofn(
 
 \item{method}{Estimation method: \code{"mle"} (direct MLE) or \code{"em"}
 (EM algorithm, Weibull only).}
-
-\item{system}{Optional: a \code{coherent_system} object (created by
-\code{\link{kofn_system}}). If provided, \code{k} and \code{m} are
-ignored and this system is used directly.}
 
 \item{lifetime}{Column name for system lifetime (default \code{"t"}).}
 
@@ -61,6 +56,11 @@ The class hierarchy is:
 \item \code{"kofn"} (shared methods)
 \item \code{"likelihood_model"} (generic inference infrastructure)
 }
+
+For non-k-of-n topologies (bridges, arbitrary coherent systems), use
+\code{\link[dist.structure]{coherent_dist}} or one of the topology
+shortcuts in \code{dist.structure} directly. kofn is exclusively for
+the k-out-of-n family.
 }
 \examples{
 # Parallel system with 3 exponential components (k = m)

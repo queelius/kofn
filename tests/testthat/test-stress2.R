@@ -301,85 +301,16 @@ test_that("print.kofn works for all system types", {
   out <- capture.output(print(kofn(k = 2, m = 4)))
   expect_true(any(grepl("2-out-of-4", out)))
 
-  # Bridge (NA k)
-  out <- capture.output(print(kofn(system = bridge_system())))
-  expect_true(any(grepl("general coherent", out)))
-  expect_true(any(grepl("k=NA", out)))
-
   # Weibull EM (parallel: k = m)
   out <- capture.output(print(kofn(k = 2, m = 2, family = "weibull",
                                     method = "em")))
   expect_true(any(grepl("weibull", out)))
 })
 
-test_that("print.coherent_system works", {
-  skip_on_cran()
-  out <- capture.output(print(bridge_system()))
-  expect_true(any(grepl("m=5", out)))
-  expect_true(any(grepl("path sets", out)))
-  expect_true(any(grepl("cut sets", out)))
-})
 
-
-# ===========================================================================
-# Coherent system internals
-# ===========================================================================
-
-test_that("minimize_sets removes supersets correctly", {
-  skip_on_cran()
-  sets <- list(c(1, 2), c(1, 2, 3), c(2, 3), c(1, 2, 3, 4))
-  result <- minimize_sets(sets)
-  expect_equal(length(result), 2)  # {1,2} and {2,3}
-})
-
-test_that("minimize_sets handles empty input", {
-  skip_on_cran()
-  expect_equal(length(minimize_sets(list())), 0)
-})
-
-test_that("min_cuts_from_paths computes correct duals", {
-  skip_on_cran()
-  # Parallel system: paths = {1}, {2}, {3}. Cut = {1,2,3}
-  cuts <- min_cuts_from_paths(list(1L, 2L, 3L))
-  expect_equal(length(cuts), 1)
-  expect_equal(sort(cuts[[1]]), c(1L, 2L, 3L))
-
-  # Series system: path = {1,2,3}. Cuts = {1}, {2}, {3}
-  cuts <- min_cuts_from_paths(list(c(1L, 2L, 3L)))
-  expect_equal(length(cuts), 3)
-})
-
-test_that("coherent_system validates inputs", {
-  skip_on_cran()
-  expect_error(coherent_system(list()))  # empty paths
-  expect_error(coherent_system("not a list"))  # not a list
-})
-
-test_that("min_cuts accessor works", {
-  skip_on_cran()
-  sys <- kofn_system(2, 3)
-  cuts <- min_cuts(sys)
-  expect_true(is.list(cuts))
-  expect_true(length(cuts) > 0)
-})
-
-test_that("critical_states returns empty for irrelevant component", {
-  skip_on_cran()
-  # In a series system, every component is critical in exactly one state
-  # (all others up). But in some systems, a component may never be critical.
-  # 2-out-of-4 system: every component is critical
-  sys <- kofn_system(2, 4)
-  crit <- critical_states(sys, 1)
-  expect_true(nrow(crit) > 0)
-})
-
-test_that("critical_states for single-component system", {
-  skip_on_cran()
-  sys <- kofn_system(1, 1)
-  crit <- critical_states(sys, 1)
-  expect_equal(nrow(crit), 1)
-  expect_equal(ncol(crit), 0)  # no other components
-})
+# Coherent-system topology and internals (minimize_sets, min_cuts_from_paths,
+# coherent_system, min_cuts, critical_states, print.coherent_system) moved to
+# the dist.structure test suite since that infrastructure now lives there.
 
 
 # ===========================================================================
@@ -409,33 +340,20 @@ test_that("EM rejects non-parallel systems", {
 
 
 # ===========================================================================
-# System density engine (S_sys_general, rdata_system)
+# Cross-validation of kofn IE survival against dist.structure exp_kofn
 # ===========================================================================
 
-test_that("S_sys_general matches 1 - F_sys for exponential parallel", {
+test_that("S_sys_exp matches dist.structure exp_kofn surv (parallel)", {
   skip_on_cran()
   rates <- c(0.5, 0.3)
-  sys <- parallel_system(2)
-  dists <- make_dists(rates, "exponential")
+  # kofn parallel (k_kofn = m = 2) maps to dist.structure k_dist = 1.
+  S_dist <- algebraic.dist::surv(dist.structure::exp_kofn(k = 1L, rates = rates))
 
   for (t in c(0.5, 1.0, 3.0)) {
-    S_gen <- S_sys_general(t, sys, dists)
+    S_gen <- S_dist(t)
     S_ie <- S_sys_exp(t, rates)
     expect_equal(S_gen, S_ie, tolerance = 1e-10)
   }
-})
-
-test_that("rdata_system generates correct structure for Weibull", {
-  skip_on_cran()
-  sys <- kofn_system(2, 3)
-  par <- c(1.5, 2.0, 2.0, 3.0, 1.0, 1.5)
-  set.seed(42)
-  dat <- rdata_system(sys, par = par, family = "weibull", n = 50)
-
-  expect_equal(nrow(dat), 50)
-  expect_true(all(dat$t > 0))
-  expect_true(!is.null(attr(dat, "comp_times")))
-  expect_true(!is.null(attr(dat, "critical")))
 })
 
 
@@ -493,22 +411,9 @@ test_that("rdata.wei_kofn validates parameter length", {
 # extract_data validation
 # ===========================================================================
 
-# ===========================================================================
-# fit_system for Weibull family
-# ===========================================================================
-
-test_that("fit_system works for Weibull 2-out-of-3", {
-  skip_on_cran()
-  sys <- kofn_system(2, 3)
-  par <- c(1.5, 2.0, 2.0, 3.0, 1.0, 1.5)
-  set.seed(42)
-  dat <- rdata_system(sys, par = par, family = "weibull", n = 200)
-
-  res <- fit_system(dat$t, sys, family = "weibull", n_starts = 3)
-  skip_if(!res$converged, "Weibull 2-of-3 solver did not converge (hard problem)")
-  expect_equal(length(coef(res)), 6)
-  expect_true(all(coef(res) > 0))
-})
+# Weibull k-of-n fit is now exercised via fit(kofn(k, m, family="weibull"))
+# in test-kofn.R; the standalone fit_system entry point lives in
+# dist.structure.
 
 
 # ===========================================================================
@@ -586,11 +491,5 @@ test_that("exponential parallel loglik works for m=6", {
 })
 
 
-# ===========================================================================
-# make_dists error path
-# ===========================================================================
-
-test_that("make_dists rejects odd-length Weibull parameter vector", {
-  skip_on_cran()
-  expect_error(make_dists(c(1, 2, 3), "weibull"), "2m")
-})
+# make_dists error path is now exercised via dist.structure::wei_kofn,
+# which validates shape/scale lengths internally.

@@ -13,8 +13,8 @@
 }
 \value{
 A function \verb{function(df, par)} where \code{df} is a data frame with
-columns for lifetime, observation type, and candidate set indicators,
-and \code{par} is a numeric vector of \code{m} component rates.
+columns for lifetime, observation type, and (for interval-censored)
+upper bounds, and \code{par} is a numeric vector of \code{m} component rates.
 }
 \description{
 Returns a closure \verb{function(df, par)} that computes the log-likelihood of
@@ -23,8 +23,9 @@ exponential component rates given system-level data.
 \details{
 For parallel systems (\code{k = m}), the closed-form IE expansion is used,
 supporting all four observation types: exact, right, left, and interval
-censored. For general k-out-of-n systems, the computation delegates to
-\code{\link[=loglik_system]{loglik_system()}} from the system density engine.
+censored. For general k-out-of-n systems, the per-observation
+contributions are computed via \code{dist.structure::exp_kofn(k, par)} and
+the algebraic.dist generics \code{density}, \code{surv}, and \code{cdf}.
 }
 \examples{
 model <- kofn(k = 3, m = 3, family = "exponential")

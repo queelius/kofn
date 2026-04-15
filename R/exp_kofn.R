@@ -1,18 +1,54 @@
 # ===========================================================================
-# Exponential k-out-of-n Model — S3 Methods
+# Exponential k-out-of-n Model: S3 Methods
 # ===========================================================================
 #
 # Provides S3 methods for the `exp_kofn` class created by
 # kofn(family = "exponential").
 #
-# Each generic returns a closure, following the likelihood.model / maskedcauses
-# convention.
+# Each generic returns a closure, following the likelihood.model /
+# maskedcauses convention.
 #
-# For parallel systems (k=m), the inclusion-exclusion (IE) expansion yields
-# closed-form expressions for all integrals. For general k-out-of-n systems,
-# the loglik falls back to the general system density engine
-# (loglik_system from R/system_density.R).
+# Strategy:
+#   - Parallel (k = m) loglik uses the IE expansion (closed form for all
+#     four observation types: exact, right, left, interval). This is
+#     kept locally because IE-based integral expressions are kofn's
+#     distinctive contribution.
+#   - General-k loglik delegates to dist.structure: density at exact
+#     observations, survival at right-censored, CDF at left, and
+#     CDF differences at interval-censored.
 # ===========================================================================
+
+
+# Internal: log-likelihood contribution helpers using dist.structure
+# closures bound to a particular DGP. Returned closure is reused across
+# observations to avoid reconstructing the dist object per row.
+ll_via_dgp <- function(dgp, t_obs, omega_vals, t_upper, lt_up_avail) {
+  surv_fn <- algebraic.dist::surv(dgp)
+  cdf_fn  <- algebraic.dist::cdf(dgp)
+  dens_fn <- density(dgp)
+
+  ll <- 0
+  for (i in seq_along(t_obs)) {
+    omi <- omega_vals[i]
+    ti  <- t_obs[i]
+    if (omi == "exact") {
+      val <- dens_fn(ti)
+    } else if (omi == "right") {
+      val <- surv_fn(ti)
+    } else if (omi == "left") {
+      val <- cdf_fn(ti)
+    } else if (omi == "interval") {
+      if (!lt_up_avail) return(-Inf)
+      tu <- t_upper[i]
+      val <- cdf_fn(tu) - cdf_fn(ti)
+    } else {
+      stop(sprintf("Unknown omega value: %s", omi))
+    }
+    if (!is.finite(val) || val <= 0) return(-Inf)
+    ll <- ll + log(val)
+  }
+  ll
+}
 
 
 # ---------------------------------------------------------------------------
@@ -26,14 +62,15 @@
 #'
 #' For parallel systems (`k = m`), the closed-form IE expansion is used,
 #' supporting all four observation types: exact, right, left, and interval
-#' censored. For general k-out-of-n systems, the computation delegates to
-#' [loglik_system()] from the system density engine.
+#' censored. For general k-out-of-n systems, the per-observation
+#' contributions are computed via `dist.structure::exp_kofn(k, par)` and
+#' the algebraic.dist generics `density`, `surv`, and `cdf`.
 #'
 #' @param model An `exp_kofn` object created by [kofn()].
 #' @param ... Additional arguments (ignored).
 #' @return A function `function(df, par)` where `df` is a data frame with
-#'   columns for lifetime, observation type, and candidate set indicators,
-#'   and `par` is a numeric vector of `m` component rates.
+#'   columns for lifetime, observation type, and (for interval-censored)
+#'   upper bounds, and `par` is a numeric vector of `m` component rates.
 #'
 #' @examples
 #' model <- kofn(k = 3, m = 3, family = "exponential")
@@ -45,7 +82,6 @@
 #' @method loglik exp_kofn
 #' @export
 loglik.exp_kofn <- function(model, ...) {
-  sys   <- model$system
   m     <- model$m
   k     <- model$k
   lt    <- model$lifetime
@@ -65,7 +101,7 @@ loglik.exp_kofn <- function(model, ...) {
       comps <- seq_len(m)
       ll <- 0
 
-      # --- Exact: log f_sys(t) ---
+      # Exact: log f_sys(t)
       for (i in which(omega_vals == "exact")) {
         val <- sum(vapply(comps,
           function(j) w_j_exact(t_obs[i], par, j), numeric(1)))
@@ -73,14 +109,14 @@ loglik.exp_kofn <- function(model, ...) {
         ll <- ll + log(val)
       }
 
-      # --- Right-censored: log S_sys(t) ---
+      # Right-censored: log S_sys(t)
       for (i in which(omega_vals == "right")) {
         s <- S_sys_exp(t_obs[i], par)
         if (s <= 0) return(-Inf)
         ll <- ll + log(s)
       }
 
-      # --- Left-censored: log F_sys(t) ---
+      # Left-censored: log F_sys(t)
       for (i in which(omega_vals == "left")) {
         val <- sum(vapply(comps,
           function(j) w_j_integral(0, t_obs[i], par, j), numeric(1)))
@@ -88,7 +124,7 @@ loglik.exp_kofn <- function(model, ...) {
         ll <- ll + log(val)
       }
 
-      # --- Interval-censored: log(F_sys(b) - F_sys(a)) ---
+      # Interval-censored: log(F_sys(b) - F_sys(a))
       for (i in which(omega_vals == "interval")) {
         a <- t_obs[i]
         b <- df[[lt_up]][i]
@@ -101,11 +137,18 @@ loglik.exp_kofn <- function(model, ...) {
       ll
     }
   } else {
-    # General k-out-of-n: delegate to system density engine
+    # General k path: delegate per-observation contributions to dist.structure.
     function(df, par) {
       if (any(par <= 0)) return(-Inf)
+      if (length(par) != m) {
+        stop(sprintf("Expected %d parameters but got %d", m, length(par)))
+      }
       t_obs <- df[[lt]]
-      loglik_system(t_obs, sys, par, family = "exponential")
+      omega_vals <- as.character(df[[om]])
+      lt_up_avail <- (lt_up %in% names(df))
+      t_upper <- if (lt_up_avail) df[[lt_up]] else NULL
+      dgp <- kofn_dgp(k, m, "exponential", par)
+      ll_via_dgp(dgp, t_obs, omega_vals, t_upper, lt_up_avail)
     }
   }
 }
@@ -204,14 +247,7 @@ hess_loglik.exp_kofn <- function(model, ...) {
 #' @param object An `exp_kofn` object created by [kofn()].
 #' @param ... Additional arguments (ignored).
 #' @return A function `function(df, par0 = NULL, n_starts = 5L)` returning
-#'   a list with components:
-#'   \describe{
-#'     \item{par}{Numeric vector of MLE rate estimates.}
-#'     \item{se}{Standard errors (from observed Fisher information).}
-#'     \item{loglik}{Maximized log-likelihood value.}
-#'     \item{convergence}{Integer convergence code (0 = success).}
-#'     \item{fisher_info}{Observed Fisher information matrix (or NULL).}
-#'   }
+#'   a fisher_mle object (from likelihood.model).
 #'
 #' @examples
 #' \donttest{
@@ -262,7 +298,7 @@ fit.exp_kofn <- function(object, ...) {
 #'
 #' Workflow:
 #' 1. Generate i.i.d. exponential component lifetimes.
-#' 2. Compute system lifetime via the coherent system structure function.
+#' 2. Compute system lifetime as the (m - k + 1)-th order statistic.
 #' 3. Apply the observation functor (exact observation by default).
 #'
 #' @param model An `exp_kofn` object created by [kofn()].
@@ -286,8 +322,8 @@ fit.exp_kofn <- function(object, ...) {
 #' @method rdata exp_kofn
 #' @export
 rdata.exp_kofn <- function(model, ...) {
-  sys <- model$system
   m   <- model$m
+  k   <- model$k
   lt  <- model$lifetime
   om  <- model$omega
   lt_up <- model$lifetime_upper
@@ -305,11 +341,14 @@ rdata.exp_kofn <- function(model, ...) {
       comp_lifetimes[, j] <- stats::rexp(n, rate = theta[j])
     }
 
-    # 2. Compute system lifetime + critical component
+    # 2. Compute system lifetime + critical component (k-of-n is the
+    # (m - k + 1)-th order statistic; the critical component is the one
+    # whose failure equals T_sys, deterministic for absolutely continuous
+    # components).
     sys_lifetime_vec <- numeric(n)
     critical_comp    <- integer(n)
     for (i in seq_len(n)) {
-      cinfo <- system_censoring(sys, comp_lifetimes[i, ])
+      cinfo <- kofn_censoring(k, comp_lifetimes[i, ])
       sys_lifetime_vec[i] <- cinfo$T_sys
       critical_comp[i]    <- cinfo$critical
     }
@@ -363,15 +402,10 @@ rdata.exp_kofn <- function(model, ...) {
 #' @method assumptions exp_kofn
 #' @export
 assumptions.exp_kofn <- function(model, ...) {
-  sys_desc <- if (is.na(model$k)) {
-    "general coherent system structure"
-  } else {
-    sprintf("%d-out-of-%d system structure", model$k, model$m)
-  }
   c(
     "independent component lifetimes",
     "exponential component lifetime distributions",
-    sys_desc,
+    sprintf("%d-out-of-%d system structure", model$k, model$m),
     "i.i.d. system observations"
   )
 }
@@ -408,14 +442,14 @@ default_init_exp <- function(df, m, lifetime, omega, lifetime_upper) {
   }
 
   # For parallel exponential with equal rates lambda:
-  #   E[T_sys] = H_m / lambda,  where H_m = sum(1/k, k=1..m)
-  # So lambda ~ H_m / mean(T_sys)
+  #   E[T_sys] = H_m / lambda, where H_m = sum(1/k, k=1..m)
+  # So lambda ~ H_m / mean(T_sys).
   usable <- omega_vals != "right"
   mean_t <- if (sum(usable) > 0) mean(t_mid[usable]) else mean(t_mid)
   mean_t <- max(mean_t, 0.01)  # guard against degenerate data
   H_m  <- sum(1 / seq_len(m))
   lam0 <- H_m / mean_t
 
-  # Spread around the moment estimate to break permutation symmetry
+  # Spread around the moment estimate to break permutation symmetry.
   lam0 * seq(0.5, 1.5, length.out = m)
 }

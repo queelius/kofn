@@ -25,7 +25,9 @@ Supports \code{"exact"} and \code{"right"} observation types.
 Left and interval censoring are not supported for Weibull (no IE
 expansion); use the exponential model or Scheme 1 for those cases.
 
-For general k, delegates to \code{\link[=loglik_system]{loglik_system()}} with \code{family = "weibull"}.
+For general k, delegates per-observation to
+\code{dist.structure::wei_kofn(k, shapes, scales)} via the
+algebraic.dist generics \code{density}, \code{surv}, and \code{cdf}.
 }
 \examples{
 model <- kofn(k = 2, m = 2, family = "weibull")

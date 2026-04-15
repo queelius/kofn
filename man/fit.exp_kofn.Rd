@@ -13,14 +13,7 @@
 }
 \value{
 A function \verb{function(df, par0 = NULL, n_starts = 5L)} returning
-a list with components:
-\describe{
-\item{par}{Numeric vector of MLE rate estimates.}
-\item{se}{Standard errors (from observed Fisher information).}
-\item{loglik}{Maximized log-likelihood value.}
-\item{convergence}{Integer convergence code (0 = success).}
-\item{fisher_info}{Observed Fisher information matrix (or NULL).}
-}
+a fisher_mle object (from likelihood.model).
 }
 \description{
 Returns a closure \verb{function(df, par0, n_starts)} that computes the
