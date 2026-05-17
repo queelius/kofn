@@ -1,3 +1,54 @@
+# kofn 0.4.0
+
+## Breaking changes
+
+The `kofn()` constructor now takes a `component` argument (a `dfr_dist`
+prototype from `flexhaz`) instead of a stringy `family` argument:
+
+```r
+# Before (0.3.x):
+kofn(k = 2, m = 3, family = "exponential")
+kofn(k = 2, m = 3, family = "weibull")
+
+# After (0.4.0):
+kofn(k = 2, m = 3, component = dfr_exponential())
+kofn(k = 2, m = 3, component = dfr_weibull())
+```
+
+Rationale: object-based component specification composes with the rest
+of the ecosystem (`flexhaz`, `serieshaz`, `maskedhaz`) and makes the
+supported-family table a property of class dispatch rather than a
+parallel lookup in `match.arg`. Adding future supported component
+families is now a one-line change.
+
+The same rename applies to `compare_fisher_info()`:
+
+```r
+# Before:
+compare_fisher_info(rates = c(1, 2), family = "exponential", ...)
+
+# After:
+compare_fisher_info(rates = c(1, 2), component = dfr_exponential(), ...)
+```
+
+Internal helpers `parse_params()`, `kofn_dgp()`, and `kofn_components()`
+take `component` rather than `family`. These were `@keywords internal`
+and not part of the public API, but downstream code that touched them
+via `:::` will need the same rename.
+
+## New internal helpers
+
+* `n_par_kofn(m, component)`: expected parameter count for a homogeneous
+  kofn system, replacing inline `switch(family, ...)` logic.
+* `kofn_subclass(component)`: maps a `dfr_dist` prototype to the
+  corresponding kofn subclass (`exp_kofn` or `wei_kofn`).
+
+## Dependencies
+
+* Added `flexhaz` (>= 0.5.2) to Imports. The `dfr_dist` prototype
+  constructors provide family-specific S3 subclasses (`dfr_exponential`,
+  `dfr_weibull`) that `kofn_subclass()` dispatches on.
+
 # kofn 0.3.1
 
 ## Documentation

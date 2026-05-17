@@ -75,7 +75,7 @@ other vignettes.
 library(kofn)
 set.seed(42)
 
-model <- kofn(k = 1, m = 3, family = "exponential")
+model <- kofn(k = 1, m = 3, component = dfr_exponential())
 gen   <- rdata(model)
 df    <- gen(theta = c(0.3, 0.8, 1.5), n = 300)
 head(df, 3)

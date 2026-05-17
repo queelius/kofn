@@ -3,7 +3,7 @@
 # ===========================================================================
 #
 # Provides S3 methods for the `wei_kofn` class, created by
-# kofn(family = "weibull"). Implements the likelihood_model concept from
+# kofn(component = dfr_weibull()). Implements the likelihood_model concept from
 # the likelihood.model package.
 #
 # Parameter convention: par is a vector of length 2*m with interleaved
@@ -97,7 +97,7 @@ weibull_f_sys <- function(t, shapes, scales) {
 #' @return A function \code{function(df, par)} returning a scalar log-likelihood.
 #'
 #' @examples
-#' model <- kofn(k = 2, m = 2, family = "weibull")
+#' model <- kofn(k = 2, m = 2, component = dfr_weibull())
 #' ll <- loglik(model)
 #' set.seed(1)
 #' df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)
@@ -115,7 +115,7 @@ loglik.wei_kofn <- function(model, ...) {
     # Parallel system: direct density computation
     function(df, par) {
       if (any(!is.finite(par)) || any(par <= 0)) return(-Inf)
-      pp <- parse_params(par, m, "weibull")
+      pp <- parse_params(par, m, model$component)
       shapes <- pp$shapes
       scales <- pp$scales
       t_obs <- df[[lt]]
@@ -161,7 +161,7 @@ loglik.wei_kofn <- function(model, ...) {
       }
       lt_up_avail <- (lt_up %in% names(df))
       t_upper <- if (lt_up_avail) df[[lt_up]] else NULL
-      dgp <- kofn_dgp(k, m, "weibull", par)
+      dgp <- kofn_dgp(k, m, model$component, par)
       ll_via_dgp(dgp, t_obs, omega_vals, t_upper, lt_up_avail)
     }
   }
@@ -183,7 +183,7 @@ loglik.wei_kofn <- function(model, ...) {
 #'   (the gradient of the log-likelihood).
 #'
 #' @examples
-#' model <- kofn(k = 2, m = 2, family = "weibull")
+#' model <- kofn(k = 2, m = 2, component = dfr_weibull())
 #' sc <- score(model)
 #' set.seed(1)
 #' df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)
@@ -215,7 +215,7 @@ score.wei_kofn <- function(model, ...) {
 #'   (the Hessian of the log-likelihood).
 #'
 #' @examples
-#' model <- kofn(k = 2, m = 2, family = "weibull")
+#' model <- kofn(k = 2, m = 2, component = dfr_weibull())
 #' H <- hess_loglik(model)
 #' set.seed(1)
 #' df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)
@@ -269,7 +269,7 @@ hess_loglik.wei_kofn <- function(model, ...) {
 #'
 #' @examples
 #' \donttest{
-#' model <- kofn(k = 2, m = 2, family = "weibull")
+#' model <- kofn(k = 2, m = 2, component = dfr_weibull())
 #' set.seed(42)
 #' df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 50)
 #' result <- fit(model)(df)
@@ -329,7 +329,7 @@ em_solver <- function(model, ll_fn, ...) {
       init_scales <- scale0 * seq(0.5, 1.5, length.out = m)
     } else {
       stopifnot(length(par0) == n_par)
-      pp0 <- parse_params(par0, m, "weibull")
+      pp0 <- parse_params(par0, m, model$component)
       init_shapes <- pp0$shapes
       init_scales <- pp0$scales
     }
@@ -479,7 +479,7 @@ em_solver <- function(model, ll_fn, ...) {
       error = function(e) rep(NA_real_, n_par)
     )
 
-    pp_est <- parse_params(par_est, m, "weibull")
+    pp_est <- parse_params(par_est, m, model$component)
     result <- likelihood.model::fisher_mle(
       par        = par_est,
       loglik_val = best$loglik,
@@ -528,7 +528,7 @@ mle_solver <- function(model, ll_fn, ...) {
 
     result <- solve_mle(neg_ll, par0, n_par = n_par,
                         n_starts = n_starts, nobs = n)
-    pp <- parse_params(coef(result), m, "weibull")
+    pp <- parse_params(coef(result), m, model$component)
     result$shapes <- pp$shapes
     result$scales <- pp$scales
     result
@@ -561,7 +561,7 @@ mle_solver <- function(model, ll_fn, ...) {
 #'   }
 #'
 #' @examples
-#' model <- kofn(k = 2, m = 2, family = "weibull")
+#' model <- kofn(k = 2, m = 2, component = dfr_weibull())
 #' gen <- rdata(model)
 #' set.seed(42)
 #' df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 50)
@@ -582,7 +582,7 @@ rdata.wei_kofn <- function(model, ...) {
 
   function(theta, n, observe = NULL) {
     stopifnot(length(theta) == 2L * m)
-    pp <- parse_params(theta, m, "weibull")
+    pp <- parse_params(theta, m, model$component)
     shapes <- pp$shapes
     scales <- pp$scales
     stopifnot(all(shapes > 0), all(scales > 0))
@@ -640,7 +640,7 @@ rdata.wei_kofn <- function(model, ...) {
 #' @return A character vector of assumptions.
 #'
 #' @examples
-#' model <- kofn(k = 2, m = 2, family = "weibull")
+#' model <- kofn(k = 2, m = 2, component = dfr_weibull())
 #' assumptions(model)
 #'
 #' @export

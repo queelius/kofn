@@ -12,13 +12,13 @@
 
 
 test_that("kofn model constructor works", {
-  model <- kofn(k = 3, m = 3, family = "exponential")
+  model <- kofn(k = 3, m = 3, component = dfr_exponential())
   expect_s3_class(model, "exp_kofn")
   expect_s3_class(model, "kofn")
   expect_equal(ncomponents(model), 3L)
   expect_true(is_kofn(model))
 
-  model_wei <- kofn(k = 2, m = 2, family = "weibull", method = "em")
+  model_wei <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "em")
   expect_s3_class(model_wei, "wei_kofn")
 })
 
@@ -74,7 +74,7 @@ test_that("exponential parallel MLE converges", {
 
 
 test_that("Weibull EM converges for parallel system", {
-  model <- kofn(k = 2, m = 2, family = "weibull", method = "em")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "em")
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 200)
@@ -100,7 +100,7 @@ test_that("observation functors produce correct types", {
 
 
 test_that("Scheme 1 data generation works", {
-  model <- kofn(k = 2, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull())
   s1gen <- rdata_scheme1(model)
   set.seed(42)
   df <- s1gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 50, delta = 0.5)
@@ -222,7 +222,7 @@ test_that("exponential loglik handles right-censored observations", {
 # ===========================================================================
 
 test_that("Weibull parallel loglik handles right-censored data", {
-  model <- kofn(k = 2, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull())
 
   df <- data.frame(
     t = c(1.0, 2.0, 3.0, 4.0, 5.0),
@@ -306,11 +306,11 @@ test_that("exponential parallel MLE recovers sum of rates", {
 # ===========================================================================
 
 test_that("parse_params extracts shapes and scales correctly", {
-  pp_exp <- kofn:::parse_params(c(0.5, 0.3, 0.2), m = 3, family = "exponential")
+  pp_exp <- kofn:::parse_params(c(0.5, 0.3, 0.2), m = 3, component = dfr_exponential())
   expect_equal(pp_exp$shapes, c(1, 1, 1))
   expect_equal(pp_exp$scales, c(2, 10/3, 5))
 
-  pp_wei <- kofn:::parse_params(c(1.5, 2.0, 2.5, 3.0), m = 2, family = "weibull")
+  pp_wei <- kofn:::parse_params(c(1.5, 2.0, 2.5, 3.0), m = 2, component = dfr_weibull())
   expect_equal(pp_wei$shapes, c(1.5, 2.5))
   expect_equal(pp_wei$scales, c(2.0, 3.0))
 })
@@ -321,7 +321,7 @@ test_that("parse_params extracts shapes and scales correctly", {
 # ===========================================================================
 
 test_that("Weibull direct MLE converges for parallel system", {
-  model <- kofn(k = 2, m = 2, family = "weibull", method = "mle")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "mle")
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 200)
@@ -352,7 +352,7 @@ test_that("Scheme 1 loglik is finite at true params (exponential)", {
 
 
 test_that("Scheme 1 loglik is finite at true params (Weibull)", {
-  model <- kofn(k = 2, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull())
   s1gen <- rdata_scheme1(model)
   set.seed(42)
   df <- s1gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 100, delta = 0.5)
@@ -444,7 +444,7 @@ test_that("compare_fisher_info runs and returns expected structure (exp)", {
   set.seed(42)
   res <- compare_fisher_info(
     rates = c(0.5, 0.3), n = 50L, delta = 1.0, n_rep = 3L,
-    family = "exponential"
+    component = dfr_exponential()
   )
 
   expect_true(is.list(res))
@@ -461,7 +461,7 @@ test_that("compare_fisher_info runs for Weibull family", {
   set.seed(42)
   res <- compare_fisher_info(
     shapes = c(1.5, 2.0), scales = c(2.0, 3.0),
-    n = 50L, delta = 1.0, n_rep = 3L, family = "weibull"
+    n = 50L, delta = 1.0, n_rep = 3L, component = dfr_weibull()
   )
 
   expect_true(is.list(res))

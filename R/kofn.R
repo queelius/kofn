@@ -18,6 +18,11 @@
 #'   \item \code{"likelihood_model"} (generic inference infrastructure)
 #' }
 #'
+#' The concrete subclass is determined by the type of \code{component}.
+#' The current closed-form machinery is homogeneous: all m components
+#' share the same distribution family, and \code{component} acts as a
+#' prototype for that family.
+#'
 #' For non-k-of-n topologies (bridges, arbitrary coherent systems), use
 #' \code{\link[dist.structure]{coherent_dist}} or one of the topology
 #' shortcuts in \code{dist.structure} directly. kofn is exclusively for
@@ -26,8 +31,11 @@
 #' @param k System parameter: system fails when k components have failed.
 #'   \code{k=1} is series, \code{k=m} is parallel.
 #' @param m Number of components.
-#' @param family Component lifetime distribution: \code{"exponential"} or
-#'   \code{"weibull"}.
+#' @param component A \code{dfr_dist} prototype from \pkg{flexhaz}
+#'   specifying the shared component distribution family. Currently
+#'   supported: \code{\link[flexhaz]{dfr_exponential}} and
+#'   \code{\link[flexhaz]{dfr_weibull}}. Parameter values on the
+#'   prototype are ignored; they will be estimated from data.
 #' @param method Estimation method: \code{"mle"} (direct MLE) or \code{"em"}
 #'   (EM algorithm, Weibull only).
 #' @param lifetime Column name for system lifetime (default \code{"t"}).
@@ -36,25 +44,26 @@
 #'   \code{"t_upper"}).
 #' @return An S3 object of class \code{c("exp_kofn"/"wei_kofn", "kofn",
 #'   "likelihood_model")}.
+#' @importFrom flexhaz dfr_exponential dfr_weibull
 #' @export
 #' @examples
 #' # Parallel system with 3 exponential components (k = m)
-#' model <- kofn(k = 3, m = 3, family = "exponential")
+#' model <- kofn(k = 3, m = 3, component = dfr_exponential())
 #' print(model)
 #'
 #' # Series system (k = 1)
-#' model_series <- kofn(k = 1, m = 4, family = "exponential")
+#' model_series <- kofn(k = 1, m = 4, component = dfr_exponential())
 #'
 #' # Weibull parallel system with EM estimation
-#' model_wei <- kofn(k = 2, m = 2, family = "weibull", method = "em")
-kofn <- function(k = 1L, m = 2L, family = "exponential",
+#' model_wei <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "em")
+kofn <- function(k = 1L, m = 2L, component = dfr_exponential(),
                  method = "mle",
                  lifetime = "t", omega = "omega",
                  lifetime_upper = "t_upper") {
-  family <- match.arg(family, c("exponential", "weibull"))
+  cls <- kofn_subclass(component)
   method <- match.arg(method, c("mle", "em"))
 
-  if (method == "em" && family == "exponential") {
+  if (method == "em" && cls == "exp_kofn") {
     warning("EM method is designed for Weibull; using MLE for exponential")
     method <- "mle"
   }
@@ -63,19 +72,31 @@ kofn <- function(k = 1L, m = 2L, family = "exponential",
   m <- as.integer(m)
   stopifnot(k >= 1L, k <= m, m >= 1L)
 
-  model <- list(
-    k = k,
-    m = m,
-    family = family,
-    method = method,
-    lifetime = lifetime,
-    omega = omega,
-    lifetime_upper = lifetime_upper
+  structure(
+    list(
+      k = k,
+      m = m,
+      component = component,
+      method = method,
+      lifetime = lifetime,
+      omega = omega,
+      lifetime_upper = lifetime_upper
+    ),
+    class = c(cls, "kofn", "likelihood_model")
   )
+}
 
-  cls <- if (family == "exponential") "exp_kofn" else "wei_kofn"
-  class(model) <- c(cls, "kofn", "likelihood_model")
-  model
+
+# Map a dfr_dist prototype to the corresponding kofn subclass.
+# Centralises the (component-class -> kofn-subclass) table so adding a
+# new supported family is a one-line change here.
+kofn_subclass <- function(component) {
+  if (inherits(component, "dfr_exponential")) return("exp_kofn")
+  if (inherits(component, "dfr_weibull"))     return("wei_kofn")
+  stop(sprintf(
+    "unsupported component type '%s': use dfr_exponential() or dfr_weibull()",
+    paste(class(component), collapse = "/")
+  ))
 }
 
 
@@ -91,7 +112,7 @@ kofn <- function(k = 1L, m = 2L, family = "exponential",
 #' @method print kofn
 #' @export
 #' @examples
-#' print(kofn(k = 3, m = 3))
+#' print(kofn(k = 3, m = 3, component = dfr_exponential()))
 print.kofn <- function(x, ...) {
   sys_type <- if (x$k == 1L) {
     "series"
@@ -105,13 +126,21 @@ print.kofn <- function(x, ...) {
   cat("-----------------------------------\n")
   cat("  System type:", sys_type,
       sprintf("(k=%d, m=%d)\n", x$k, x$m))
-  cat("  Component distribution:", x$family, "\n")
+  cat("  Component distribution:", component_family_name(x$component), "\n")
   cat("  Estimation method:", x$method, "\n")
   cat("  Column conventions:\n")
   cat("    lifetime:", x$lifetime, "\n")
   cat("    omega:", x$omega, "\n")
   cat("    interval upper:", x$lifetime_upper, "\n")
   invisible(x)
+}
+
+
+# Human-readable family label from a dfr_dist prototype.
+component_family_name <- function(component) {
+  if (inherits(component, "dfr_exponential")) return("exponential")
+  if (inherits(component, "dfr_weibull"))     return("weibull")
+  class(component)[1L]
 }
 
 
@@ -126,7 +155,7 @@ print.kofn <- function(x, ...) {
 #' @importFrom dist.structure ncomponents
 #' @export
 #' @examples
-#' ncomponents(kofn(k = 5, m = 5))
+#' ncomponents(kofn(k = 5, m = 5, component = dfr_exponential()))
 ncomponents.kofn <- function(model, ...) {
   model$m
 }
@@ -138,7 +167,7 @@ ncomponents.kofn <- function(model, ...) {
 #' @return Logical indicating whether \code{x} inherits from \code{"kofn"}.
 #' @export
 #' @examples
-#' is_kofn(kofn(k = 3, m = 3))
+#' is_kofn(kofn(k = 3, m = 3, component = dfr_exponential()))
 #' is_kofn(42)
 is_kofn <- function(x) {
   inherits(x, "kofn")

@@ -4,21 +4,24 @@
 \alias{parse_params}
 \title{Parse a flat parameter vector into shapes and scales}
 \usage{
-parse_params(par, m, family)
+parse_params(par, m, component)
 }
 \arguments{
-\item{par}{Numeric parameter vector.}
+\item{par}{Numeric parameter vector. Length \code{m} for exponential,
+\code{2*m} for Weibull.}
 
 \item{m}{Number of components.}
 
-\item{family}{Character: \code{"exponential"} or \code{"weibull"}.}
+\item{component}{A \code{dfr_dist} prototype (e.g.
+\code{dfr_exponential()} or \code{dfr_weibull()}) that determines
+how \code{par} is laid out.}
 }
 \value{
 A list with components \code{shapes} and \code{scales}.
 }
 \description{
 Unified extraction of Weibull shape/scale parameters from the flat
-vectors used by optimizers. For exponential family, shapes are all 1
-and scales are 1/rate.
+vectors used by optimizers. For exponential components, shapes are
+all 1 and scales are 1/rate.
 }
 \keyword{internal}

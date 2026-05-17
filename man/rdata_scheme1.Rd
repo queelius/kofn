@@ -38,7 +38,7 @@ be conditioned on survival past T_sys. For series systems, use the
 \code{maskedcauses} package instead.
 }
 \examples{
-model <- kofn(k = 2, m = 2, family = "exponential")
+model <- kofn(k = 2, m = 2, component = dfr_exponential())
 gen <- rdata_scheme1(model)
 set.seed(1)
 df <- gen(theta = c(1, 2), n = 20, delta = 1.0)

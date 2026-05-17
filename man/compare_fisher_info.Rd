@@ -11,18 +11,18 @@ compare_fisher_info(
   n = 200L,
   delta = 1,
   n_rep = 50L,
-  family = "exponential"
+  component = dfr_exponential()
 )
 }
 \arguments{
-\item{shapes}{Numeric vector. Weibull shape parameters (for Weibull family)
-or \code{NULL} (for exponential).}
+\item{shapes}{Numeric vector. Weibull shape parameters (Weibull only,
+or \code{NULL} for exponential).}
 
-\item{scales}{Numeric vector. Weibull scale parameters (for Weibull family)
-or \code{NULL} (for exponential).}
+\item{scales}{Numeric vector. Weibull scale parameters (Weibull only,
+or \code{NULL} for exponential).}
 
-\item{rates}{Numeric vector. Exponential rate parameters (for exponential
-family, alternative to \code{shapes}/\code{scales}).}
+\item{rates}{Numeric vector. Exponential rate parameters (exponential
+only, alternative to \code{shapes}/\code{scales}).}
 
 \item{n}{Integer. Sample size per replicate.}
 
@@ -30,8 +30,9 @@ family, alternative to \code{shapes}/\code{scales}).}
 
 \item{n_rep}{Integer. Number of Monte Carlo replicates.}
 
-\item{family}{Character. Component distribution family:
-\code{"exponential"} or \code{"weibull"}.}
+\item{component}{A \code{dfr_dist} prototype (e.g.
+\code{dfr_exponential()} or \code{dfr_weibull()}) specifying the
+component family.}
 }
 \value{
 A list with components:

@@ -30,7 +30,7 @@ For general k, delegates per-observation to
 algebraic.dist generics \code{density}, \code{surv}, and \code{cdf}.
 }
 \examples{
-model <- kofn(k = 2, m = 2, family = "weibull")
+model <- kofn(k = 2, m = 2, component = dfr_weibull())
 ll <- loglik(model)
 set.seed(1)
 df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 30)

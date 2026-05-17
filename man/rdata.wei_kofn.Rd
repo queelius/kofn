@@ -31,7 +31,7 @@ accepts an \code{observe} functor for observation schemes (censoring,
 periodic inspection, etc.). The output includes an \code{omega} column.
 }
 \examples{
-model <- kofn(k = 2, m = 2, family = "weibull")
+model <- kofn(k = 2, m = 2, component = dfr_weibull())
 gen <- rdata(model)
 set.seed(42)
 df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 50)

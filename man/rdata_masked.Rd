@@ -25,7 +25,7 @@ T_sys) is always included in the candidate set. Additional non-failed
 components are included independently with probability \code{p_mask}.
 }
 \examples{
-model <- kofn(k = 2, m = 4, family = "exponential")
+model <- kofn(k = 2, m = 4, component = dfr_exponential())
 gen <- rdata_masked(model)
 set.seed(42)
 df <- gen(theta = c(1, 0.8, 0.6, 0.4), n = 10, p_mask = 0.3)

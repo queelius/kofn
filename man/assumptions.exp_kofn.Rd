@@ -19,7 +19,7 @@ Returns a character vector listing the assumptions made by the
 exponential k-out-of-n likelihood model.
 }
 \examples{
-model <- kofn(k = 3, m = 3, family = "exponential")
+model <- kofn(k = 3, m = 3, component = dfr_exponential())
 assumptions(model)
 
 }

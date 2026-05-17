@@ -20,5 +20,5 @@ including system type, component distribution, estimation method,
 and column name conventions.
 }
 \examples{
-print(kofn(k = 3, m = 3))
+print(kofn(k = 3, m = 3, component = dfr_exponential()))
 }

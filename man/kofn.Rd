@@ -7,7 +7,7 @@
 kofn(
   k = 1L,
   m = 2L,
-  family = "exponential",
+  component = dfr_exponential(),
   method = "mle",
   lifetime = "t",
   omega = "omega",
@@ -20,8 +20,11 @@ kofn(
 
 \item{m}{Number of components.}
 
-\item{family}{Component lifetime distribution: \code{"exponential"} or
-\code{"weibull"}.}
+\item{component}{A \code{dfr_dist} prototype from \pkg{flexhaz}
+specifying the shared component distribution family. Currently
+supported: \code{\link[flexhaz]{dfr_exponential}} and
+\code{\link[flexhaz]{dfr_weibull}}. Parameter values on the
+prototype are ignored; they will be estimated from data.}
 
 \item{method}{Estimation method: \code{"mle"} (direct MLE) or \code{"em"}
 (EM algorithm, Weibull only).}
@@ -57,6 +60,11 @@ The class hierarchy is:
 \item \code{"likelihood_model"} (generic inference infrastructure)
 }
 
+The concrete subclass is determined by the type of \code{component}.
+The current closed-form machinery is homogeneous: all m components
+share the same distribution family, and \code{component} acts as a
+prototype for that family.
+
 For non-k-of-n topologies (bridges, arbitrary coherent systems), use
 \code{\link[dist.structure]{coherent_dist}} or one of the topology
 shortcuts in \code{dist.structure} directly. kofn is exclusively for
@@ -64,12 +72,12 @@ the k-out-of-n family.
 }
 \examples{
 # Parallel system with 3 exponential components (k = m)
-model <- kofn(k = 3, m = 3, family = "exponential")
+model <- kofn(k = 3, m = 3, component = dfr_exponential())
 print(model)
 
 # Series system (k = 1)
-model_series <- kofn(k = 1, m = 4, family = "exponential")
+model_series <- kofn(k = 1, m = 4, component = dfr_exponential())
 
 # Weibull parallel system with EM estimation
-model_wei <- kofn(k = 2, m = 2, family = "weibull", method = "em")
+model_wei <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "em")
 }

@@ -3,7 +3,7 @@
 # ===========================================================================
 #
 # Provides S3 methods for the `exp_kofn` class created by
-# kofn(family = "exponential").
+# kofn(component = dfr_exponential()).
 #
 # Each generic returns a closure, following the likelihood.model /
 # maskedcauses convention.
@@ -73,7 +73,7 @@ ll_via_dgp <- function(dgp, t_obs, omega_vals, t_upper, lt_up_avail) {
 #'   upper bounds, and `par` is a numeric vector of `m` component rates.
 #'
 #' @examples
-#' model <- kofn(k = 3, m = 3, family = "exponential")
+#' model <- kofn(k = 3, m = 3, component = dfr_exponential())
 #' ll <- loglik(model)
 #' set.seed(1)
 #' df <- rdata(model)(c(1, 2, 3), n = 30)
@@ -147,7 +147,7 @@ loglik.exp_kofn <- function(model, ...) {
       omega_vals <- as.character(df[[om]])
       lt_up_avail <- (lt_up %in% names(df))
       t_upper <- if (lt_up_avail) df[[lt_up]] else NULL
-      dgp <- kofn_dgp(k, m, "exponential", par)
+      dgp <- kofn_dgp(k, m, model$component, par)
       ll_via_dgp(dgp, t_obs, omega_vals, t_upper, lt_up_avail)
     }
   }
@@ -172,7 +172,7 @@ loglik.exp_kofn <- function(model, ...) {
 #'   length `m` (the score vector).
 #'
 #' @examples
-#' model <- kofn(k = 2, m = 2, family = "exponential")
+#' model <- kofn(k = 2, m = 2, component = dfr_exponential())
 #' sc <- score(model)
 #' set.seed(1)
 #' df <- rdata(model)(c(1, 2), n = 30)
@@ -210,7 +210,7 @@ score.exp_kofn <- function(model, ...) {
 #' @return A function `function(df, par)` returning an `m x m` Hessian matrix.
 #'
 #' @examples
-#' model <- kofn(k = 2, m = 2, family = "exponential")
+#' model <- kofn(k = 2, m = 2, component = dfr_exponential())
 #' H <- hess_loglik(model)
 #' set.seed(1)
 #' df <- rdata(model)(c(1, 2), n = 30)
@@ -251,7 +251,7 @@ hess_loglik.exp_kofn <- function(model, ...) {
 #'
 #' @examples
 #' \donttest{
-#' model <- kofn(k = 2, m = 2, family = "exponential")
+#' model <- kofn(k = 2, m = 2, component = dfr_exponential())
 #' set.seed(42)
 #' df <- rdata(model)(c(1, 2), n = 50)
 #' result <- fit(model)(df)
@@ -309,7 +309,7 @@ fit.exp_kofn <- function(object, ...) {
 #'   critical component, and the true parameters are stored as attributes.
 #'
 #' @examples
-#' model <- kofn(k = 3, m = 3, family = "exponential")
+#' model <- kofn(k = 3, m = 3, component = dfr_exponential())
 #' gen <- rdata(model)
 #' set.seed(1)
 #' df <- gen(theta = c(1, 2, 3), n = 20)
@@ -396,7 +396,7 @@ rdata.exp_kofn <- function(model, ...) {
 #' @return Character vector of assumptions.
 #'
 #' @examples
-#' model <- kofn(k = 3, m = 3, family = "exponential")
+#' model <- kofn(k = 3, m = 3, component = dfr_exponential())
 #' assumptions(model)
 #'
 #' @method assumptions exp_kofn

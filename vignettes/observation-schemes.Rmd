@@ -58,7 +58,7 @@ argument. This decouples the data-generating process from the observation
 protocol.
 
 ```{r rdata-compose}
-model <- kofn(k = 2, m = 2, family = "exponential")
+model <- kofn(k = 2, m = 2, component = dfr_exponential())
 theta <- c(1.0, 0.5)
 gen <- rdata(model)
 
@@ -91,7 +91,7 @@ set.seed(2026)
 R <- 5; n <- 200
 theta <- c(1.0, 0.5)
 theta_sorted <- sort(theta)
-model <- kofn(k = 2, m = 2, family = "exponential")
+model <- kofn(k = 2, m = 2, component = dfr_exponential())
 gen <- rdata(model)
 fit_fn <- fit(model)
 
@@ -155,7 +155,7 @@ obs_mix <- observe_mixture(
 )
 
 set.seed(99)
-model <- kofn(k = 2, m = 2, family = "exponential")
+model <- kofn(k = 2, m = 2, component = dfr_exponential())
 gen <- rdata(model)
 df_mix <- gen(c(1.0, 0.5), n = 100, observe = obs_mix)
 table(df_mix$omega)

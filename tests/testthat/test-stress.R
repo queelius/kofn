@@ -40,7 +40,7 @@ test_that("exponential loglik handles very large rates", {
 
 test_that("Weibull loglik handles extreme shape parameters", {
   skip_on_cran()
-  model <- kofn(k = 2, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull())
   gen <- rdata(model)
 
   # Very small shape (heavy-tailed, near-exponential)
@@ -69,7 +69,7 @@ test_that("loglik returns -Inf for zero or negative parameters", {
   expect_equal(ll(df, c(-1, 0.3)), -Inf)
   expect_equal(ll(df, c(0.5, -0.1)), -Inf)
 
-  model_wei <- kofn(k = 2, m = 2, family = "weibull")
+  model_wei <- kofn(k = 2, m = 2, component = dfr_weibull())
   ll_w <- loglik(model_wei)
   df_w <- data.frame(t = c(1, 2, 3))
   expect_equal(ll_w(df_w, c(0, 2, 1, 3)), -Inf)
@@ -174,8 +174,8 @@ test_that("Weibull EM and direct MLE give similar estimates", {
   skip_on_cran()
   true_par <- c(1.5, 2.0, 2.0, 3.0)
 
-  model_em <- kofn(k = 2, m = 2, family = "weibull", method = "em")
-  model_mle <- kofn(k = 2, m = 2, family = "weibull", method = "mle")
+  model_em <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "em")
+  model_mle <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "mle")
   gen <- rdata(model_em)
 
   set.seed(42)
@@ -226,7 +226,7 @@ test_that("exponential MLE converges with heavy right-censoring", {
 
 test_that("Weibull loglik handles heavy right-censoring", {
   skip_on_cran()
-  model <- kofn(k = 2, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull())
   true_par <- c(1.5, 2.0, 2.0, 3.0)
 
   # Manually create data with ~50% right-censoring
@@ -304,7 +304,7 @@ test_that("Scheme 1 fit recovers parameters (exponential)", {
 
 test_that("Scheme 1 loglik is higher at true params than wrong params", {
   skip_on_cran()
-  model <- kofn(k = 2, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull())
   true_par <- c(1.5, 2.0, 2.0, 3.0)
   s1gen <- rdata_scheme1(model)
 

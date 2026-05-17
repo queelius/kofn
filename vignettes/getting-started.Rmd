@@ -37,7 +37,7 @@ delegated to `dist.structure`, which kofn imports.
 
 ```{r}
 # A 2-of-3 exponential system: system fails when 2 of 3 components fail.
-model <- kofn(k = 2, m = 3, family = "exponential")
+model <- kofn(k = 2, m = 3, component = dfr_exponential())
 
 # Generate 200 complete (Scheme 0) observations.
 gen <- rdata(model)
@@ -101,7 +101,7 @@ Weibull component lifetimes work analogously, with parameters
 interleaved as `(shape_1, scale_1, shape_2, scale_2, ...)`:
 
 ```{r}
-model_wei <- kofn(k = 2, m = 2, family = "weibull", method = "em")
+model_wei <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "em")
 gen_wei <- rdata(model_wei)
 df_wei <- gen_wei(theta = c(1.5, 2.0, 2.0, 3.0), n = 300)
 result_wei <- fit(model_wei)(df_wei, n_starts = 3)
@@ -145,7 +145,7 @@ provides a built-in comparison:
 ```{r, eval = FALSE}
 res <- compare_fisher_info(
   rates = c(0.5, 0.3), n = 50, delta = 1.0, n_rep = 10,
-  family = "exponential"
+  component = dfr_exponential()
 )
 res$median_det
 ```

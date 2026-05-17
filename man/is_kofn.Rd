@@ -16,6 +16,6 @@ Logical indicating whether \code{x} inherits from \code{"kofn"}.
 Test if an object is a kofn model
 }
 \examples{
-is_kofn(kofn(k = 3, m = 3))
+is_kofn(kofn(k = 3, m = 3, component = dfr_exponential()))
 is_kofn(42)
 }

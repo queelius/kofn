@@ -43,17 +43,18 @@ safe_hessian_det <- function(neg_ll, par) {
 #' summary. Efficiency ratios indicate relative information content:
 #' a ratio less than 1 means the denominator scheme carries more information.
 #'
-#' @param shapes Numeric vector. Weibull shape parameters (for Weibull family)
-#'   or \code{NULL} (for exponential).
-#' @param scales Numeric vector. Weibull scale parameters (for Weibull family)
-#'   or \code{NULL} (for exponential).
-#' @param rates Numeric vector. Exponential rate parameters (for exponential
-#'   family, alternative to \code{shapes}/\code{scales}).
+#' @param shapes Numeric vector. Weibull shape parameters (Weibull only,
+#'   or \code{NULL} for exponential).
+#' @param scales Numeric vector. Weibull scale parameters (Weibull only,
+#'   or \code{NULL} for exponential).
+#' @param rates Numeric vector. Exponential rate parameters (exponential
+#'   only, alternative to \code{shapes}/\code{scales}).
 #' @param n Integer. Sample size per replicate.
 #' @param delta Numeric scalar. Inspection interval width for Scheme 1.
 #' @param n_rep Integer. Number of Monte Carlo replicates.
-#' @param family Character. Component distribution family:
-#'   \code{"exponential"} or \code{"weibull"}.
+#' @param component A \code{dfr_dist} prototype (e.g.
+#'   \code{dfr_exponential()} or \code{dfr_weibull()}) specifying the
+#'   component family.
 #'
 #' @return A list with components:
 #'   \describe{
@@ -97,24 +98,28 @@ safe_hessian_det <- function(neg_ll, par) {
 #' }
 #'
 #' @importFrom numDeriv hessian
+#' @importFrom flexhaz dfr_exponential dfr_weibull
 #' @export
 compare_fisher_info <- function(shapes = NULL, scales = NULL, rates = NULL,
                                 n = 200L, delta = 1.0, n_rep = 50L,
-                                family = "exponential") {
-  family <- match.arg(family, c("exponential", "weibull"))
-
-  if (family == "exponential") {
-    if (is.null(rates)) stop("rates required for exponential family")
+                                component = dfr_exponential()) {
+  if (inherits(component, "dfr_exponential")) {
+    if (is.null(rates)) stop("rates required for exponential component")
     m <- length(rates)
     par_true <- rates
-  } else {
+  } else if (inherits(component, "dfr_weibull")) {
     if (is.null(shapes) || is.null(scales)) {
-      stop("shapes and scales required for weibull family")
+      stop("shapes and scales required for weibull component")
     }
     m <- length(shapes)
     par_true <- as.numeric(rbind(shapes, scales))
+  } else {
+    stop(sprintf(
+      "unsupported component type '%s': use dfr_exponential() or dfr_weibull()",
+      paste(class(component), collapse = "/")
+    ))
   }
-  pp <- parse_params(par_true, m, family)
+  pp <- parse_params(par_true, m, component)
   shapes <- pp$shapes
   scales <- pp$scales
 
@@ -135,7 +140,7 @@ compare_fisher_info <- function(shapes = NULL, scales = NULL, rates = NULL,
     sys_times <- apply(comp_times, 1, max)
 
     # --- Scheme 2: Complete data Fisher info ---
-    if (family == "exponential") {
+    if (inherits(component, "dfr_exponential")) {
       I_s2 <- diag(n / rates^2)
     } else {
       I_s2 <- matrix(0, nrow = n_par, ncol = n_par)
@@ -155,7 +160,7 @@ compare_fisher_info <- function(shapes = NULL, scales = NULL, rates = NULL,
     # --- Scheme 0: System-level only ---
     neg_ll_s0 <- function(p) {
       if (any(!is.finite(p)) || any(p <= 0)) return(.Machine$double.xmax / 2)
-      pp_s0 <- parse_params(p, m, family)
+      pp_s0 <- parse_params(p, m, component)
       ll <- 0
       for (i in seq_along(sys_times)) {
         f_sys <- weibull_f_sys(sys_times[i], pp_s0$shapes, pp_s0$scales)
@@ -180,7 +185,7 @@ compare_fisher_info <- function(shapes = NULL, scales = NULL, rates = NULL,
 
     neg_ll_s1 <- function(p) {
       if (any(!is.finite(p)) || any(p <= 0)) return(.Machine$double.xmax / 2)
-      pp_s1 <- parse_params(p, m, family)
+      pp_s1 <- parse_params(p, m, component)
       sh <- pp_s1$shapes
       sc <- pp_s1$scales
       ll <- 0

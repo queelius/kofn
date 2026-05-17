@@ -4,16 +4,19 @@ NULL
 #' Parse a flat parameter vector into shapes and scales
 #'
 #' Unified extraction of Weibull shape/scale parameters from the flat
-#' vectors used by optimizers. For exponential family, shapes are all 1
-#' and scales are 1/rate.
+#' vectors used by optimizers. For exponential components, shapes are
+#' all 1 and scales are 1/rate.
 #'
-#' @param par Numeric parameter vector.
+#' @param par Numeric parameter vector. Length \code{m} for exponential,
+#'   \code{2*m} for Weibull.
 #' @param m Number of components.
-#' @param family Character: \code{"exponential"} or \code{"weibull"}.
+#' @param component A \code{dfr_dist} prototype (e.g.
+#'   \code{dfr_exponential()} or \code{dfr_weibull()}) that determines
+#'   how \code{par} is laid out.
 #' @return A list with components \code{shapes} and \code{scales}.
 #' @keywords internal
-parse_params <- function(par, m, family) {
-  if (family == "exponential") {
+parse_params <- function(par, m, component) {
+  if (inherits(component, "dfr_exponential")) {
     list(shapes = rep(1, m), scales = 1 / par)
   } else {
     list(
@@ -21,6 +24,17 @@ parse_params <- function(par, m, family) {
       scales = par[seq(2L, 2L * m, by = 2L)]
     )
   }
+}
+
+
+#' Expected parameter count for a homogeneous kofn system.
+#'
+#' @param m Number of components.
+#' @param component A \code{dfr_dist} prototype.
+#' @return Integer, the total parameter count for the flat `par` vector.
+#' @keywords internal
+n_par_kofn <- function(m, component) {
+  if (inherits(component, "dfr_exponential")) m else 2L * m
 }
 
 

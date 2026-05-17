@@ -174,7 +174,7 @@ test_that("general k-out-of-n exponential MLE converges", {
 
 test_that("Weibull loglik delegates to system density for k > 1", {
   skip_on_cran()
-  model <- kofn(k = 2, m = 3, family = "weibull")
+  model <- kofn(k = 2, m = 3, component = dfr_weibull())
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0, 1.0, 1.5), n = 50)
@@ -189,7 +189,7 @@ test_that("Weibull loglik delegates to system density for k > 1", {
 
 test_that("Weibull score and hessian work for parallel system", {
   skip_on_cran()
-  model <- kofn(k = 2, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull())
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 50)
@@ -302,7 +302,7 @@ test_that("print.kofn works for all system types", {
   expect_true(any(grepl("2-out-of-4", out)))
 
   # Weibull EM (parallel: k = m)
-  out <- capture.output(print(kofn(k = 2, m = 2, family = "weibull",
+  out <- capture.output(print(kofn(k = 2, m = 2, component = dfr_weibull(),
                                     method = "em")))
   expect_true(any(grepl("weibull", out)))
 })
@@ -319,7 +319,7 @@ test_that("print.kofn works for all system types", {
 
 test_that("EM handles very few observations", {
   skip_on_cran()
-  model <- kofn(k = 2, m = 2, family = "weibull", method = "em")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "em")
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 10)
@@ -332,7 +332,7 @@ test_that("EM handles very few observations", {
 
 test_that("EM rejects non-parallel systems", {
   skip_on_cran()
-  model <- kofn(k = 2, m = 3, family = "weibull", method = "mle")
+  model <- kofn(k = 2, m = 3, component = dfr_weibull(), method = "mle")
   # Force EM method
   model$method <- "em"
   expect_error(fit(model), "parallel")
@@ -363,7 +363,7 @@ test_that("S_sys_exp matches dist.structure exp_kofn surv (parallel)", {
 
 test_that("rdata.wei_kofn works for general k", {
   skip_on_cran()
-  model <- kofn(k = 2, m = 3, family = "weibull")
+  model <- kofn(k = 2, m = 3, component = dfr_weibull())
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0, 1.0, 1.5), n = 50)
@@ -374,7 +374,7 @@ test_that("rdata.wei_kofn works for general k", {
 
 test_that("rdata.wei_kofn with custom observe functor", {
   skip_on_cran()
-  model <- kofn(k = 2, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull())
   gen <- rdata(model)
   set.seed(42)
 
@@ -387,7 +387,7 @@ test_that("rdata.wei_kofn with custom observe functor", {
 
 test_that("rdata.wei_kofn with tau produces right-censored data", {
   skip_on_cran()
-  model <- kofn(k = 2, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull())
   gen <- rdata(model)
   set.seed(42)
   df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 100, observe = observe_right_censor(tau = 2.0))
@@ -401,7 +401,7 @@ test_that("rdata.wei_kofn with tau produces right-censored data", {
 
 test_that("rdata.wei_kofn validates parameter length", {
   skip_on_cran()
-  model <- kofn(k = 2, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull())
   gen <- rdata(model)
   expect_error(gen(theta = c(1, 2, 3), n = 10))
 })
@@ -411,7 +411,7 @@ test_that("rdata.wei_kofn validates parameter length", {
 # extract_data validation
 # ===========================================================================
 
-# Weibull k-of-n fit is now exercised via fit(kofn(k, m, family="weibull"))
+# Weibull k-of-n fit is now exercised via fit(kofn(k, m, component=dfr_weibull()))
 # in test-kofn.R; the standalone fit_system entry point lives in
 # dist.structure.
 
@@ -422,7 +422,7 @@ test_that("rdata.wei_kofn validates parameter length", {
 
 test_that("fit_scheme1 converges for Weibull parallel", {
   skip_on_cran()
-  model <- kofn(k = 2, m = 2, family = "weibull")
+  model <- kofn(k = 2, m = 2, component = dfr_weibull())
   s1gen <- rdata_scheme1(model)
   set.seed(42)
   df <- s1gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 300, delta = 0.5)

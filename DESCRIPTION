@@ -1,6 +1,6 @@
 Package: kofn
 Title: Maximum Likelihood Estimation for k-out-of-n System Data
-Version: 0.3.1
+Version: 0.4.0
 Authors@R: person("Alexander", "Towell",
     email = "lex@metafunctor.com",
     role = c("aut", "cre"),
@@ -30,7 +30,8 @@ Imports:
     compositional.mle,
     generics,
     dist.structure,
-    algebraic.dist
+    algebraic.dist,
+    flexhaz
 Suggests:
     algebraic.mle,
     maskedcauses,

@@ -28,7 +28,7 @@ contributions are computed via \code{dist.structure::exp_kofn(k, par)} and
 the algebraic.dist generics \code{density}, \code{surv}, and \code{cdf}.
 }
 \examples{
-model <- kofn(k = 3, m = 3, family = "exponential")
+model <- kofn(k = 3, m = 3, component = dfr_exponential())
 ll <- loglik(model)
 set.seed(1)
 df <- rdata(model)(c(1, 2, 3), n = 30)

@@ -40,7 +40,7 @@ by \code{\link{parse_params}}.
 }
 \examples{
 # 2-out-of-4 system with candidate failed sets
-model <- kofn(k = 2, m = 4, family = "exponential")
+model <- kofn(k = 2, m = 4, component = dfr_exponential())
 ll <- loglik_masked(model)
 
 # Manually construct masked data: k=2 failed, C = {1,2,3}

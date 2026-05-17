@@ -15,12 +15,13 @@ have failed by system failure time. The incomplete-data problem is
 
 ## Ecosystem
 
+- `flexhaz`: distribution prototypes (`dfr_exponential()`, `dfr_weibull()`)
+- `dist.structure`: DGP and topology (kofn delegates system density here)
+- `likelihood.model`: generics (loglik, score, hess_loglik, fit, rdata)
+- `compositional.mle`: solver composition (%>>%, %|%, with_restarts)
+- `algebraic.mle`: MLE result objects (coef, vcov, confint, AIC, BIC)
 - `maskedcauses`: series systems (k=1), masked cause of failure
 - `maskedhaz`: general DFR framework for series systems
-- `kofn`: parallel (k=m) and general k-out-of-n systems
-- `likelihood.model`: generics (loglik, score, hess_loglik, fit, rdata)
-- `generics`: fit generic
-- `serieshaz` / `flexhaz`: distribution infrastructure
 
 ## Commands
 
@@ -32,24 +33,19 @@ Rscript -e "covr::package_coverage()"      # Coverage report
 Rscript -e "devtools::check()"             # R CMD check
 ```
 
+Note: flexhaz must be installed from source (or loaded via
+`devtools::load_all`) for prototype subclasses (`dfr_exponential`,
+`dfr_weibull`) to be available. The subclass dispatch is required for
+`kofn_subclass()` to work.
+
 ## Architecture
 
-### System representation: `R/coherent_system.R`
-Coherent systems via minimal path sets. Precomputes minimal cut sets via
-Berge transversal algorithm. Standard constructors: `parallel_system()`,
-`series_system()`, `kofn_system()`, `bridge_system()`.
-
-Key function: `system_censoring(system, times)`. Given component
-lifetimes, returns system lifetime plus per-component censoring status
-(exact/left/right).
-
-### Inclusion-exclusion: `R/ie_expand.R`
-For exponential parallel systems, `prod(1 - exp(-lam_i * t))` expands
-into a signed sum of exponentials. This makes all integrals closed-form.
-O(2^m) terms, practical for m <= ~15.
-
 ### Model API: `R/kofn.R`
-Single constructor `kofn(k, m, family, method)` returns an S3 object.
+Single constructor `kofn(k, m, component, method)` returns an S3 object.
+The `component` argument is a `dfr_dist` prototype from `flexhaz` (e.g.
+`dfr_exponential()`, `dfr_weibull()`). The S3 class of the prototype
+drives dispatch via `kofn_subclass()`.
+
 Classes: `exp_kofn` (exponential) or `wei_kofn` (Weibull), inheriting
 from `kofn` and `likelihood_model`.
 
@@ -58,6 +54,17 @@ Generic methods (from likelihood.model) return closures:
 - `score(model)` -> `function(df, par)`
 - `fit(model)` -> `function(df, par0, ...)`
 - `rdata(model)` -> `function(theta, n, ...)`
+
+### Topology delegation: `R/internal_topology.R`
+Private helpers `kofn_censoring()`, `kofn_dgp()`, `kofn_components()`
+delegate to `dist.structure`. Uses the k_dist = m - k_kofn + 1
+conversion between kofn's :F convention (k = number of failures) and
+dist.structure's :G convention (k = number of functioning components).
+
+### Inclusion-exclusion: `R/ie_expand.R`
+For exponential parallel systems, `prod(1 - exp(-lam_i * t))` expands
+into a signed sum of exponentials. This makes all integrals closed-form.
+O(2^m) terms, practical for m <= ~15.
 
 ### Observation schemes: `R/observe.R`
 Ordered from least to most informative:
@@ -68,7 +75,7 @@ Ordered from least to most informative:
 ### Estimation methods
 - **Exponential** (`R/exp_kofn.R`): IE expansion for parallel, general
   critical-state enumeration for arbitrary k. Direct MLE via L-BFGS-B
-  with Nelder-Mead fallback. Also has exponential EM for Scheme 0.
+  with Nelder-Mead fallback.
 - **Weibull** (`R/wei_kofn.R`): EM algorithm (E-step via incomplete
   gamma, M-step via profile optimization) or direct MLE. Truncated
   moments in `R/truncated_moments.R`.
@@ -87,6 +94,15 @@ Ordered from least to most informative:
 - Weibull: `par = c(shape_1, scale_1, ..., shape_m, scale_m)`, 2m params interleaved
 - All parameters must be positive
 - Ascending parameter ordering for identifiability under permutation symmetry
+
+### Component family dispatch
+The `component` argument to `kofn()` is a `dfr_dist` prototype from
+flexhaz. Family-specific S3 subclasses (`"dfr_exponential"`,
+`"dfr_weibull"`) drive dispatch in `kofn_subclass()`,
+`parse_params()`, `n_par_kofn()`, and the internal topology helpers.
+Adding a new supported family requires:
+1. One entry in `kofn_subclass()` mapping the dfr subclass to a kofn subclass
+2. S3 methods for loglik, score, hess_loglik, fit, rdata on the new kofn subclass
 
 ## Key Mathematical Context
 
@@ -109,7 +125,7 @@ For a k-out-of-n system with lifetime T = T_{(k)} (k-th order statistic):
 - M-step: profile over shape, closed-form scale
 
 ## Testing
-- Test exponential IE expansion against general system density engine
+- Test exponential IE expansion against dist.structure system density
 - Cross-validate with maskedcauses for the series case (k=1)
-- Monte Carlo parameter recovery tests
+- Monte Carlo parameter recovery tests (stress tests, `skip_on_cran()`)
 - Convergence tests for EM algorithm

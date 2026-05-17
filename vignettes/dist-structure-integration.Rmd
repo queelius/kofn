@@ -65,7 +65,7 @@ have the estimated parameters. Construct a `dist.structure` DGP to
 exercise the full topology protocol:
 
 ```{r}
-model <- kofn(k = 2, m = 3, family = "exponential")
+model <- kofn(k = 2, m = 3, component = dfr_exponential())
 df <- rdata(model)(theta = c(1, 2, 3), n = 500)
 result <- fit(model)(df, n_starts = 3)
 rates_hat <- coef(result)
@@ -130,7 +130,7 @@ replacements:
 | `kofn(system = ...)` | no longer supported; use dist.structure for non-k-of-n |
 | `make_dists(par, family)` | `algebraic.dist::exponential(rate)` / `weibull_dist(shape, scale)` |
 | `loglik_system(t, sys, par, family)` | `-sum(log(algebraic.dist::density(dist.structure::exp_kofn(...))(t)))` (or wei_kofn, or coherent_dist) |
-| `fit_system(t, sys, family, ...)` | For k-of-n: `fit(kofn(k, m, family))(df, ...)`. For general coherent: roll your own optimizer with dist.structure densities. |
+| `fit_system(t, sys, family, ...)` | For k-of-n: `fit(kofn(k, m, component = dfr_exponential()))(df, ...)` (or `dfr_weibull()`). For general coherent: roll your own optimizer with dist.structure densities. |
 | `rdata_system(sys, par, ...)` | `algebraic.dist::sampler(dgp)(n)` on the appropriate dist.structure object |
 | `system_signature(sys)` | `dist.structure::system_signature(sys)` |
 | `system_censoring(sys, times)` | `dist.structure::system_censoring(sys, times)` (note: returns `$system_time` and `$component_status`, not kofn's `$T_sys`/`$critical`/`$status`) |

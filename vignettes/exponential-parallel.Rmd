@@ -43,7 +43,7 @@ from the event "component $j$ is the last to fail."
 
 ```{r model-setup}
 # Create an exponential parallel system model with 3 components
-model <- kofn(k = 3, m = 3, family = "exponential")
+model <- kofn(k = 3, m = 3, component = dfr_exponential())
 print(model)
 ```
 

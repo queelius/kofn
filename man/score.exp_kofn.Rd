@@ -24,7 +24,7 @@ Uses numerical differentiation via \code{\link[numDeriv:grad]{numDeriv::grad()}}
 log-likelihood closure.
 }
 \examples{
-model <- kofn(k = 2, m = 2, family = "exponential")
+model <- kofn(k = 2, m = 2, component = dfr_exponential())
 sc <- score(model)
 set.seed(1)
 df <- rdata(model)(c(1, 2), n = 30)

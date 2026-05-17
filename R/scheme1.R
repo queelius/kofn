@@ -53,7 +53,7 @@
 #'   \code{delta} (inspection interval), and \code{par} (true parameters).
 #'
 #' @examples
-#' model <- kofn(k = 2, m = 2, family = "exponential")
+#' model <- kofn(k = 2, m = 2, component = dfr_exponential())
 #' gen <- rdata_scheme1(model)
 #' set.seed(1)
 #' df <- gen(theta = c(1, 2), n = 20, delta = 1.0)
@@ -63,12 +63,11 @@
 rdata_scheme1 <- function(model, ...) {
   m <- model$m
   lt <- model$lifetime
-  family <- if (inherits(model, "wei_kofn")) "weibull" else "exponential"
+  component <- model$component
 
   function(theta, n, delta = 1.0) {
-    n_par_expected <- if (family == "exponential") m else 2L * m
-    stopifnot(length(theta) == n_par_expected)
-    pp <- parse_params(theta, m, family)
+    stopifnot(length(theta) == n_par_kofn(m, component))
+    pp <- parse_params(theta, m, component)
     shapes <- pp$shapes
     scales <- pp$scales
     stopifnot(all(shapes > 0), all(scales > 0), delta > 0)
@@ -99,7 +98,7 @@ rdata_scheme1 <- function(model, ...) {
 
     attr(df, "comp_times") <- comp_times
     attr(df, "delta") <- delta
-    attr(df, "family") <- family
+    attr(df, "component") <- component
     attr(df, "par") <- theta
 
     df
@@ -131,7 +130,7 @@ rdata_scheme1 <- function(model, ...) {
 #' component j's failure time.
 #'
 #' @examples
-#' model <- kofn(k = 2, m = 2, family = "exponential")
+#' model <- kofn(k = 2, m = 2, component = dfr_exponential())
 #' ll <- loglik_scheme1(model)
 #' set.seed(1)
 #' df <- rdata_scheme1(model)(c(1, 2), n = 30, delta = 1.0)
@@ -142,7 +141,7 @@ loglik_scheme1 <- function(model, ...) {
   m <- model$m
   k <- model$k
   lt <- model$lifetime
-  family <- if (inherits(model, "wei_kofn")) "weibull" else "exponential"
+  component <- model$component
 
   lower_cols <- paste0("comp_lower_", seq_len(m))
   upper_cols <- paste0("comp_upper_", seq_len(m))
@@ -150,7 +149,7 @@ loglik_scheme1 <- function(model, ...) {
   function(df, par) {
     if (any(!is.finite(par)) || any(par <= 0)) return(-Inf)
 
-    pp <- parse_params(par, m, family)
+    pp <- parse_params(par, m, component)
     shapes <- pp$shapes
     scales <- pp$scales
 
@@ -158,7 +157,7 @@ loglik_scheme1 <- function(model, ...) {
 
     # System density via dist.structure (vectorized via the closure
     # returned by `density`).
-    dgp <- kofn_dgp(k, m, family, par)
+    dgp <- kofn_dgp(k, m, component, par)
     f_sys_vals <- density(dgp)(t_obs)
     if (any(!is.finite(f_sys_vals)) || any(f_sys_vals <= 0)) return(-Inf)
     ll <- sum(log(f_sys_vals))
@@ -202,7 +201,7 @@ loglik_scheme1 <- function(model, ...) {
 #'
 #' @examples
 #' \donttest{
-#' model <- kofn(k = 2, m = 2, family = "exponential")
+#' model <- kofn(k = 2, m = 2, component = dfr_exponential())
 #' set.seed(42)
 #' df <- rdata_scheme1(model)(c(1, 2), n = 50, delta = 1.0)
 #' result <- fit_scheme1(model)(df)
@@ -213,17 +212,16 @@ loglik_scheme1 <- function(model, ...) {
 fit_scheme1 <- function(model, ...) {
   m <- model$m
   lt <- model$lifetime
-  family <- if (inherits(model, "wei_kofn")) "weibull" else "exponential"
+  component <- model$component
   ll_closure <- loglik_scheme1(model, ...)
-  n_par_per_comp <- switch(family, exponential = 1L, weibull = 2L)
-  n_par <- m * n_par_per_comp
+  n_par <- n_par_kofn(m, component)
 
   function(df, par0 = NULL, n_starts = 5L) {
     # Default initialization
     if (is.null(par0)) {
       mean_t <- mean(df[[lt]])
       H_m <- sum(1 / seq_len(m))
-      if (family == "exponential") {
+      if (inherits(component, "dfr_exponential")) {
         lam0 <- H_m / max(mean_t, 0.01)
         par0 <- lam0 * seq(0.5, 1.5, length.out = m)
       } else {

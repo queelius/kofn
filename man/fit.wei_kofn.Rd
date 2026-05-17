@@ -42,7 +42,7 @@ shape/scale). If \code{NULL}, method-of-moments initialization is used.}
 }
 \examples{
 \donttest{
-model <- kofn(k = 2, m = 2, family = "weibull")
+model <- kofn(k = 2, m = 2, component = dfr_weibull())
 set.seed(42)
 df <- rdata(model)(c(1.5, 2.0, 2.0, 3.0), n = 50)
 result <- fit(model)(df)

@@ -51,7 +51,7 @@
 #'
 #' @examples
 #' # 2-out-of-4 system with candidate failed sets
-#' model <- kofn(k = 2, m = 4, family = "exponential")
+#' model <- kofn(k = 2, m = 4, component = dfr_exponential())
 #' ll <- loglik_masked(model)
 #'
 #' # Manually construct masked data: k=2 failed, C = {1,2,3}
@@ -67,7 +67,7 @@ loglik_masked <- function(model, candset = "c", ...) {
   k <- model$k
   lt <- model$lifetime
   om <- model$omega
-  family <- model$family
+  component <- model$component
 
   if (is.na(k)) stop("Masked likelihood requires a k-out-of-n system (k must not be NA)")
 
@@ -76,7 +76,7 @@ loglik_masked <- function(model, candset = "c", ...) {
   function(df, par) {
     if (any(!is.finite(par)) || any(par <= 0)) return(-Inf)
 
-    pp <- parse_params(par, m, family)
+    pp <- parse_params(par, m, component)
     shapes <- pp$shapes
     scales <- pp$scales
 
@@ -98,7 +98,7 @@ loglik_masked <- function(model, candset = "c", ...) {
         # (masking info not applicable for censored obs)
         if (omega_vals[i] == "right") {
           if (is.null(dgp)) {
-            dgp <- kofn_dgp(k, m, family, par)
+            dgp <- kofn_dgp(k, m, component, par)
             surv_fn <- algebraic.dist::surv(dgp)
           }
           S_sys <- surv_fn(t_obs[i])
@@ -177,7 +177,7 @@ loglik_masked <- function(model, candset = "c", ...) {
 #'   type, and Boolean candidate set indicators.
 #'
 #' @examples
-#' model <- kofn(k = 2, m = 4, family = "exponential")
+#' model <- kofn(k = 2, m = 4, component = dfr_exponential())
 #' gen <- rdata_masked(model)
 #' set.seed(42)
 #' df <- gen(theta = c(1, 0.8, 0.6, 0.4), n = 10, p_mask = 0.3)
@@ -189,15 +189,14 @@ rdata_masked <- function(model, candset = "c", ...) {
   k <- model$k
   lt <- model$lifetime
   om <- model$omega
-  family <- model$family
+  component <- model$component
 
   if (is.na(k)) stop("Masked data generation requires a k-out-of-n system")
 
   function(theta, n, p_mask = 0, observe = NULL) {
-    n_par_expected <- if (family == "exponential") m else 2L * m
-    stopifnot(length(theta) == n_par_expected)
+    stopifnot(length(theta) == n_par_kofn(m, component))
 
-    pp <- parse_params(theta, m, family)
+    pp <- parse_params(theta, m, component)
     shapes <- pp$shapes
     scales <- pp$scales
     stopifnot(all(shapes > 0), all(scales > 0))

@@ -14,8 +14,8 @@
 #      critical component.
 #
 #   2. A small wrapper to construct dist.structure exp_kofn / wei_kofn
-#      objects from the kofn model's (k, family, par) without re-deriving
-#      shapes or rates.
+#      objects from the kofn model's (k, component, par) without
+#      re-deriving shapes or rates.
 #
 # These are package-private helpers (not exported).
 # ===========================================================================
@@ -55,9 +55,9 @@ kofn_censoring <- function(k, times) {
 # Examples:
 #   kofn series  (k_kofn = 1, fails on first failure) -> k_dist = m (all required)
 #   kofn parallel (k_kofn = m, fails on last failure) -> k_dist = 1 (any one required)
-kofn_dgp <- function(k, m, family, par) {
+kofn_dgp <- function(k, m, component, par) {
   k_dist <- m - k + 1L
-  if (family == "exponential") {
+  if (inherits(component, "dfr_exponential")) {
     if (length(par) != m) {
       stop(sprintf("Expected %d rates but got %d", m, length(par)))
     }
@@ -78,8 +78,8 @@ kofn_dgp <- function(k, m, family, par) {
 # Returns a list of m algebraic.dist `dist` objects with $surv and $cdf
 # (closures, not the kofn dist.R lightweight $surv/$cdf interface).
 # Used by masked.R and scheme1.R for component-level CDF/survival.
-kofn_components <- function(k, m, family, par) {
-  if (family == "exponential") {
+kofn_components <- function(k, m, component, par) {
+  if (inherits(component, "dfr_exponential")) {
     return(lapply(par, function(r) algebraic.dist::exponential(r)))
   }
   shapes <- par[seq(1L, 2L * m, by = 2L)]

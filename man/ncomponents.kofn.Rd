@@ -18,5 +18,5 @@ Integer number of components.
 Returns the number of components \code{m} in the k-out-of-n system.
 }
 \examples{
-ncomponents(kofn(k = 5, m = 5))
+ncomponents(kofn(k = 5, m = 5, component = dfr_exponential()))
 }
