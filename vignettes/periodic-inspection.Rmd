@@ -16,6 +16,7 @@ knitr::opts_chunk$set(
   fig.align = "center"
 )
 library(kofn)
+library(flexhaz)
 
 # Heavy simulations are off by default so the vignette builds in <30 seconds.
 # Set run_long <- TRUE to reproduce all Monte Carlo results.
@@ -95,7 +96,7 @@ model_em <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "em")
 
 # Generate Scheme 0 data (system lifetimes only)
 gen <- rdata(model_em)
-df0 <- gen(theta_true, n = 300)
+df0 <- gen(theta_true, n = 100)
 
 cat("System lifetime summary:\n")
 summary(df0$t)
@@ -117,7 +118,7 @@ Scheme 0 confirms this:
 ```{r scheme0-fit}
 # Fit under Scheme 0 using the EM algorithm
 solver <- fit(model_em)
-mle0 <- solver(df0, n_starts = 3L)
+mle0 <- solver(df0, n_starts = 1L)
 
 est0 <- coef(mle0)
 cat("Scheme 0 estimates vs truth:\n")
@@ -171,7 +172,7 @@ cannot. The `kofn` package provides dedicated functions for Scheme 1:
 # Generate data under Scheme 1 with delta = 0.5
 model_wei <- kofn(k = 2, m = 2, component = dfr_weibull())
 gen_s1 <- rdata_scheme1(model_wei)
-df1 <- gen_s1(theta_true, n = 300, delta = 0.5)
+df1 <- gen_s1(theta_true, n = 100, delta = 0.5)
 
 cat("Scheme 1 data (first 6 observations):\n")
 print(head(df1))
@@ -185,7 +186,7 @@ cat("  comp_upper_j: upper bound of component j's inspection interval\n")
 ```{r scheme1-fit}
 # Fit under Scheme 1
 solver_s1 <- fit_scheme1(model_wei)
-mle1 <- solver_s1(df1, n_starts = 3L)
+mle1 <- solver_s1(df1, n_starts = 1L)
 
 est1 <- coef(mle1)
 cat("Scheme 1 (delta = 0.5) estimates vs truth:\n")
@@ -205,7 +206,7 @@ both schemes.
 ```{r comparison-single, fig.height = 6}
 set.seed(123)
 
-n <- 300
+n <- 100
 m <- 2
 alpha_true <- c(1.5, 2.0)
 beta_true  <- c(2.0, 3.0)
@@ -223,7 +224,7 @@ sys_times <- apply(comp_times, 1, max)
 df_s0 <- data.frame(t = sys_times)
 model_em <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "em")
 solver_em <- fit(model_em)
-mle_s0 <- solver_em(df_s0, n_starts = 3L)
+mle_s0 <- solver_em(df_s0, n_starts = 1L)
 
 # --- Scheme 1: add inspection intervals ---
 df_s1 <- data.frame(t = sys_times)
@@ -233,10 +234,10 @@ for (j in seq_len(m)) {
 }
 model_mle <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "mle")
 solver_s1 <- fit_scheme1(model_mle)
-mle_s1 <- solver_s1(df_s1, n_starts = 3L)
+mle_s1 <- solver_s1(df_s1, n_starts = 1L)
 
 # --- Display results ---
-cat("=== Single-sample comparison (n = 300) ===\n\n")
+cat("=== Single-sample comparison (n = 100) ===\n\n")
 results <- data.frame(
   Parameter = c("shape_1", "scale_1", "shape_2", "scale_2"),
   Truth     = theta_true,
@@ -502,7 +503,7 @@ k-spectrum.
 set.seed(42)
 rates <- c(1.0, 0.8, 0.6, 0.4)
 rates_sorted <- sort(rates)
-n <- 150
+n <- 50
 
 k_results <- data.frame(
   k = 2:4,
@@ -520,13 +521,13 @@ for (idx in seq_len(nrow(k_results))) {
   gen0 <- rdata(model_k)
   dat0 <- gen0(theta = rates, n = n)
   fitter0 <- fit(model_k)
-  res0 <- fitter0(dat0, n_starts = 2)
+  res0 <- fitter0(dat0, n_starts = 1)
 
   # Scheme 1: periodic inspection (delta = 0.5)
   s1gen <- rdata_scheme1(model_k)
   dat1 <- s1gen(theta = rates, n = n, delta = 0.5)
   fitter1 <- fit_scheme1(model_k)
-  res1 <- fitter1(dat1, n_starts = 2)
+  res1 <- fitter1(dat1, n_starts = 1)
 
   if (res0$converged) {
     k_results$s0_mean_err[idx] <- round(

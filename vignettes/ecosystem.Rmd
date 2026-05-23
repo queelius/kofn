@@ -73,11 +73,12 @@ other vignettes.
 
 ```{r example-setup}
 library(kofn)
+library(flexhaz)
 set.seed(42)
 
 model <- kofn(k = 1, m = 3, component = dfr_exponential())
 gen   <- rdata(model)
-df    <- gen(theta = c(0.3, 0.8, 1.5), n = 300)
+df    <- gen(theta = c(0.3, 0.8, 1.5), n = 100)
 head(df, 3)
 ```
 
@@ -131,7 +132,7 @@ caller.
 
 ```{r fit-default}
 fit_fn <- fit(model)
-res <- fit_fn(df, n_starts = 3L)
+res <- fit_fn(df, n_starts = 1L)
 round(coef(res), 3)
 ```
 
@@ -200,14 +201,14 @@ compose estimates.  Suppose we run the same experiment twice
 (independent replicates) and want to pool them:
 
 ```{r combine-estimates}
-df2  <- gen(theta = c(0.3, 0.8, 1.5), n = 300)
-res1 <- fit_fn(df,  n_starts = 3L)
-res2 <- fit_fn(df2, n_starts = 3L)
+df2  <- gen(theta = c(0.3, 0.8, 1.5), n = 100)
+res1 <- fit_fn(df,  n_starts = 1L)
+res2 <- fit_fn(df2, n_starts = 1L)
 
 pooled <- combine(res1, res2)        # inverse-variance weighted
 round(coef(pooled), 3)
 round(se(pooled), 3)
-nobs(pooled)                         # 600 = 300 + 300
+nobs(pooled)                         # 200 = 100 + 100
 ```
 
 `combine` is not a `kofn` function.  It is defined in `algebraic.mle`

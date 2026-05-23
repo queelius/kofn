@@ -9,6 +9,9 @@
 \alias{assumptions}
 \alias{rdata}
 \alias{fit}
+\alias{dfr_exponential}
+\alias{dfr_weibull}
+\alias{ncomponents}
 \title{Objects exported from other packages}
 \keyword{internal}
 \description{
@@ -16,6 +19,10 @@ These objects are imported from other packages. Follow the links
 below to see their documentation.
 
 \describe{
+  \item{dist.structure}{\code{\link[dist.structure]{ncomponents}}}
+
+  \item{flexhaz}{\code{\link[flexhaz]{dfr_exponential}}, \code{\link[flexhaz]{dfr_weibull}}}
+
   \item{generics}{\code{\link[generics]{fit}}}
 
   \item{likelihood.model}{\code{\link[likelihood.model]{assumptions}}, \code{\link[likelihood.model]{hess_loglik}}, \code{\link[likelihood.model]{loglik}}, \code{\link[likelihood.model]{rdata}}, \code{\link[likelihood.model]{score}}}

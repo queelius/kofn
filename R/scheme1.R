@@ -136,6 +136,7 @@ rdata_scheme1 <- function(model, ...) {
 #' df <- rdata_scheme1(model)(c(1, 2), n = 30, delta = 1.0)
 #' ll(df, c(1, 2))
 #'
+#' @importFrom stats density
 #' @export
 loglik_scheme1 <- function(model, ...) {
   m <- model$m

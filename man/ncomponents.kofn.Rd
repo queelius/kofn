@@ -4,10 +4,10 @@
 \alias{ncomponents.kofn}
 \title{Number of components in a kofn model}
 \usage{
-\method{ncomponents}{kofn}(model, ...)
+\method{ncomponents}{kofn}(x, ...)
 }
 \arguments{
-\item{model}{A \code{kofn} model object.}
+\item{x}{A \code{kofn} model object.}
 
 \item{...}{Additional arguments (ignored).}
 }

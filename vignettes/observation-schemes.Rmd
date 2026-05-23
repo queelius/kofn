@@ -14,6 +14,7 @@ knitr::opts_chunk$set(
   comment = "#>"
 )
 library(kofn)
+library(flexhaz)
 set.seed(42)
 old_opts <- options(digits = 4)
 ```
@@ -83,12 +84,14 @@ transparently -- the log-likelihood dispatches on the `omega` column.
 
 We compare MLE quality across observation schemes for a 2-component
 exponential parallel system with rates $\lambda = (1.0, 0.5)$.  We run
-R = 10 replicates of n = 200 observations under each scheme and report
-the RMSE of the sorted rate estimates.
+R = 3 replicates of n = 60 observations under each scheme and report
+the RMSE of the sorted rate estimates.  This is a small demo for
+vignette build speed; for tighter estimates set `R <- 100, n <- 200`
+and rerun.
 
 ```{r scheme-comparison}
 set.seed(2026)
-R <- 5; n <- 200
+R <- 3; n <- 60
 theta <- c(1.0, 0.5)
 theta_sorted <- sort(theta)
 model <- kofn(k = 2, m = 2, component = dfr_exponential())
@@ -107,7 +110,7 @@ results <- lapply(names(schemes), function(nm) {
   ests <- matrix(NA, nrow = R, ncol = 2)
   for (r in seq_len(R)) {
     df <- gen(theta, n, observe = schemes[[nm]])
-    res <- tryCatch(fit_fn(df, n_starts = 3L), error = function(e) NULL)
+    res <- tryCatch(fit_fn(df, n_starts = 1L), error = function(e) NULL)
     if (!is.null(res) && !any(is.na(coef(res))))
       ests[r, ] <- sort(coef(res))
   }
@@ -157,7 +160,7 @@ obs_mix <- observe_mixture(
 set.seed(99)
 model <- kofn(k = 2, m = 2, component = dfr_exponential())
 gen <- rdata(model)
-df_mix <- gen(c(1.0, 0.5), n = 100, observe = obs_mix)
+df_mix <- gen(c(1.0, 0.5), n = 60, observe = obs_mix)
 table(df_mix$omega)
 ```
 
@@ -166,7 +169,7 @@ resulting data identically, dispatching on the per-row `omega` values.
 
 ```{r mixture-fit}
 fit_fn <- fit(model)
-res_mix <- fit_fn(df_mix, n_starts = 3L)
+res_mix <- fit_fn(df_mix, n_starts = 1L)
 sort(coef(res_mix))
 ```
 

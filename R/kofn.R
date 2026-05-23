@@ -148,7 +148,7 @@ component_family_name <- function(component) {
 #'
 #' Returns the number of components \code{m} in the k-out-of-n system.
 #'
-#' @param model A \code{kofn} model object.
+#' @param x A \code{kofn} model object.
 #' @param ... Additional arguments (ignored).
 #' @return Integer number of components.
 #' @method ncomponents kofn
@@ -156,8 +156,8 @@ component_family_name <- function(component) {
 #' @export
 #' @examples
 #' ncomponents(kofn(k = 5, m = 5, component = dfr_exponential()))
-ncomponents.kofn <- function(model, ...) {
-  model$m
+ncomponents.kofn <- function(x, ...) {
+  x$m
 }
 
 

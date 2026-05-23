@@ -31,7 +31,7 @@ Imports:
     generics,
     dist.structure,
     algebraic.dist,
-    flexhaz
+    flexhaz (>= 0.5.2)
 Suggests:
     algebraic.mle,
     maskedcauses,

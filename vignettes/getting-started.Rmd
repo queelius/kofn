@@ -17,6 +17,7 @@ set.seed(42)
 
 ```{r setup}
 library(kofn)
+library(flexhaz)
 ```
 
 ## What `kofn` does
@@ -41,11 +42,11 @@ model <- kofn(k = 2, m = 3, component = dfr_exponential())
 
 # Generate 200 complete (Scheme 0) observations.
 gen <- rdata(model)
-df <- gen(theta = c(1, 2, 3), n = 200)
+df <- gen(theta = c(1, 2, 3), n = 100)
 
 # Fit via maximum likelihood.
 fitter <- fit(model)
-result <- fitter(df, n_starts = 3)
+result <- fitter(df, n_starts = 1)
 result$converged
 coef(result)
 ```
@@ -79,7 +80,7 @@ composable observation functors for censoring and periodic inspection:
 
 ```{r}
 # Right-censored: systems that fail after tau = 2 get recorded at t = 2
-df_cens <- gen(c(1, 2, 3), n = 200,
+df_cens <- gen(c(1, 2, 3), n = 100,
                observe = observe_right_censor(tau = 2))
 table(df_cens$omega)
 ```
@@ -103,8 +104,8 @@ interleaved as `(shape_1, scale_1, shape_2, scale_2, ...)`:
 ```{r}
 model_wei <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "em")
 gen_wei <- rdata(model_wei)
-df_wei <- gen_wei(theta = c(1.5, 2.0, 2.0, 3.0), n = 300)
-result_wei <- fit(model_wei)(df_wei, n_starts = 3)
+df_wei <- gen_wei(theta = c(1.5, 2.0, 2.0, 3.0), n = 100)
+result_wei <- fit(model_wei)(df_wei, n_starts = 1)
 result_wei$shapes
 result_wei$scales
 ```
