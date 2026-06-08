@@ -7,8 +7,8 @@
 
 ## The Problem
 
-You observe a system — an engine, a power grid, a redundant server
-cluster — and you record when it fails. But you don't care about the
+You observe a system (an engine, a power grid, a redundant server
+cluster) and you record when it fails. But you don't care about the
 *system*. You care about the *components* inside it. How long do the
 individual bearings, transformers, or nodes last?
 
@@ -32,7 +32,7 @@ observation schemes.
 
 **Parallel systems** (k = n) are the hardest case: all components have
 failed by the time the system fails, but we only observe the system
-failure time — not the individual failure times. The last-to-fail
+failure time, not the individual failure times. The last-to-fail
 component is observed exactly; all others are deeply left-censored.
 
 This creates an **information asymmetry**: fast components (those that
@@ -109,7 +109,7 @@ s1_fitter <- fit_scheme1(model_wei)
 result_s1 <- s1_fitter(df_s1, n_starts = 3)
 ```
 
-Shape RMSE drops by an order of magnitude — even coarse inspection
+Shape RMSE drops by an order of magnitude: even coarse inspection
 intervals provide dramatic improvement for the worst-estimated
 components.
 
@@ -156,22 +156,26 @@ components required). They convert via `k_dist = m - k_kofn + 1`.
 `kofn` is part of a family of packages for likelihood-based reliability
 inference:
 
-- [**maskedcauses**](https://github.com/queelius/maskedcauses) — Series
+- [**maskedcauses**](https://github.com/queelius/maskedcauses): Series
   systems (k = n) with masked cause of failure
-- [**likelihood.model**](https://github.com/queelius/likelihood.model) —
+- [**likelihood.model**](https://github.com/queelius/likelihood.model):
   Likelihood-based inference generics and `fisher_mle` objects
-- [**algebraic.mle**](https://github.com/queelius/algebraic.mle) — MLE
+- [**algebraic.mle**](https://github.com/queelius/algebraic.mle): MLE
   objects with algebraic operations
 
 ## Vignettes
 
-- `vignette("censoring-framework")` — The theoretical foundation:
-  k-out-of-n as structured censoring
-- `vignette("exponential-parallel")` — Exponential parallel systems with
-  inclusion-exclusion
-- `vignette("kofn-systems")` — Coherent systems and the k-out-of-n
-  spectrum
-- `vignette("weibull-em")` — Weibull EM algorithm and why exponential
-  theory doesn't generalize
-- `vignette("periodic-inspection")` — Observation schemes and resolving
-  information asymmetry
+- `vignette("getting-started")`: quick tour of the kofn model, fit, and
+  the observation-scheme API
+- `vignette("exponential-parallel")`: exponential parallel systems with
+  the inclusion-exclusion likelihood
+- `vignette("weibull-em")`: Weibull EM algorithm and why exponential
+  theory does not generalize
+- `vignette("periodic-inspection")`: observation schemes and resolving
+  the information asymmetry of parallel systems
+- `vignette("observation-schemes")`: composable observation functors
+  (right/left/interval/periodic/mixture) and their effect on estimation
+- `vignette("dist-structure-integration")`: how kofn delegates DGP and
+  topology to dist.structure, with convention conversion notes
+- `vignette("ecosystem")`: walk through the rlang MLE stack from the
+  kofn entry point
