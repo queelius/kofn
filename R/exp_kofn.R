@@ -38,7 +38,9 @@ ll_via_dgp <- function(dgp, t_obs, omega_vals, t_upper, lt_up_avail) {
     } else if (omi == "left") {
       val <- cdf_fn(ti)
     } else if (omi == "interval") {
-      if (!lt_up_avail) return(-Inf)
+      if (!lt_up_avail) {
+        stop("interval-censored observations require an upper-bound column")
+      }
       tu <- t_upper[i]
       val <- cdf_fn(tu) - cdf_fn(ti)
     } else {
@@ -125,7 +127,12 @@ loglik.exp_kofn <- function(model, ...) {
       }
 
       # Interval-censored: log(F_sys(b) - F_sys(a))
-      for (i in which(omega_vals == "interval")) {
+      int_idx <- which(omega_vals == "interval")
+      if (length(int_idx) > 0 && !(lt_up %in% names(df))) {
+        stop(sprintf(
+          "interval-censored observations require column '%s'", lt_up))
+      }
+      for (i in int_idx) {
         a <- t_obs[i]
         b <- df[[lt_up]][i]
         val <- sum(vapply(comps,

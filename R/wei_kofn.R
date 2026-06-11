@@ -22,8 +22,9 @@
 
 #' Component weight for Weibull parallel system (internal)
 #'
-#' Computes w_j(t) = f_j(t) * prod_{i != j} F_i(t), the contribution of
-#' component j to the parallel system density at time t.
+#' Computes \eqn{w_j(t) = f_j(t) \prod_{i \neq j} F_i(t)}{w_j(t) =
+#' f_j(t) * prod(i != j) F_i(t)}, the contribution of component j to
+#' the parallel system density at time t.
 #'
 #' @param t Numeric scalar. Time point (positive).
 #' @param shapes Numeric vector. Weibull shape parameters (length m).
@@ -59,7 +60,8 @@ weibull_S_sys <- function(t, shapes, scales) {
 
 #' System density for Weibull parallel system (internal)
 #'
-#' Computes f_sys(t) = sum_j f_j(t) * prod_{i != j} F_i(t).
+#' Computes \eqn{f_{sys}(t) = \sum_j f_j(t) \prod_{i \neq j}
+#' F_i(t)}{f_sys(t) = sum_j f_j(t) * prod(i != j) F_i(t)}.
 #'
 #' @param t Numeric scalar. Time point.
 #' @param shapes Numeric vector. Weibull shape parameters.

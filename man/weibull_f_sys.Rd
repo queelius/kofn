@@ -17,6 +17,7 @@ weibull_f_sys(t, shapes, scales)
 Numeric scalar f_sys(t).
 }
 \description{
-Computes f_sys(t) = sum_j f_j(t) * prod_{i != j} F_i(t).
+Computes \eqn{f_{sys}(t) = \sum_j f_j(t) \prod_{i \neq j}
+F_i(t)}{f_sys(t) = sum_j f_j(t) * prod(i != j) F_i(t)}.
 }
 \keyword{internal}

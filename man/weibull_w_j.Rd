@@ -19,7 +19,8 @@ weibull_w_j(t, shapes, scales, j)
 Numeric scalar w_j(t).
 }
 \description{
-Computes w_j(t) = f_j(t) * prod_{i != j} F_i(t), the contribution of
-component j to the parallel system density at time t.
+Computes \eqn{w_j(t) = f_j(t) \prod_{i \neq j} F_i(t)}{w_j(t) =
+f_j(t) * prod(i != j) F_i(t)}, the contribution of component j to
+the parallel system density at time t.
 }
 \keyword{internal}

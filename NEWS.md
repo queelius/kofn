@@ -49,6 +49,24 @@ via `:::` will need the same rename.
   constructors provide family-specific S3 subclasses (`dfr_exponential`,
   `dfr_weibull`) that `kofn_subclass()` dispatches on.
 
+## Bug fixes
+
+* `compare_fisher_info()`: corrected the Weibull complete-data
+  (Scheme 2) Fisher information formula. The shape-shape entry had a
+  spurious leading 1 (about 55 percent too large) and the shape-scale
+  cross term was divided by `alpha * beta` instead of `beta`. Both
+  errors vanish at shape 1 (the exponential boundary), which is why
+  exponential results were unaffected. The analytic block now lives in
+  an internal helper verified against numerically integrated expected
+  information in the test suite. Scheme 0/1 results (numerical
+  Hessians) were never affected; for Weibull components, Scheme 2
+  determinants and the efficiency ratios involving Scheme 2 change.
+* Interval-censored rows in a data frame lacking the upper-bound
+  column (`t_upper` by default) now fail with an informative error
+  in all likelihood paths. Previously the exponential parallel fast
+  path crashed with "missing value where TRUE/FALSE needed" and the
+  general-k path silently returned `-Inf`.
+
 # kofn 0.3.1
 
 ## Documentation

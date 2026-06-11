@@ -467,3 +467,68 @@ test_that("compare_fisher_info runs for Weibull family", {
   expect_true(is.list(res))
   expect_equal(length(res$scheme0_det), 3)
 })
+
+
+test_that("weibull_fim_unit matches numerically integrated expected information", {
+  # Regression test for the Weibull complete-data FIM formula. The
+  # pre-0.4.0 code had a spurious leading 1 in I[1,1] and divided the
+  # cross term by alpha*beta instead of beta. Both errors vanish at
+  # shape alpha = 1 (the exponential boundary), so this test uses a
+  # shape well away from 1.
+  alpha <- 2.3
+  beta <- 1.7
+
+  # Expected information: I(theta) = E[-d2/dtheta2 log f(T; theta)],
+  # computed by numerical integration of the numerical Hessian of the
+  # log-density against the density.
+  neg_hess_entry <- function(t, a, b) {
+    H <- numDeriv::hessian(
+      function(p) stats::dweibull(t, shape = p[1], scale = p[2], log = TRUE),
+      c(alpha, beta)
+    )
+    -H[a, b]
+  }
+  I_num <- matrix(0, 2, 2)
+  for (a in 1:2) {
+    for (b in a:2) {
+      val <- stats::integrate(
+        function(ts) {
+          vapply(ts, function(t) {
+            neg_hess_entry(t, a, b) *
+              stats::dweibull(t, shape = alpha, scale = beta)
+          }, numeric(1))
+        },
+        lower = 0, upper = Inf, rel.tol = 1e-8
+      )$value
+      I_num[a, b] <- val
+      I_num[b, a] <- val
+    }
+  }
+
+  I_analytic <- kofn:::weibull_fim_unit(alpha, beta)
+  expect_equal(I_analytic, I_num, tolerance = 1e-5)
+
+  # Spot-check the closed-form entries directly.
+  gamma_euler <- -digamma(1)
+  expect_equal(I_analytic[1, 1], ((1 - gamma_euler)^2 + pi^2 / 6) / alpha^2)
+  expect_equal(I_analytic[1, 2], -(1 - gamma_euler) / beta)
+  expect_equal(I_analytic[2, 2], alpha^2 / beta^2)
+})
+
+
+test_that("interval-censored rows without an upper-bound column error informatively", {
+  # Regression test: the exponential parallel fast path used to crash
+  # with "missing value where TRUE/FALSE needed" when omega == "interval"
+  # rows were present but the t_upper column was absent. Both the
+  # parallel (k = m) fast path and the general-k dist.structure path
+  # must fail with an informative message instead.
+  df_bad <- data.frame(t = c(1.0, 2.0), omega = c("exact", "interval"))
+
+  model_par <- kofn(k = 2, m = 2, component = dfr_exponential())
+  ll_par <- loglik(model_par)
+  expect_error(ll_par(df_bad, c(1, 0.5)), "interval")
+
+  model_gen <- kofn(k = 2, m = 3, component = dfr_exponential())
+  ll_gen <- loglik(model_gen)
+  expect_error(ll_gen(df_bad, c(1, 0.5, 0.3)), "interval")
+})

@@ -2,7 +2,7 @@
 % Please edit documentation in R/ie_expand.R
 \name{w_j_exact}
 \alias{w_j_exact}
-\title{Compute w_j(t) = f_j(t) * prod_{i != j} F_i(t) for exponential components}
+\title{Component weight for exponential parallel systems}
 \usage{
 w_j_exact(t, par, j)
 }
@@ -17,8 +17,9 @@ w_j_exact(t, par, j)
 Scalar value of \eqn{w_j(t)}.
 }
 \description{
-For component j with rate \eqn{\lambda_j} and other rates
-\eqn{\lambda_{-j}}:
+Computes the contribution of component j to the parallel system
+density at time t. For component j with rate \eqn{\lambda_j} and
+other rates \eqn{\lambda_{-j}}:
 \deqn{w_j(t) = \lambda_j e^{-\lambda_j t}
   \prod_{i \neq j} (1 - e^{-\lambda_i t})}
 }

@@ -33,6 +33,35 @@ safe_hessian_det <- function(neg_ll, par) {
 }
 
 
+#' Per-observation expected Fisher information for a Weibull observation
+#'
+#' Exact expected information for a single uncensored observation from
+#' Weibull(shape \eqn{\alpha}, scale \eqn{\beta}) in the
+#' \code{stats::dweibull} parameterization.
+#'
+#' Derivation: if \eqn{T} is Weibull then \eqn{\log T} follows a
+#' minimum-Gumbel distribution with location \eqn{\log \beta} and scale
+#' \eqn{1/\alpha}. Transforming the standard Gumbel location-scale
+#' information matrix gives, with \eqn{\gamma} the Euler-Mascheroni
+#' constant:
+#' \deqn{I_{\alpha\alpha} = \frac{(1-\gamma)^2 + \pi^2/6}{\alpha^2},
+#'   \quad I_{\alpha\beta} = -\frac{1-\gamma}{\beta},
+#'   \quad I_{\beta\beta} = \frac{\alpha^2}{\beta^2}.}
+#'
+#' @param alpha Weibull shape parameter (positive scalar).
+#' @param beta Weibull scale parameter (positive scalar).
+#' @return A 2x2 expected information matrix in (shape, scale) order.
+#' @keywords internal
+#' @noRd
+weibull_fim_unit <- function(alpha, beta) {
+  gamma_euler <- -digamma(1)
+  i_11 <- ((1 - gamma_euler)^2 + pi^2 / 6) / alpha^2
+  i_12 <- -(1 - gamma_euler) / beta
+  i_22 <- alpha^2 / beta^2
+  matrix(c(i_11, i_12, i_12, i_22), 2, 2)
+}
+
+
 #' Compare Fisher information across observation schemes
 #'
 #' For a given parameter configuration, computes the observed Fisher
@@ -144,15 +173,9 @@ compare_fisher_info <- function(shapes = NULL, scales = NULL, rates = NULL,
       I_s2 <- diag(n / rates^2)
     } else {
       I_s2 <- matrix(0, nrow = n_par, ncol = n_par)
-      gamma_euler <- -digamma(1)
       for (j in seq_len(m)) {
-        alpha_j <- shapes[j]
-        beta_j <- scales[j]
         idx <- (2 * (j - 1) + 1):(2 * j)
-        I_11 <- (1 + (1 - gamma_euler)^2 + pi^2 / 6) / alpha_j^2
-        I_12 <- -(1 + digamma(1)) / (alpha_j * beta_j)
-        I_22 <- alpha_j^2 / beta_j^2
-        I_s2[idx, idx] <- n * matrix(c(I_11, I_12, I_12, I_22), 2, 2)
+        I_s2[idx, idx] <- n * weibull_fim_unit(shapes[j], scales[j])
       }
     }
     det_s2[rep] <- det(I_s2)
