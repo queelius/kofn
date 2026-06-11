@@ -1,0 +1,313 @@
+# kofn
+
+**Component Lifetime Estimation from k-out-of-n System Data**
+
+## The Problem
+
+You observe a system (an engine, a power grid, a redundant server
+cluster) and you record when it fails. But you don’t care about the
+*system*. You care about the *components* inside it. How long do the
+individual bearings, transformers, or nodes last?
+
+This is fundamentally a **censoring problem**. When a k-out-of-n system
+fails (meaning k components have failed), the component lifetimes are
+only partially observed:
+
+- **1 component** is observed exactly (the one that triggered system
+  failure)
+- **k − 1 components** are right-censored (still functioning at system
+  failure)
+- **m − k components** are left-censored (already failed, but we don’t
+  know when)
+
+The `kofn` package provides maximum likelihood estimation of component
+lifetime parameters from this structured censoring, supporting
+exponential and Weibull component distributions under multiple
+observation schemes.
+
+## Why This Matters
+
+**Parallel systems** (k = n) are the hardest case: all components have
+failed by the time the system fails, but we only observe the system
+failure time, not the individual failure times. The last-to-fail
+component is observed exactly; all others are deeply left-censored.
+
+This creates an **information asymmetry**: fast components (those that
+typically fail early) contribute almost no information to the
+likelihood, because their CDF is near 1 at typical system failure times.
+The `kofn` package quantifies this asymmetry and provides tools to
+resolve it through periodic inspection.
+
+## Installation
+
+``` r
+# Install from GitHub
+remotes::install_github("queelius/kofn")
+```
+
+## Quick Start
+
+``` r
+library(kofn)
+
+# Create a parallel system model (k=m) with 3 exponential components
+model <- kofn(k = 3, m = 3, family = "exponential")
+
+# Generate data: true rates = (0.5, 0.3, 0.2)
+gen <- rdata(model)
+set.seed(42)
+df <- gen(theta = c(0.5, 0.3, 0.2), n = 300)
+
+# Fit via maximum likelihood
+fitter <- fit(model)
+result <- fitter(df, n_starts = 5)
+
+# Full base R stats interface
+coef(result)       # parameter estimates
+confint(result)    # confidence intervals
+summary(result)    # coefficient table with SEs
+AIC(result)        # model comparison
+```
+
+## Weibull Components with EM
+
+When components follow a Weibull distribution (capturing increasing or
+decreasing failure rates), the estimation problem is substantially
+harder. The `kofn` package provides an EM algorithm whose E-step
+computes truncated Weibull moments via incomplete gamma functions.
+
+``` r
+# Weibull parallel system with EM estimation
+model_wei <- kofn(k = 2, m = 2, family = "weibull", method = "em")
+gen <- rdata(model_wei)
+set.seed(42)
+df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 300)
+#                   ^shape ^scale ^shape ^scale
+
+fitter <- fit(model_wei)
+result <- fitter(df, n_starts = 3)
+summary(result)
+```
+
+## Periodic Inspection (Scheme 1)
+
+Under Scheme 0 (system-level observation only), fast components are
+poorly estimated. Periodic inspection at interval $\delta$ localizes
+each component’s failure time to an inspection interval, resolving the
+information asymmetry:
+
+``` r
+# Generate data with periodic inspection every 0.5 time units
+s1_gen <- rdata_scheme1(model_wei)
+df_s1 <- s1_gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 300, delta = 0.5)
+
+# Fit using the Scheme 1 likelihood
+s1_fitter <- fit_scheme1(model_wei)
+result_s1 <- s1_fitter(df_s1, n_starts = 3)
+```
+
+Shape RMSE drops by an order of magnitude: even coarse inspection
+intervals provide dramatic improvement for the worst-estimated
+components.
+
+## Topology and DGP
+
+As of v0.3.0, kofn delegates topology and data-generating process
+queries to the
+[dist.structure](https://github.com/queelius/dist.structure) package.
+For non-k-of-n topologies (bridges, arbitrary coherent systems), use
+dist.structure directly:
+
+``` r
+library(dist.structure)
+
+# Standard systems with arbitrary component distributions
+sys_parallel <- parallel_dist(replicate(5, algebraic.dist::exponential(1),
+                                        simplify = FALSE))
+sys_2of5     <- exp_kofn(k = 4, rates = c(1, 1, 1, 1, 1))  # dist.structure :G
+sys_bridge   <- bridge_dist(replicate(5, algebraic.dist::exponential(1),
+                                       simplify = FALSE))
+
+# System properties
+system_signature(sys_2of5)
+phi(sys_bridge, c(1L, 0L, 1L, 1L, 0L))
+```
+
+Note the convention: kofn uses :F (k = number of failures triggering
+system failure), dist.structure uses :G (k = number of functioning
+components required). They convert via `k_dist = m - k_kofn + 1`.
+
+## Key Features
+
+| Feature                        | Description                                                                                                                                                                                                                                                                                           |
+|--------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Exponential MLE**            | Closed-form likelihood via inclusion-exclusion expansion for parallel; dist.structure delegation for general k                                                                                                                                                                                        |
+| **Weibull EM**                 | EM algorithm with incomplete gamma E-step and profile M-step                                                                                                                                                                                                                                          |
+| **Direct MLE**                 | L-BFGS-B with Nelder-Mead fallback, multi-start                                                                                                                                                                                                                                                       |
+| **Observation schemes**        | Scheme 0 (black box), Scheme 1 (periodic inspection), Scheme 2 (complete), masked cause-of-failure                                                                                                                                                                                                    |
+| **Fisher information**         | Compare information across observation schemes                                                                                                                                                                                                                                                        |
+| **dist.structure integration** | Full topology, signature, importance measures, compositional operations via the distribution protocol                                                                                                                                                                                                 |
+| **Base R integration**         | [`coef()`](https://rdrr.io/r/stats/coef.html), [`vcov()`](https://rdrr.io/r/stats/vcov.html), [`logLik()`](https://rdrr.io/r/stats/logLik.html), [`AIC()`](https://rdrr.io/r/stats/AIC.html), [`confint()`](https://rdrr.io/r/stats/confint.html), [`summary()`](https://rdrr.io/r/base/summary.html) |
+
+## Ecosystem
+
+`kofn` is part of a family of packages for likelihood-based reliability
+inference:
+
+- [**maskedcauses**](https://github.com/queelius/maskedcauses): Series
+  systems (k = n) with masked cause of failure
+- [**likelihood.model**](https://github.com/queelius/likelihood.model):
+  Likelihood-based inference generics and `fisher_mle` objects
+- [**algebraic.mle**](https://github.com/queelius/algebraic.mle): MLE
+  objects with algebraic operations
+
+## Vignettes
+
+- [`vignette("getting-started")`](https://queelius.github.io/kofn/articles/getting-started.md):
+  quick tour of the kofn model, fit, and the observation-scheme API
+- [`vignette("exponential-parallel")`](https://queelius.github.io/kofn/articles/exponential-parallel.md):
+  exponential parallel systems with the inclusion-exclusion likelihood
+- [`vignette("weibull-em")`](https://queelius.github.io/kofn/articles/weibull-em.md):
+  Weibull EM algorithm and why exponential theory does not generalize
+- [`vignette("periodic-inspection")`](https://queelius.github.io/kofn/articles/periodic-inspection.md):
+  observation schemes and resolving the information asymmetry of
+  parallel systems
+- [`vignette("observation-schemes")`](https://queelius.github.io/kofn/articles/observation-schemes.md):
+  composable observation functors (right/left/interval/periodic/mixture)
+  and their effect on estimation
+- [`vignette("dist-structure-integration")`](https://queelius.github.io/kofn/articles/dist-structure-integration.md):
+  how kofn delegates DGP and topology to dist.structure, with convention
+  conversion notes
+- [`vignette("ecosystem")`](https://queelius.github.io/kofn/articles/ecosystem.md):
+  walk through the rlang MLE stack from the kofn entry point
+
+# Package index
+
+## Model constructor
+
+Create a likelihood model for k-out-of-n systems.
+
+- [`kofn()`](https://queelius.github.io/kofn/reference/kofn.md) : Create
+  a k-out-of-n system estimation model
+- [`is_kofn()`](https://queelius.github.io/kofn/reference/is_kofn.md) :
+  Test if an object is a kofn model
+- [`ncomponents(`*`<kofn>`*`)`](https://queelius.github.io/kofn/reference/ncomponents.kofn.md)
+  : Number of components in a kofn model
+- [`print(`*`<kofn>`*`)`](https://queelius.github.io/kofn/reference/print.kofn.md)
+  : Print method for kofn models
+
+## Likelihood generics
+
+S3 methods for the likelihood.model protocol.
+
+- [`loglik(`*`<exp_kofn>`*`)`](https://queelius.github.io/kofn/reference/loglik.exp_kofn.md)
+  : Log-likelihood for exponential k-out-of-n model
+- [`loglik(`*`<wei_kofn>`*`)`](https://queelius.github.io/kofn/reference/loglik.wei_kofn.md)
+  : Log-likelihood for Weibull k-out-of-n system
+- [`score(`*`<exp_kofn>`*`)`](https://queelius.github.io/kofn/reference/score.exp_kofn.md)
+  : Score function for exponential k-out-of-n model
+- [`score(`*`<wei_kofn>`*`)`](https://queelius.github.io/kofn/reference/score.wei_kofn.md)
+  : Score function for Weibull k-out-of-n system
+- [`hess_loglik(`*`<exp_kofn>`*`)`](https://queelius.github.io/kofn/reference/hess_loglik.exp_kofn.md)
+  : Hessian of the log-likelihood for exponential k-out-of-n model
+- [`hess_loglik(`*`<wei_kofn>`*`)`](https://queelius.github.io/kofn/reference/hess_loglik.wei_kofn.md)
+  : Hessian of log-likelihood for Weibull k-out-of-n system
+- [`fit(`*`<exp_kofn>`*`)`](https://queelius.github.io/kofn/reference/fit.exp_kofn.md)
+  : MLE fitting for exponential k-out-of-n model
+- [`fit(`*`<wei_kofn>`*`)`](https://queelius.github.io/kofn/reference/fit.wei_kofn.md)
+  : Fit Weibull k-out-of-n system model
+- [`rdata(`*`<exp_kofn>`*`)`](https://queelius.github.io/kofn/reference/rdata.exp_kofn.md)
+  : Random data generation for exponential k-out-of-n model
+- [`rdata(`*`<wei_kofn>`*`)`](https://queelius.github.io/kofn/reference/rdata.wei_kofn.md)
+  : Generate random data from a Weibull k-out-of-n system
+- [`assumptions(`*`<exp_kofn>`*`)`](https://queelius.github.io/kofn/reference/assumptions.exp_kofn.md)
+  : Assumptions for exponential k-out-of-n model
+- [`assumptions(`*`<wei_kofn>`*`)`](https://queelius.github.io/kofn/reference/assumptions.wei_kofn.md)
+  : Assumptions for Weibull k-out-of-n system model
+
+## Observation functors
+
+Composable observation schemes for censored and inspected data.
+
+- [`observe_exact()`](https://queelius.github.io/kofn/reference/observe_exact.md)
+  : Exact observation scheme (no censoring)
+- [`observe_right_censor()`](https://queelius.github.io/kofn/reference/observe_right_censor.md)
+  : Right-censoring observation scheme
+- [`observe_left_censor()`](https://queelius.github.io/kofn/reference/observe_left_censor.md)
+  : Left-censoring observation scheme
+- [`observe_interval_censor()`](https://queelius.github.io/kofn/reference/observe_interval_censor.md)
+  : Interval-censoring observation scheme
+- [`observe_periodic()`](https://queelius.github.io/kofn/reference/observe_periodic.md)
+  : Periodic inspection observation scheme
+- [`observe_mixture()`](https://queelius.github.io/kofn/reference/observe_mixture.md)
+  : Mixture of observation schemes
+
+## Periodic inspection (Scheme 1)
+
+- [`loglik_scheme1()`](https://queelius.github.io/kofn/reference/loglik_scheme1.md)
+  : Log-likelihood for Scheme 1 (periodic inspection) parallel system
+- [`rdata_scheme1()`](https://queelius.github.io/kofn/reference/rdata_scheme1.md)
+  : Generate Scheme 1 (periodic inspection) data
+- [`fit_scheme1()`](https://queelius.github.io/kofn/reference/fit_scheme1.md)
+  : Fit k-out-of-n system MLE under Scheme 1 (periodic inspection)
+
+## Masked cause-of-failure
+
+- [`loglik_masked()`](https://queelius.github.io/kofn/reference/loglik_masked.md)
+  : Masked k-out-of-n log-likelihood
+- [`rdata_masked()`](https://queelius.github.io/kofn/reference/rdata_masked.md)
+  : Generate masked k-out-of-n data
+
+## Fisher information
+
+- [`compare_fisher_info()`](https://queelius.github.io/kofn/reference/compare_fisher_info.md)
+  : Compare Fisher information across observation schemes
+
+## Parallel fast-path internals
+
+Inclusion-exclusion expansion for parallel exponential systems.
+
+- [`ie_expand()`](https://queelius.github.io/kofn/reference/ie_expand.md)
+  : Inclusion-exclusion expansion of a product of CDFs
+- [`w_j_exact()`](https://queelius.github.io/kofn/reference/w_j_exact.md)
+  : Compute w_j(t) = f_j(t) \* prod_i != j F_i(t) for exponential
+  components
+- [`w_j_integral()`](https://queelius.github.io/kofn/reference/w_j_integral.md)
+  : Closed-form integral of w_j(t) over an interval
+- [`F_sys_exp()`](https://queelius.github.io/kofn/reference/F_sys_exp.md)
+  : System CDF for exponential parallel systems
+- [`S_sys_exp()`](https://queelius.github.io/kofn/reference/S_sys_exp.md)
+  : System survival function for exponential parallel systems
+
+## Shared helpers
+
+- [`solve_mle()`](https://queelius.github.io/kofn/reference/solve_mle.md)
+  : Default MLE solver for positive parameters
+- [`trunc_log_moment_vec()`](https://queelius.github.io/kofn/reference/trunc_log_moment_vec.md)
+  : Vectorized truncated log-moment of the Weibull distribution
+- [`trunc_pow_moment()`](https://queelius.github.io/kofn/reference/trunc_pow_moment.md)
+  : Scalar truncated power moment of the Weibull distribution
+- [`trunc_pow_moment_vec()`](https://queelius.github.io/kofn/reference/trunc_pow_moment_vec.md)
+  : Vectorized truncated power moment of the Weibull distribution
+
+# Articles
+
+### Core workflows
+
+- [Getting started with
+  kofn](https://queelius.github.io/kofn/articles/getting-started.md):
+- [Exponential Parallel Systems: Closed-Form MLE via
+  Inclusion-Exclusion](https://queelius.github.io/kofn/articles/exponential-parallel.md):
+- [Observation Scheme
+  Composability](https://queelius.github.io/kofn/articles/observation-schemes.md):
+- [Weibull Parallel Systems: EM Algorithm for Shape-Scale
+  Estimation](https://queelius.github.io/kofn/articles/weibull-em.md):
+- [Observation Schemes: Resolving Information Asymmetry via Periodic
+  Inspection](https://queelius.github.io/kofn/articles/periodic-inspection.md):
+
+### Ecosystem integration
+
+- [dist.structure
+  integration](https://queelius.github.io/kofn/articles/dist-structure-integration.md):
+- [Inside kofn: Building on the rlang MLE
+  Stack](https://queelius.github.io/kofn/articles/ecosystem.md):
