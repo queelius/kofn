@@ -18,10 +18,10 @@ only partially observed:
 
 - **1 component** is observed exactly (the one that triggered system
   failure)
-- **k − 1 components** are right-censored (still functioning at system
-  failure)
-- **m − k components** are left-censored (already failed, but we don't
+- **k − 1 components** are left-censored (already failed, but we don't
   know when)
+- **m − k components** are right-censored (still functioning at system
+  failure)
 
 The `kofn` package provides maximum likelihood estimation of component
 lifetime parameters from this structured censoring, supporting
@@ -54,7 +54,7 @@ remotes::install_github("queelius/kofn")
 library(kofn)
 
 # Create a parallel system model (k=m) with 3 exponential components
-model <- kofn(k = 3, m = 3, family = "exponential")
+model <- kofn(k = 3, m = 3, component = dfr_exponential())
 
 # Generate data: true rates = (0.5, 0.3, 0.2)
 gen <- rdata(model)
@@ -81,7 +81,7 @@ computes truncated Weibull moments via incomplete gamma functions.
 
 ```r
 # Weibull parallel system with EM estimation
-model_wei <- kofn(k = 2, m = 2, family = "weibull", method = "em")
+model_wei <- kofn(k = 2, m = 2, component = dfr_weibull(), method = "em")
 gen <- rdata(model_wei)
 set.seed(42)
 df <- gen(theta = c(1.5, 2.0, 2.0, 3.0), n = 300)
